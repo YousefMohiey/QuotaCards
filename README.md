@@ -11,7 +11,8 @@ QuotaCards is a personal VPN built for ISPs that bill by quota buckets (gaming /
 
 Grab the latest build from [Releases](https://github.com/YousefMohiey/QuotaCards/releases/latest):
 
-- **Windows**: `quotacards-win.zip`. Unzip both files into one folder and run. The app checks for updates by itself under Settings, Updates.
+- **Windows**: `QuotaCards_0.2.0_x64-setup.exe`. Run it once; afterwards
+  the app updates itself from here (Settings, Updates, one tap).
 - **Android**: `QuotaCards-mobile-signed.apk`. Sideload and install.
 
 Cards are plain `vless://` links, so they also work in NekoBox, v2rayNG, and anything else that speaks VLESS.
@@ -36,7 +37,8 @@ Native desktop layout with sidebar, same dark glass theme as the phone:
 - Cards manager with centered dialogs, per-app routing picker
 - Speed screen: ping (Google, card domain, Quad9, 1.1.1.1) plus download/upload throughput against your own server
 - Kill switch on by nature: strict routing, no leak path
-- Self-updater: Settings, Updates, Download update installs the new build and restarts, no installer
+- Self-updater: Settings, Updates, one tap downloads the signed setup,
+  installs it, and restarts - plus a tray Check entry doing the same
 
 ## Android app
 

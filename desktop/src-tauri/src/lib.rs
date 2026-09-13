@@ -12,7 +12,12 @@ use quotacards::{
 };
 use std::sync::Mutex;
 use tauri::Manager;
+use tauri::Emitter;
+use tauri::WindowEvent;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri_plugin_updater::UpdaterExt;
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -474,16 +479,14 @@ async fn tunnel_probe(app: tauri::AppHandle) -> Result<CmdResult, String> {
     }
 }
 
-/// Update check against GitHub releases. No installer exists on purpose:
-/// the app ships as a plain zip, so this only reports and opens the
-/// release page; the user replaces the exe by hand.
+/// Update check through the signed updater feed. Reports only; the
+/// install path is `apply_update` (official flow, restarts by itself).
 #[derive(serde::Serialize)]
 struct UpdateInfo {
     current: String,
     latest: String,
     available: bool,
     url: String,
-    zip_url: String,
 }
 
 fn newer(latest: &str, current: &str) -> bool {
@@ -497,144 +500,75 @@ fn newer(latest: &str, current: &str) -> bool {
 }
 
 #[tauri::command]
-async fn check_update() -> Result<UpdateInfo, String> {
+async fn check_update(app: tauri::AppHandle) -> Result<UpdateInfo, String> {
     const REPO: &str = "YousefMohiey/QuotaCards";
     let current = env!("CARGO_PKG_VERSION").to_string();
-    let out = std::process::Command::new("curl.exe")
-        .args([
-            "-s",
-            "--max-time",
-            "20",
-            "-H",
-            "Accept: application/vnd.github+json",
-            "-H",
-            "User-Agent: quotacards-updater",
-            &format!("https://api.github.com/repos/{REPO}/releases/latest"),
-        ])
-        .creation_flags(0x08000000)
-        .output()
+    let found = app
+        .updater()
+        .map_err(|e| format!("updater unavailable: {e}"))?
+        .check()
+        .await
         .map_err(|e| format!("check failed: {e}"))?;
-    if !out.status.success() {
-        return Err("Could not reach GitHub.".to_string());
+    match found {
+        Some(u) => Ok(UpdateInfo {
+            available: newer(&u.version, &current),
+            url: format!("https://github.com/{REPO}/releases/tag/v{}", u.version),
+            latest: u.version,
+            current,
+        }),
+        None => Ok(UpdateInfo {
+            available: false,
+            url: String::new(),
+            latest: current.clone(),
+            current,
+        }),
     }
-    let v: serde_json::Value =
-        serde_json::from_slice(&out.stdout).map_err(|_| "GitHub answer unreadable.".to_string())?;
-    let tag = v
-        .get("tag_name")
-        .and_then(|s| s.as_str())
-        .unwrap_or("")
-        .trim_start_matches(['v', 'V'])
-        .to_string();
-    if tag.is_empty() {
-        return Err("No releases published yet.".to_string());
-    }
-    let url = v
-        .get("html_url")
-        .and_then(|s| s.as_str())
-        .unwrap_or("")
-        .to_string();
-    // The exact zip the release ships for this app, nothing else.
-    let zip_url = v
-        .get("assets")
-        .and_then(|a| a.as_array())
-        .and_then(|arr| {
-            arr.iter().find_map(|x| {
-                if x.get("name").and_then(|s| s.as_str()) == Some("quotacards-win.zip") {
-                    x.get("browser_download_url")
-                        .and_then(|s| s.as_str())
-                        .map(|s| s.to_string())
-                } else {
-                    None
-                }
-            })
-        })
-        .unwrap_or_default();
-    Ok(UpdateInfo {
-        available: newer(&tag, &current),
-        latest: tag,
-        url,
-        zip_url,
-        current,
-    })
 }
 
-/// Open the release page in the default browser (zero new deps).
+/// Install the update by itself: stop the tunnel (the installer needs
+/// the TUN device free), download + verify + run the signed setup,
+/// then restart into the new build. Progress goes to the UI as
+/// `update-progress` events with a `pct` field.
 #[tauri::command]
-async fn open_update_url(url: String) -> Result<String, String> {
-    std::process::Command::new("cmd")
-        .args(["/C", "start", "", &url])
-        .creation_flags(0x08000000)
-        .spawn()
-        .map_err(|e| format!("could not open: {e}"))?;
-    Ok("opened".to_string())
-}
-
-/// Install the update by itself: download the release zip, unpack it in
-/// TEMP, then hand over to a small waiter script that swaps the two app
-/// files after this process exits (a running exe cannot replace itself)
-/// and starts the new build. No installer, no extra tools.
-#[tauri::command]
-async fn apply_update(url: String) -> Result<String, String> {
-    if !url.starts_with("https://github.com/")
-        && !url.starts_with("https://objects.githubusercontent.com/")
+async fn apply_update(app: tauri::AppHandle) -> Result<String, String> {
     {
-        return Err("Bad update address.".to_string());
+        let eng = app.state::<Engine>();
+        stop_engine(&eng);
     }
-    let exe = std::env::current_exe().map_err(|e| format!("where am i: {e}"))?;
-    let dir = exe.parent().ok_or("No app folder.")?.to_path_buf();
-    // Prove the folder is writable NOW: after exit nobody can report back.
-    let probe = dir.join(".qc-write-test");
-    std::fs::write(&probe, b"1")
-        .map_err(|_| "App folder is not writable. Move the app somewhere you own, then update.".to_string())?;
-    let _ = std::fs::remove_file(&probe);
-    let stage = std::env::temp_dir().join("qc-update");
-    let _ = std::fs::remove_dir_all(&stage);
-    std::fs::create_dir_all(&stage).map_err(|e| format!("stage: {e}"))?;
-    let zip = stage.join("update.zip");
-    let dl = std::process::Command::new("curl.exe")
-        .args(["-sL", "--max-time", "300", "-o"])
-        .arg(&zip)
-        .arg(&url)
-        .creation_flags(0x08000000)
-        .output()
-        .map_err(|e| format!("download failed: {e}"))?;
-    if !dl.status.success() {
-        return Err("Download failed.".to_string());
-    }
-    let ext = stage.join("files");
-    let ps = format!(
-        "Expand-Archive -Path '{}' -DestinationPath '{}' -Force",
-        zip.display(),
-        ext.display()
-    );
-    let un = std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-Command", &ps])
-        .creation_flags(0x08000000)
-        .output()
-        .map_err(|e| format!("unpack failed: {e}"))?;
-    if !un.status.success() || !ext.join("quotacards.exe").exists() {
-        return Err("Update package broken.".to_string());
-    }
-    let pid = std::process::id();
-    let bat = stage.join("swap.bat");
-    let script = format!(
-        "@echo off\r\n:wait\r\ntasklist /FI \"PID eq {pid}\" 2>NUL | find \"{pid}\" >NUL\r\nif not errorlevel 1 (timeout /t 1 /nobreak >NUL & goto wait)\r\ncopy /Y \"{src}\\quotacards.exe\" \"{dir}\\\" >NUL\r\ncopy /Y \"{src}\\WebView2Loader.dll\" \"{dir}\\\" >NUL\r\nstart \"\" \"{dir}\\quotacards.exe\"\r\n(goto) 2>NUL & del \"%~f0\"\r\n",
-        pid = pid,
-        src = ext.display(),
-        dir = dir.display()
-    );
-    std::fs::write(&bat, script).map_err(|e| format!("swap script: {e}"))?;
-    std::process::Command::new("cmd")
-        .args(["/C", "start", "/MIN", "", &bat.to_string_lossy()])
-        .creation_flags(0x08000000)
-        .spawn()
-        .map_err(|e| format!("could not start installer: {e}"))?;
-    std::process::exit(0);
+    let update = app
+        .updater()
+        .map_err(|e| format!("updater unavailable: {e}"))?
+        .check()
+        .await
+        .map_err(|e| format!("check failed: {e}"))?
+        .ok_or_else(|| "Already on the latest build.".to_string())?;
+    let prog = app.clone();
+    update
+        .download_and_install(
+            move |chunk, total| {
+                let pct = total.map(|t| {
+                    if t > 0 {
+                        ((chunk as u64 * 100 / t).min(100)) as usize
+                    } else {
+                        0
+                    }
+                });
+                let _ = prog.emit(
+                    "update-progress",
+                    serde_json::json!({"chunk": chunk, "total": total, "pct": pct}),
+                );
+            },
+            || {},
+        )
+        .await
+        .map_err(|e| format!("install failed: {e}"))?;
+    app.restart();
 }
 
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(State(Mutex::new(AppConfig::default())))
         .manage(Engine(Mutex::new(None)))
         .setup(|app| {
@@ -645,7 +579,70 @@ pub fn run() {
             ))
             .unwrap_or_default();
             *app.state::<State>().0.lock().unwrap() = cfg;
+            // Tray: the app lives here. Closing the window only hides it;
+            // Quit from this menu is the real exit (engine stopped first).
+            let show = MenuItem::with_id(app, "show", "Show QuotaCards", true, None::<&str>)?;
+            let check = MenuItem::with_id(app, "check", "Check for updates", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show, &check, &quit])?;
+            let raw = image::load_from_memory_with_format(
+                include_bytes!("../icons/128x128.png"),
+                image::ImageFormat::Png,
+            )
+            .map_err(|e| format!("tray icon: {e}"))?
+            .to_rgba8();
+            let (w, h) = (raw.width(), raw.height());
+            let icon = tauri::image::Image::new_owned(raw.into_raw(), w, h);
+            let handle = app.handle().clone();
+            TrayIconBuilder::with_id("main")
+                .icon(icon)
+                .tooltip("QuotaCards")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        if let Some(w) = tray.app_handle().get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                        }
+                    }
+                })
+                .build(&handle)?;
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            // X hides to the tray instead of quitting; the tunnel keeps
+            // running and the icon stays until Quit is picked there.
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.hide();
+                api.prevent_close();
+            }
+        })
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "show" => {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
+            }
+            "check" => {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
+                let _ = app.emit("tray-check-updates", ());
+            }
+            "quit" => {
+                let eng = app.state::<Engine>();
+                stop_engine(&eng);
+                app.exit(0);
+            }
+            _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             get_state,
@@ -663,7 +660,6 @@ pub fn run() {
             tunnel_apps,
             resolve_host,
             check_update,
-            open_update_url,
             apply_update
         ])
         .run(tauri::generate_context!())

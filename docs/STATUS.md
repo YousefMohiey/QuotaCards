@@ -14,6 +14,9 @@
 - Per-app VPN (all / only-these / all-but-these), quick-settings tile,
   kill-switch path via system Always-on VPN (+ Block connections).
 - In-app speed test (Cloudflare endpoints, measures the live path).
+- Windows ships as an NSIS installer; closing the window hides to the
+  tray (Show / Check for updates / Quit), and updates install from
+  GitHub by themselves (signed feed, auto-restart).
 - Server page in 4 sections (Status/Connection/General/Protection),
   centered pickers, no content trapped behind the tab bar, EN + AR RTL.
 - Honest labels: Game/WireGuard warn they count general.

@@ -41,12 +41,13 @@ document.addEventListener("DOMContentLoaded", () => {
       upHint: "Upload to your server through the active path.",
       pingHint: "Best of 2 requests through the active path.",
       measuring: "Measuring…",
-      upTitle: "Updates", upCheck: "Check for updates", upGet: "Download update",
-      upHint: "New builds land on GitHub.", upChecking: "Checking…",
+      upTitle: "Updates", upCheck: "Check for updates", upGet: "Download and install",
+      upHint: "New builds install by themselves.", upChecking: "Checking…",
       upOut: "{v} is out.", upCur: "You run {v}.", upLatest: "{v} is the latest.",
       upFail: "Could not reach GitHub.",
       upIdle: "Not checked yet.",
       upInstalling: "Installing, the app will restart…",
+      upPct: "Installing {p}%…",
     },
     ar: {
       tabSpeed: "السرعة", pingTitle: "البينج", ptDomain: "دومين البطاقة", pingBtn: "قيس",
@@ -58,12 +59,13 @@ document.addEventListener("DOMContentLoaded", () => {
       upHint: "رفع إلى السيرفر عبر المسار الحالي.",
       pingHint: "أفضل محاولتين عبر المسار الحالي.",
       measuring: "جارٍ القياس…",
-      upTitle: "التحديثات", upCheck: "تحقق من التحديثات", upGet: "تحميل التحديث",
-      upHint: "الإصدارات الجديدة على GitHub.", upChecking: "جارٍ التحقق…",
+      upTitle: "التحديثات", upCheck: "تحقق من التحديثات", upGet: "تحميل وتثبيت",
+      upHint: "الإصدارات الجديدة بتتثبت لوحدها.", upChecking: "جارٍ التحقق…",
       upOut: "الإصدار {v} متاح.", upCur: "إصدارك {v}.", upLatest: "{v} هو الأحدث.",
       upFail: "تعذر الوصول إلى GitHub.",
       upIdle: "لم يتم التحقق بعد.",
       upInstalling: "جارٍ التثبيت، سيعيد التطبيق التشغيل…",
+      upPct: "جارٍ التثبيت {p}٪…",
     },
   };
   const lang = () => document.documentElement.lang === "ar" ? "ar" : "en";
@@ -197,17 +199,17 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (e) { $("up-out").textContent = t("noReply"); }
     finally { $("thru-meter").hidden = true; busy(false); }
   };
-  let updUrl = "";
-  let updZip = "";
-  const bcu = $("btn-check-upd");
-  if (bcu) bcu.onclick = async () => {
+  let updBusy = false;
+  async function runUpdateCheck() {
+    if (updBusy) return;
+    updBusy = true;
+    const bcu = $("btn-check-upd");
+    if (bcu) bcu.disabled = true;
     $("upd-state").textContent = t("upChecking");
     $("upd-go-row").hidden = true;
     try {
       const r = await bridge("check_update");
       if (r.available) {
-        updUrl = r.url;
-        updZip = r.zip_url || "";
         $("upd-state").textContent = t("upOut").replace("{v}", r.latest);
         $("upd-note").textContent = t("upCur").replace("{v}", r.current);
         $("upd-go-row").hidden = false;
@@ -216,21 +218,20 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } catch (e) {
       $("upd-state").textContent = t("upFail");
+    } finally {
+      updBusy = false;
+      if (bcu) bcu.disabled = false;
     }
-  };
+  }
+  const bcu = $("btn-check-upd");
+  if (bcu) bcu.onclick = runUpdateCheck;
   const bgu = $("btn-get-upd");
   if (bgu) bgu.onclick = async () => {
-    // One tap: install by itself when the release carries our zip,
-    // otherwise just open the release page.
-    if (!updZip) {
-      if (!updUrl) return;
-      try { await bridge("open_update_url", { url: updUrl }); } catch (e) {}
-      return;
-    }
+    // One tap: the signed setup downloads, installs, and restarts us.
     bgu.disabled = true;
     $("upd-state").textContent = t("upInstalling");
     try {
-      await bridge("apply_update", { url: updZip });
+      await bridge("apply_update");
       $("upd-state").textContent = t("upFail");
     } catch (e) {
       $("upd-state").textContent = (e && e.message) || t("upFail");
@@ -238,6 +239,21 @@ document.addEventListener("DOMContentLoaded", () => {
       bgu.disabled = false;
     }
   };
+  // Install progress from Rust, and the tray menu's Check entry: open
+  // Settings and run the check straight away.
+  try {
+    const ev = window.__TAURI__ && window.__TAURI__.event;
+    if (ev && ev.listen) {
+      ev.listen("update-progress", (e) => {
+        const p = e && e.payload;
+        if (p && typeof p.pct === "number") $("upd-state").textContent = t("upPct").replace("{p}", String(p.pct));
+      });
+      ev.listen("tray-check-updates", () => {
+        try { if (window.goTab) window.goTab("settings"); } catch (err) {}
+        runUpdateCheck();
+      });
+    }
+  } catch (e) {}
   paint();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
