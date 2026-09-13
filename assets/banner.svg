@@ -1,66 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400">
   <defs>
-    <filter id="soft60" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="60"/>
-    </filter>
-    <filter id="soft18" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="18"/>
-    </filter>
-    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.20"/>
-      <stop offset="30%" stop-color="#ffffff" stop-opacity="0.06"/>
-      <stop offset="100%" stop-color="#5b9cff" stop-opacity="0.10"/>
-    </linearGradient>
-    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
-      <stop offset="45%" stop-color="#ffffff" stop-opacity="0.04"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
-    <radialGradient id="topshine" cx="50%" cy="0%" r="90%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.14"/>
-      <stop offset="60%" stop-color="#ffffff" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="tileglow" cx="50%" cy="55%" r="60%">
-      <stop offset="0%" stop-color="#5b9cff" stop-opacity="0.35"/>
-      <stop offset="100%" stop-color="#5b9cff" stop-opacity="0"/>
-    </radialGradient>
     <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#f3f4f6"/>
       <stop offset="100%" stop-color="#9aa3b2"/>
     </linearGradient>
   </defs>
-
-  <!-- black-blue night backdrop, same as the app -->
   <rect width="1200" height="400" rx="28" fill="#04060b"/>
-  <ellipse cx="880" cy="110" rx="280" ry="170" fill="#2f5296" opacity="0.5" filter="url(#soft60)"/>
-  <ellipse cx="250" cy="340" rx="300" ry="150" fill="#1d3a75" opacity="0.55" filter="url(#soft60)"/>
-  <ellipse cx="600" cy="200" rx="180" ry="140" fill="#8caadc" opacity="0.25" filter="url(#soft60)"/>
-  <rect width="1200" height="400" rx="28" fill="url(#topshine)"/>
+  <circle cx="950" cy="80" r="130" fill="#274b8f" opacity="0.35"/>
+  <circle cx="200" cy="330" r="150" fill="#1d3a75" opacity="0.4"/>
 
-  <!-- liquid-glass app tile -->
-  <g transform="translate(215,200)">
-    <ellipse cx="0" cy="10" rx="110" ry="100" fill="url(#tileglow)"/>
-    <rect x="-85" y="-85" width="170" height="170" rx="42" fill="url(#tile)" stroke="#ffffff" stroke-opacity="0.4" stroke-width="1.5"/>
-    <rect x="-85" y="-85" width="170" height="170" rx="42" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="6"/>
-    <path d="M-63 -62 A88 88 0 0 1 63 -62 L63 -30 A88 88 0 0 0 -63 -30 Z" fill="url(#sheen)"/>
-    <circle cx="0" cy="-8" r="42" fill="none" stroke="url(#ring)" stroke-width="18" filter="url(#soft18)" opacity="0.5"/>
-    <circle cx="0" cy="-8" r="42" fill="none" stroke="url(#ring)" stroke-width="18"/>
-    <path d="M23 23 L55 55 L31 59 L12 36 Z" fill="#5b9cff"/>
+  <g transform="translate(200,200)">
+    <rect x="-78" y="-78" width="156" height="156" rx="38" fill="#111827"/>
+    <rect x="-78" y="-78" width="156" height="156" rx="38" fill="none" stroke="#ffffff" stroke-opacity="0.2" stroke-width="2"/>
+    <circle cx="0" cy="-6" r="40" fill="none" stroke="url(#ring)" stroke-width="17"/>
+    <path d="M22 22 L52 52 L30 56 L12 34 Z" fill="#5b9cff"/>
   </g>
 
-  <!-- wordmark on frosted glass panel -->
-  <g>
-    <rect x="350" y="72" width="700" height="256" rx="28" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.16"/>
-    <path d="M378 100 A28 28 0 0 1 406 72 L1022 72 A28 28 0 0 1 1050 100 L1050 118 L378 118 Z" fill="url(#sheen)" opacity="0.6"/>
-    <text x="392" y="168" font-family="'Segoe UI', system-ui, sans-serif" font-size="72" font-weight="800" fill="#f3f4f6">QuotaCards</text>
-    <text x="394" y="214" font-family="'Segoe UI', system-ui, sans-serif" font-size="26" fill="#9aa3b2">Quota-aware VPN for Windows and Android</text>
-    <g font-family="'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="700">
-      <rect x="392" y="240" width="136" height="46" rx="23" fill="#5b9cff" fill-opacity="0.16" stroke="#5b9cff" stroke-opacity="0.6"/>
-      <text x="460" y="270" text-anchor="middle" fill="#8fb8ff">Windows</text>
-      <rect x="540" y="240" width="128" height="46" rx="23" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.22"/>
-      <text x="604" y="270" text-anchor="middle" fill="#c9d4e6">Android</text>
-      <rect x="680" y="240" width="130" height="46" rx="23" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.22"/>
-      <text x="745" y="270" text-anchor="middle" fill="#c9d4e6">EN + AR</text>
-    </g>
+  <text x="320" y="190" font-family="'Segoe UI', system-ui, sans-serif" font-size="72" font-weight="800" fill="#f3f4f6">QuotaCards</text>
+  <text x="322" y="240" font-family="'Segoe UI', system-ui, sans-serif" font-size="27" fill="#9aa3b2">Quota-aware VPN for Windows and Android</text>
+  <g font-family="'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="700">
+    <rect x="322" y="272" width="136" height="46" rx="23" fill="#5b9cff" fill-opacity="0.16" stroke="#5b9cff" stroke-opacity="0.6"/>
+    <text x="390" y="302" text-anchor="middle" fill="#8fb8ff">Windows</text>
+    <rect x="470" y="272" width="128" height="46" rx="23" fill="none" stroke="#3a4356" stroke-width="1.5"/>
+    <text x="534" y="302" text-anchor="middle" fill="#c9d4e6">Android</text>
+    <rect x="610" y="272" width="130" height="46" rx="23" fill="none" stroke="#3a4356" stroke-width="1.5"/>
+    <text x="675" y="302" text-anchor="middle" fill="#c9d4e6">EN + AR</text>
   </g>
 </svg>
