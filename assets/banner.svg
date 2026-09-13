@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#16233d"/>
+      <stop offset="55%" stop-color="#0a1120"/>
+      <stop offset="100%" stop-color="#04060b"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f3f4f6"/>
+      <stop offset="100%" stop-color="#9aa3b2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="400" rx="28" fill="url(#glow)"/>
+  <circle cx="980" cy="70" r="120" fill="#5b9cff" opacity="0.10"/>
+  <circle cx="220" cy="340" r="140" fill="#5b9cff" opacity="0.08"/>
+  <g transform="translate(200,200)">
+    <rect x="-78" y="-78" width="156" height="156" rx="38" fill="#111827"/>
+    <rect x="-78" y="-78" width="156" height="156" rx="38" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="2"/>
+    <circle cx="0" cy="-6" r="40" fill="none" stroke="url(#ring)" stroke-width="17"/>
+    <path d="M22 22 L52 52 L30 56 L12 34 Z" fill="#5b9cff"/>
+  </g>
+  <text x="320" y="195" font-family="'Segoe UI', system-ui, sans-serif" font-size="72" font-weight="800" fill="#f3f4f6">QuotaCards</text>
+  <text x="322" y="248" font-family="'Segoe UI', system-ui, sans-serif" font-size="28" fill="#9aa3b2">Quota-aware VPN for Windows and Android</text>
+  <g font-family="'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="700">
+    <rect x="322" y="282" width="132" height="44" rx="22" fill="#5b9cff" fill-opacity="0.14" stroke="#5b9cff" stroke-opacity="0.45"/>
+    <text x="388" y="311" text-anchor="middle" fill="#5b9cff">Windows</text>
+    <rect x="466" y="282" width="128" height="44" rx="22" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.45"/>
+    <text x="530" y="311" text-anchor="middle" fill="#34d399">Android</text>
+    <rect x="606" y="282" width="150" height="44" rx="22" fill="#e8a33d" fill-opacity="0.12" stroke="#e8a33d" stroke-opacity="0.45"/>
+    <text x="681" y="311" text-anchor="middle" fill="#e8a33d">EN + AR</text>
+  </g>
+</svg>
