@@ -46,6 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
       upOut: "{v} is out.", upCur: "You run {v}.", upLatest: "{v} is the latest.",
       upFail: "Could not reach GitHub.",
       upIdle: "Not checked yet.",
+      upInstalling: "Installing, the app will restart…",
     },
     ar: {
       tabSpeed: "السرعة", pingTitle: "البينج", ptDomain: "دومين البطاقة", pingBtn: "قيس",
@@ -62,6 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
       upOut: "الإصدار {v} متاح.", upCur: "إصدارك {v}.", upLatest: "{v} هو الأحدث.",
       upFail: "تعذر الوصول إلى GitHub.",
       upIdle: "لم يتم التحقق بعد.",
+      upInstalling: "جارٍ التثبيت، سيعيد التطبيق التشغيل…",
     },
   };
   const lang = () => document.documentElement.lang === "ar" ? "ar" : "en";
@@ -196,6 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
     finally { $("thru-meter").hidden = true; busy(false); }
   };
   let updUrl = "";
+  let updZip = "";
   const bcu = $("btn-check-upd");
   if (bcu) bcu.onclick = async () => {
     $("upd-state").textContent = t("upChecking");
@@ -204,6 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const r = await bridge("check_update");
       if (r.available) {
         updUrl = r.url;
+        updZip = r.zip_url || "";
         $("upd-state").textContent = t("upOut").replace("{v}", r.latest);
         $("upd-note").textContent = t("upCur").replace("{v}", r.current);
         $("upd-go-row").hidden = false;
@@ -216,8 +220,23 @@ document.addEventListener("DOMContentLoaded", () => {
   };
   const bgu = $("btn-get-upd");
   if (bgu) bgu.onclick = async () => {
-    if (!updUrl) return;
-    try { await bridge("open_update_url", { url: updUrl }); } catch (e) {}
+    // One tap: install by itself when the release carries our zip,
+    // otherwise just open the release page.
+    if (!updZip) {
+      if (!updUrl) return;
+      try { await bridge("open_update_url", { url: updUrl }); } catch (e) {}
+      return;
+    }
+    bgu.disabled = true;
+    $("upd-state").textContent = t("upInstalling");
+    try {
+      await bridge("apply_update", { url: updZip });
+      $("upd-state").textContent = t("upFail");
+    } catch (e) {
+      $("upd-state").textContent = (e && e.message) || t("upFail");
+    } finally {
+      bgu.disabled = false;
+    }
   };
   paint();
   }

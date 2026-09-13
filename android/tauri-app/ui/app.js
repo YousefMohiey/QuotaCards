@@ -929,6 +929,17 @@ fillSniSelect();
 applyLang(lang);
 // Decorative icons stay out of the accessibility tree; state lives in text.
 document.querySelectorAll("svg").forEach((s) => s.setAttribute("aria-hidden", "true"));
+// Soft keyboard: feed the visible height to CSS so centered sheets shrink
+// and recenter above the keyboard instead of hiding behind it.
+(function () {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const sync = () => {
+    document.documentElement.style.setProperty("--vvh", Math.round(vv.height) + "px");
+  };
+  vv.addEventListener("resize", sync);
+  sync();
+})();
 (async () => {
   await refresh();
   loadApps();

@@ -483,6 +483,7 @@ struct UpdateInfo {
     latest: String,
     available: bool,
     url: String,
+    zip_url: String,
 }
 
 fn newer(latest: &str, current: &str) -> bool {
@@ -532,10 +533,27 @@ async fn check_update() -> Result<UpdateInfo, String> {
         .and_then(|s| s.as_str())
         .unwrap_or("")
         .to_string();
+    // The exact zip the release ships for this app, nothing else.
+    let zip_url = v
+        .get("assets")
+        .and_then(|a| a.as_array())
+        .and_then(|arr| {
+            arr.iter().find_map(|x| {
+                if x.get("name").and_then(|s| s.as_str()) == Some("quotacards-win.zip") {
+                    x.get("browser_download_url")
+                        .and_then(|s| s.as_str())
+                        .map(|s| s.to_string())
+                } else {
+                    None
+                }
+            })
+        })
+        .unwrap_or_default();
     Ok(UpdateInfo {
         available: newer(&tag, &current),
         latest: tag,
         url,
+        zip_url,
         current,
     })
 }
@@ -549,6 +567,69 @@ async fn open_update_url(url: String) -> Result<String, String> {
         .spawn()
         .map_err(|e| format!("could not open: {e}"))?;
     Ok("opened".to_string())
+}
+
+/// Install the update by itself: download the release zip, unpack it in
+/// TEMP, then hand over to a small waiter script that swaps the two app
+/// files after this process exits (a running exe cannot replace itself)
+/// and starts the new build. No installer, no extra tools.
+#[tauri::command]
+async fn apply_update(url: String) -> Result<String, String> {
+    if !url.starts_with("https://github.com/")
+        && !url.starts_with("https://objects.githubusercontent.com/")
+    {
+        return Err("Bad update address.".to_string());
+    }
+    let exe = std::env::current_exe().map_err(|e| format!("where am i: {e}"))?;
+    let dir = exe.parent().ok_or("No app folder.")?.to_path_buf();
+    // Prove the folder is writable NOW: after exit nobody can report back.
+    let probe = dir.join(".qc-write-test");
+    std::fs::write(&probe, b"1")
+        .map_err(|_| "App folder is not writable. Move the app somewhere you own, then update.".to_string())?;
+    let _ = std::fs::remove_file(&probe);
+    let stage = std::env::temp_dir().join("qc-update");
+    let _ = std::fs::remove_dir_all(&stage);
+    std::fs::create_dir_all(&stage).map_err(|e| format!("stage: {e}"))?;
+    let zip = stage.join("update.zip");
+    let dl = std::process::Command::new("curl.exe")
+        .args(["-sL", "--max-time", "300", "-o"])
+        .arg(&zip)
+        .arg(&url)
+        .creation_flags(0x08000000)
+        .output()
+        .map_err(|e| format!("download failed: {e}"))?;
+    if !dl.status.success() {
+        return Err("Download failed.".to_string());
+    }
+    let ext = stage.join("files");
+    let ps = format!(
+        "Expand-Archive -Path '{}' -DestinationPath '{}' -Force",
+        zip.display(),
+        ext.display()
+    );
+    let un = std::process::Command::new("powershell.exe")
+        .args(["-NoProfile", "-Command", &ps])
+        .creation_flags(0x08000000)
+        .output()
+        .map_err(|e| format!("unpack failed: {e}"))?;
+    if !un.status.success() || !ext.join("quotacards.exe").exists() {
+        return Err("Update package broken.".to_string());
+    }
+    let pid = std::process::id();
+    let bat = stage.join("swap.bat");
+    let script = format!(
+        "@echo off\r\n:wait\r\ntasklist /FI \"PID eq {pid}\" 2>NUL | find \"{pid}\" >NUL\r\nif not errorlevel 1 (timeout /t 1 /nobreak >NUL & goto wait)\r\ncopy /Y \"{src}\\quotacards.exe\" \"{dir}\\\" >NUL\r\ncopy /Y \"{src}\\WebView2Loader.dll\" \"{dir}\\\" >NUL\r\nstart \"\" \"{dir}\\quotacards.exe\"\r\n(goto) 2>NUL & del \"%~f0\"\r\n",
+        pid = pid,
+        src = ext.display(),
+        dir = dir.display()
+    );
+    std::fs::write(&bat, script).map_err(|e| format!("swap script: {e}"))?;
+    std::process::Command::new("cmd")
+        .args(["/C", "start", "/MIN", "", &bat.to_string_lossy()])
+        .creation_flags(0x08000000)
+        .spawn()
+        .map_err(|e| format!("could not start installer: {e}"))?;
+    std::process::exit(0);
 }
 
 pub fn run() {
@@ -582,7 +663,8 @@ pub fn run() {
             tunnel_apps,
             resolve_host,
             check_update,
-            open_update_url
+            open_update_url,
+            apply_update
         ])
         .run(tauri::generate_context!())
         .expect("QuotaCards failed to start");

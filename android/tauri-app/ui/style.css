@@ -307,14 +307,17 @@ main { padding: calc(env(safe-area-inset-top, 0px) + 6px) 16px 0; display: flex;
 .sheet-back { position: fixed; inset: 0; background: rgb(0 0 0 / 0.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index: 30; }
 .sheet-back[hidden] { display: none; }
 /* Centered dialog: sits in the middle of the screen, never at the bottom. */
+/* --vvh tracks the VISIBLE height (visualViewport): when the soft keyboard
+   opens, the dialog shrinks and recenters above it instead of sliding
+   behind it. Falls back to plain 50%/70vh where visualViewport is missing. */
 .sheet {
   position: fixed;
   left: 16px;
   right: 16px;
-  top: 50%;
+  top: calc(var(--vvh, 100vh) / 2);
   bottom: auto;
   z-index: 31;
-  max-height: 70vh;
+  max-height: min(70vh, calc(var(--vvh, 100vh) - 32px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
