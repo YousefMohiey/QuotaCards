@@ -275,7 +275,7 @@ pub fn write_tun_config(
                     "server_name": sni,
                     "insecure": true,
                     "alpn": ["h3", "h2", "http/1.1"],
-                    "utls": {"enabled": true, "fingerprint": "chrome"}
+                    "utls": {"enabled": true, "fingerprint": "random"}
                 }
             },
             {"type": "direct", "tag": "direct"}
