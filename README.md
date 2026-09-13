@@ -1,4 +1,4 @@
-![QuotaCards banner](assets/banner.svg)
+![QuotaCards banner](assets/banner.svg?v=2)
 
 [![Latest release](https://img.shields.io/github/v/release/YousefMohiey/QuotaCards)](https://github.com/YousefMohiey/QuotaCards/releases/latest)
 ![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)
