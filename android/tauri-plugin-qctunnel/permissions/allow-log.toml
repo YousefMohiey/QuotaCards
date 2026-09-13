@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-log"
+description = "Read tunnel log."
+commands.allow = ["log"]

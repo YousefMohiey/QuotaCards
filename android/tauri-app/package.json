@@ -1,0 +1,13 @@
+{
+  "name": "quotacards-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'use: cargo tauri android build (this UI is static, no bundler)'"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-clipboard-manager": "^2"
+  }
+}

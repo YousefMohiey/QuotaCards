@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-stop"
+description = "Stop the VPN tunnel."
+commands.allow = ["stop"]

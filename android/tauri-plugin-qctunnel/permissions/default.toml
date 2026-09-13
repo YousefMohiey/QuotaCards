@@ -1,0 +1,3 @@
+[default]
+description = "Tunnel commands are wired through the app, nothing is on by default."
+permissions = []

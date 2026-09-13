@@ -1,0 +1,560 @@
+//! Built-in TUN connection (no third-party client needed):
+//! runs a pinned sing-box engine with a wintun TUN interface in auto-route
+//! mode, so EVERYTHING on this PC (browsers, games, speed tests) goes
+//! through the card's server. Needs admin (the app manifest requests it).
+use std::net::ToSocketAddrs;
+use std::path::PathBuf;
+use std::process::Command;
+
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+#[cfg(windows)]
+const NO_WINDOW: u32 = 0x08000000;
+#[cfg(not(windows))]
+const NO_WINDOW: u32 = 0;
+
+const SINGBOX_TAG: &str = "v1.14.0";
+const WINTUN_TAG: &str = "0.14.1";
+const WINTUN_URL: &str = "https://www.wintun.net/builds/wintun-0.14.1.zip";
+
+/// Global tunnel-operation lock: engine stop/cleanup and engine spawn must
+/// never overlap (a cleanup hunt racing a fresh spawn kills the new engine).
+/// Hold it ONLY around spawn_engine calls - never around network waits,
+/// settle sleeps or egress probes, or Disconnect hangs behind Connect.
+pub static TUN_OPS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Tunnel generation: bumped on every stop request. A connect thread that
+/// finishes after a stop carries a stale gen and must quietly drop its
+/// engine instead of reporting VpnUp (the UI already says Disconnected).
+static TUN_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Bump the generation (call on the UI thread when stopping). Returns the
+/// new generation.
+pub fn bump_gen() -> u64 {
+    TUN_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1
+}
+
+/// Current generation (connect threads capture this, VpnUp carries it).
+pub fn tunnel_gen() -> u64 {
+    TUN_GEN.load(std::sync::atomic::Ordering::SeqCst)
+}
+pub const TUN_IP: &str = "172.19.0.1";
+const DIRECT_DNS: &str = "8.8.8.8";
+const PROXY_DOH_IP: &str = "1.1.1.1";
+
+pub fn engine_dir() -> PathBuf {
+    let base = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
+    base.join("quotacards").join("engine")
+}
+
+pub fn singbox_path() -> PathBuf {
+    engine_dir().join("sing-box.exe")
+}
+
+pub fn wintun_path() -> PathBuf {
+    engine_dir().join("wintun.dll")
+}
+
+pub fn tun_config_path() -> PathBuf {
+    engine_dir().join("singbox-tun.json")
+}
+
+#[cfg(windows)]
+fn cmd_hidden(prog: &str) -> Command {
+    let mut c = Command::new(prog);
+    c.creation_flags(NO_WINDOW);
+    c
+}
+
+#[cfg(not(windows))]
+fn cmd_hidden(prog: &str) -> Command {
+    Command::new(prog)
+}
+
+fn run_hidden(prog: &str, args: &[&str]) -> Result<std::process::Output, String> {
+    cmd_hidden(prog)
+        .args(args)
+        .output()
+        .map_err(|e| format!("{prog}: {e}"))
+}
+
+/// True when running elevated. `net session` only succeeds as admin.
+pub fn is_elevated() -> bool {
+    run_hidden("net", &["session"])
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+/// Download + extract the sing-box engine (pinned) and wintun driver.
+/// Version-stamped so a stale engine is replaced automatically.
+pub fn ensure_engine() -> Result<String, String> {
+    let dir = engine_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir: {e}"))?;
+    // one-way migration: drop the legacy xray engine remnants
+    for f in ["xray.exe", "xray-client.json", "xray.zip"] {
+        let _ = std::fs::remove_file(dir.join(f));
+    }
+    let ver_file = dir.join("tun-version.txt");
+    let cur = std::fs::read_to_string(&ver_file).unwrap_or_default();
+    let want = format!("sing-box {SINGBOX_TAG} + wintun {WINTUN_TAG}");
+    if singbox_path().exists() && wintun_path().exists() && cur.trim() == want {
+        return Ok("engine ready".to_string());
+    }
+    // --- sing-box ---
+    let ver = SINGBOX_TAG.trim_start_matches('v');
+    let zip = dir.join("sing-box.zip");
+    let url = format!(
+        "https://github.com/SagerNet/sing-box/releases/download/{SINGBOX_TAG}/sing-box-{ver}-windows-amd64.zip"
+    );
+    let dl = run_hidden(
+        "curl",
+        &[
+            "-L", "--max-time", "180", "-A", "QuotaCards", "-o",
+            &zip.to_string_lossy(), &url,
+        ],
+    )
+    .map(|o| o.status.success())
+    .unwrap_or(false)
+        && zip.exists();
+    if !dl {
+        return Err("engine download failed (check internet)".to_string());
+    }
+    run_hidden(
+        "tar",
+        &["-xf", &zip.to_string_lossy(), "-C", &dir.to_string_lossy()],
+    )
+    .map_err(|e| format!("extract: {e}"))?;
+    let _ = std::fs::remove_file(&zip);
+    let inner = dir.join(format!("sing-box-{ver}-windows-amd64"));
+    if singbox_path().exists() {
+        let _ = std::fs::remove_file(singbox_path());
+    }
+    std::fs::rename(inner.join("sing-box.exe"), singbox_path())
+        .map_err(|e| format!("install engine: {e}"))?;
+    let _ = std::fs::remove_dir_all(inner);
+    // --- wintun (driver DLL lives next to the engine exe) ---
+    let wzip = dir.join("wintun.zip");
+    let dl = run_hidden(
+        "curl",
+        &[
+            "-L", "--max-time", "120", "-A", "QuotaCards", "-o",
+            &wzip.to_string_lossy(), WINTUN_URL,
+        ],
+    )
+    .map(|o| o.status.success())
+    .unwrap_or(false)
+        && wzip.exists();
+    if !dl {
+        return Err("driver download failed (check internet)".to_string());
+    }
+    run_hidden(
+        "tar",
+        &["-xf", &wzip.to_string_lossy(), "-C", &dir.to_string_lossy()],
+    )
+    .map_err(|e| format!("extract: {e}"))?;
+    let _ = std::fs::remove_file(&wzip);
+    std::fs::copy(
+        dir.join("wintun").join("bin").join("amd64").join("wintun.dll"),
+        wintun_path(),
+    )
+    .map_err(|e| format!("install driver: {e}"))?;
+    let _ = std::fs::remove_dir_all(dir.join("wintun"));
+    if singbox_path().exists() && wintun_path().exists() {
+        let _ = std::fs::write(&ver_file, &want);
+        Ok(format!("engine {SINGBOX_TAG} ready"))
+    } else {
+        Err("engine missing after extract".to_string())
+    }
+}
+
+/// Resolve the server domain NOW (system DNS intact) so its IPs can be
+/// excluded from TUN routing - otherwise the tunnel eats its own path.
+pub fn resolve_server_ips(host: &str) -> Result<Vec<String>, String> {
+    let mut ips: Vec<String> = format!("{host}:443")
+        .to_socket_addrs()
+        .map_err(|e| format!("can't resolve {host} ({e})"))?
+        .map(|a| a.ip())
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .map(|ip| {
+            if ip.is_ipv4() {
+                format!("{ip}/32")
+            } else {
+                format!("{ip}/128")
+            }
+        })
+        .collect();
+    ips.sort();
+    if ips.is_empty() {
+        return Err(format!("can't resolve {host}"));
+    }
+    Ok(ips)
+}
+
+/// Full TUN client config for one card. Self-signed server cert → insecure
+/// (same trust as the share links); SNI stamp preserved.
+/// `apps_mode` with a non-empty list routes ONLY those process names through
+/// the tunnel (everything else goes direct); otherwise the whole PC does.
+pub fn write_tun_config(
+    uuid: &str,
+    host: &str,
+    sni: &str,
+    apps_mode: bool,
+    apps: &[String],
+) -> Result<PathBuf, String> {
+    let mut excludes = resolve_server_ips(host)?;
+    for ip in [PROXY_DOH_IP, DIRECT_DNS] {
+        let cidr = format!("{ip}/32");
+        if !excludes.contains(&cidr) {
+            excludes.push(cidr);
+        }
+    }
+    let apps_only = apps_mode && !apps.is_empty();
+    // unique adapter name per connect: a force-killed run can leave a ghost
+    // adapter in the driver that would block a reused name.
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or(0);
+    let if_name = format!("QuotaCards{:04x}", nanos & 0xffff);
+    // per-app routing matches by process, which needs the userspace stack
+    // on Windows; whole-PC mode keeps the fast mixed stack.
+    let tun_stack = if apps_only { "gvisor" } else { "mixed" };
+    let dns_final = if apps_only { "direct-dns" } else { "proxy-dns" };
+    let route_final = if apps_only { "direct" } else { "proxy" };
+    let mut route_rules = serde_json::json!([
+        {"action": "sniff"},
+        {"network": "udp", "port": [135, 137, 138, 139, 5353], "action": "reject"},
+        {"ip_cidr": ["224.0.0.0/3", "ff00::/8"], "action": "reject"},
+        {"source_ip_cidr": ["224.0.0.0/3", "ff00::/8"], "action": "reject"},
+        {"protocol": "dns", "action": "hijack-dns"}
+    ]);
+    if apps_only {
+        let rules = route_rules.as_array_mut().unwrap();
+        let (paths, names): (Vec<&String>, Vec<&String>) =
+            apps.iter().partition(|a| a.contains('\\') || a.contains('/'));
+        // process rules first: a terminal early rule must not swallow them
+        if !names.is_empty() {
+            rules.insert(0, serde_json::json!({"process_name": names, "outbound": "proxy"}));
+        }
+        if !paths.is_empty() {
+            rules.insert(0, serde_json::json!({"process_path": paths, "outbound": "proxy"}));
+        }
+    }
+    let cfg = serde_json::json!({
+        "log": {"level": "warning"},
+        "dns": {
+            "servers": [
+                {"type": "https", "tag": "proxy-dns", "server": PROXY_DOH_IP, "detour": "proxy"},
+                {"type": "udp", "tag": "direct-dns", "server": DIRECT_DNS}
+            ],
+            "rules": [{"domain": [host], "server": "direct-dns"}],
+            "final": dns_final
+        },
+        "inbounds": [{
+            "type": "tun",
+            "tag": "tun-in",
+            "interface_name": if_name,
+            "mtu": 9000,
+            "address": [format!("{TUN_IP}/28")],
+            "auto_route": true,
+            "strict_route": true,
+            "stack": tun_stack,
+            "route_exclude_address": excludes
+        }],
+        "outbounds": [
+            {
+                "type": "vless",
+                "tag": "proxy",
+                "server": host,
+                "server_port": 443,
+                "uuid": uuid,
+                "tls": {
+                    "enabled": true,
+                    "server_name": sni,
+                    "insecure": true,
+                    "alpn": ["h3", "h2", "http/1.1"],
+                    "utls": {"enabled": true, "fingerprint": "chrome"}
+                }
+            },
+            {"type": "direct", "tag": "direct"}
+        ],
+        "route": {
+            "rules": route_rules,
+            "final": route_final,
+            "auto_detect_interface": true,
+            "default_domain_resolver": "direct-dns"
+        }
+    });
+    let p = tun_config_path();
+    std::fs::write(
+        &p,
+        serde_json::to_string_pretty(&cfg).map_err(|e| format!("config: {e}"))?,
+    )
+    .map_err(|e| format!("write config: {e}"))?;
+    Ok(p)
+}
+
+/// Validate the config before routing a single packet.
+pub fn check_config() -> Result<(), String> {
+    let o = run_hidden(
+        &singbox_path().to_string_lossy(),
+        &["check", "-c", &tun_config_path().to_string_lossy()],
+    )?;
+    if o.status.success() {
+        Ok(())
+    } else {
+        let err = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+        let tail: Vec<&str> = err.lines().collect();
+        let tail = tail[tail.len().saturating_sub(4)..].join(" | ");
+        Err(format!("bad tunnel config: {}", tail.trim()))
+    }
+}
+
+/// Spawn the engine hidden, stderr APPENDED to a log file (with a run
+/// marker). The log rotates: past 256KB it restarts, so reads stay cheap
+/// and the file can't grow forever.
+/// Returns the child handle (caller owns it).
+pub fn spawn_engine() -> Result<std::process::Child, String> {
+    use std::io::Write;
+    let path = engine_log_path();
+    // rotate: a stale multi-MB log makes every tail read + failure message slow
+    if std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0) > 256 * 1024 {
+        let _ = std::fs::write(&path, "=== rotated (was >256KB) ===\n");
+    }
+    let mut log = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .map_err(|e| format!("log: {e}"))?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let _ = writeln!(log, "=== run {now} ===");
+    let child = cmd_hidden(&singbox_path().to_string_lossy())
+        .args(["run", "-c", &tun_config_path().to_string_lossy()])
+        .current_dir(engine_dir())
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(log)
+        .spawn()
+        .map_err(|e| format!("start engine: {e}"))?;
+    // pid file: lets cleanup kill OUR engine without the slow wmic sweep
+    let _ = std::fs::write(engine_dir().join("engine.pid"), child.id().to_string());
+    Ok(child)
+}
+
+pub fn engine_log_path() -> PathBuf {
+    engine_dir().join("singbox.log")
+}
+
+/// Last few engine log lines, color codes stripped - for failure messages.
+/// Reads only the last 16KB so a big log can't stall the UI.
+pub fn engine_log_tail() -> String {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut t = String::new();
+    if let Ok(mut f) = std::fs::File::open(engine_log_path()) {
+        let len = f.metadata().map(|m| m.len()).unwrap_or(0);
+        let _ = f.seek(SeekFrom::Start(len.saturating_sub(16 * 1024)));
+        let _ = f.read_to_string(&mut t);
+    }
+    let mut plain = String::with_capacity(t.len());
+    let mut it = t.chars().peekable();
+    while let Some(c) = it.next() {
+        if c == '\u{1b}' && it.peek() == Some(&'[') {
+            for c2 in it.by_ref() {
+                if c2.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+        } else {
+            plain.push(c);
+        }
+    }
+    let lines: Vec<&str> = plain.lines().filter(|l| !l.trim().is_empty()).collect();
+    let tail = &lines[lines.len().saturating_sub(3)..];
+    tail.join(" | ").chars().take(300).collect()
+}
+
+/// Ask the engine to exit on its own (lets it delete its TUN adapter -
+/// a force-kill can leave a ghost adapter that blocks the next connect).
+pub fn request_graceful_stop(pid: u32) {
+    let _ = run_hidden("taskkill", &["/PID", &pid.to_string()]);
+}
+
+/// App-side lifecycle line in the same log (spawn/probe/death markers).
+pub fn app_log(line: &str) {
+    use std::io::Write;
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(engine_log_path())
+    {
+        let _ = writeln!(f, "app: {line}");
+    }
+}
+
+/// Reset a wedged wintun driver (ghost adapter names). Harmless otherwise.
+pub fn bounce_wintun() {
+    let _ = run_hidden("sc", &["stop", "wintun"]);
+    std::thread::sleep(std::time::Duration::from_millis(2500));
+}
+
+/// Single-instance lock. Returns Some(other_pid) when a LIVE other copy
+/// is running (caller must stand down - two copies fight over one tunnel);
+/// otherwise claims the lock and returns None. A stale lock (dead PID)
+/// is reclaimed.
+pub fn claim_instance() -> Option<u32> {
+    let p = crate::config::AppConfig::config_dir().join("instance.lock");
+    if let Some(dir) = p.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let me = std::process::id();
+    if let Ok(txt) = std::fs::read_to_string(&p) {
+        if let Ok(pid) = txt.trim().parse::<u32>() {
+            if pid != me && process_is_quotacards(pid) {
+                return Some(pid);
+            }
+        }
+    }
+    let _ = std::fs::write(&p, me.to_string());
+    None
+}
+
+/// Release our lock (only if we hold it).
+pub fn release_instance() {
+    let p = crate::config::AppConfig::config_dir().join("instance.lock");
+    if let Ok(txt) = std::fs::read_to_string(&p) {
+        if txt.trim().parse::<u32>().ok() == Some(std::process::id()) {
+            let _ = std::fs::remove_file(&p);
+        }
+    }
+}
+
+fn process_is_quotacards(pid: u32) -> bool {
+    let out = match run_hidden("tasklist", &["/FI", &format!("PID eq {pid}")]) {
+        Ok(o) => o,
+        Err(_) => return false,
+    };
+    let t = String::from_utf8_lossy(&out.stdout).to_lowercase();
+    t.lines().any(|l| {
+        l.contains("quotacards")
+            && l.split_whitespace().any(|w| w.parse::<u32>().ok() == Some(pid))
+    })
+}
+
+/// Egress IP with the system proxy BYPASSED - under TUN this must be the
+/// server; with no tunnel it is the real IP. Proves full capture.
+pub fn egress_ip_direct() -> Result<String, String> {
+    let o = run_hidden(
+        "curl",
+        &[
+            "-s", "--max-time", "20", "--noproxy", "*",
+            "https://api.ipify.org",
+        ],
+    )
+    .map_err(|e| format!("probe: {e}"))?;
+    let ip = String::from_utf8_lossy(&o.stdout).trim().to_string();
+    if ip.is_empty() || !ip.bytes().next().is_some_and(|c| c.is_ascii_digit()) {
+        return Err("no route (tunnel dead?)".to_string());
+    }
+    Ok(ip)
+}
+
+/// Is any default route still pointing into our TUN interface?
+pub fn tun_routes_present() -> bool {
+    run_hidden("route", &["print", "-4"])
+        .map(|o| {
+            let t = String::from_utf8_lossy(&o.stdout);
+            t.lines().any(|l| {
+                let l = l.trim_start();
+                l.starts_with("0.0.0.0") && l.contains(TUN_IP)
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// Kill our orphan engine (matched by our config path, never anyone else's)
+/// and remove default routes via the TUN interface. `keep` spares one live
+/// PID (the just-connected engine - without this the connect handler would
+/// hunt down its own child). Safe to call anytime.
+pub fn engine_cleanup() {
+    engine_cleanup_keep(None);
+}
+
+pub fn engine_cleanup_keep(keep: Option<u32>) {
+    // fast path: kill OUR engine via the pid file (no wmic - wmic alone
+    // can take 2-5s on Win11 and froze the old UI on every disconnect)
+    if let Ok(pid_s) = std::fs::read_to_string(engine_dir().join("engine.pid")) {
+        if let Ok(pid) = pid_s.trim().parse::<u32>() {
+            if Some(pid) != keep && pid != 0 {
+                // confirm it's still ours before killing (filtered = fast)
+                let ours = std::process::Command::new("tasklist")
+                    .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
+                    .creation_flags(0x08000000)
+                    .output()
+                    .map(|o| String::from_utf8_lossy(&o.stdout).to_lowercase())
+                    .unwrap_or_default();
+                if ours.contains("sing-box") {
+                    let _ = run_hidden("taskkill", &["/F", "/PID", &pid.to_string()]);
+                }
+            }
+        }
+    }
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    // default route via a dead TUN = no internet: remove (up to 3 tries,
+    // one per leftover default entry Windows may hold)
+    for _ in 0..3 {
+        if !tun_routes_present() {
+            break;
+        }
+        let _ = run_hidden(
+            "route",
+            &["delete", "0.0.0.0", "mask", "0.0.0.0", TUN_IP],
+        );
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    }
+    // slow wmic sweep only if something STILL holds the TUN (crash
+    // leftovers) - the common stop path returns before this
+    if tun_routes_present() {
+        engine_orphan_sweep(keep);
+    }
+}
+
+/// Slow fallback: hunt any sing-box bound to our config path. Only for
+/// crash leftovers - never on the hot stop path.
+fn engine_orphan_sweep(keep: Option<u32>) {
+    if let Ok(o) = run_hidden(
+        "wmic",
+        &[
+            "process", "where", "name='sing-box.exe'", "get",
+            "commandline,processid",
+        ],
+    ) {
+        let ours = tun_config_path().to_string_lossy().to_lowercase();
+        for line in String::from_utf8_lossy(&o.stdout).lines().skip(1) {
+            let low = line.to_lowercase();
+            if low.contains("sing-box") && low.contains(&ours) {
+                if let Some(pid) = low.split_whitespace().last() {
+                    if pid.parse::<u32>().ok() == keep {
+                        continue; // that's our live engine, not an orphan
+                    }
+                    let _ = run_hidden("taskkill", &["/F", "/PID", pid]);
+                }
+            }
+        }
+    }
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    for _ in 0..3 {
+        if !tun_routes_present() {
+            break;
+        }
+        let _ = run_hidden(
+            "route",
+            &["delete", "0.0.0.0", "mask", "0.0.0.0", TUN_IP],
+        );
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    }
+}

@@ -1,0 +1,9 @@
+# xbuild packaging config (read from the package root as manifest.yaml).
+android:
+  icon: icon.png
+  manifest:
+    package: com.quotacards.app
+    version_name: 0.1.0
+    application:
+      label: QuotaCards
+      theme: "@android:style/Theme.Material.NoActionBar"

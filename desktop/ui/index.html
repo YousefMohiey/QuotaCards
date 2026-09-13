@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#04060b" />
+<title>QuotaCards</title>
+<link rel="stylesheet" href="desk.css" />
+<script src="app.js" defer></script>
+<script>
+// Desktop shell only: mirror the hero status into the sidebar brand line.
+document.addEventListener("DOMContentLoaded", () => {
+  const src = document.getElementById("hero-state");
+  const dst = document.getElementById("side-state");
+  const hero = document.getElementById("hero");
+  if (!src || !dst) return;
+  const sync = () => {
+    dst.textContent = src.textContent;
+    dst.dataset.mood = hero.classList.contains("connected") ? "on" : "off";
+  };
+  new MutationObserver(sync).observe(src, { childList: true, characterData: true, subtree: true });
+  new MutationObserver(sync).observe(hero, { attributes: true, attributeFilter: ["class"] });
+  sync();
+});
+</script>
+<script>
+// Desktop shell only: Speed view. Ping runs in this WebView (timed fetch,
+// best of 2, same path the traffic takes). Throughput runs against the
+// own speed endpoint on the connected server. app.js is never touched.
+(function () {
+  function init() {
+  const $ = (id) => document.getElementById(id);
+  const S = {
+    en: {
+      tabSpeed: "Speed", pingTitle: "Ping", ptDomain: "Card domain", pingBtn: "Ping",
+      thruTitle: "Throughput", downBtn: "Download", upBtn: "Upload",
+      ms: "ms", mbps: "Mbps", noReply: "No reply.",
+      needDomain: "Pick a card on Home first, then ping its domain.",
+      needServer: "Connect first, then measure throughput.",
+      downHint: "Download from your server through the active path.",
+      upHint: "Upload to your server through the active path.",
+      pingHint: "Best of 2 requests through the active path.",
+      measuring: "Measuring…",
+      upTitle: "Updates", upCheck: "Check for updates", upGet: "Download update",
+      upHint: "New builds land on GitHub.", upChecking: "Checking…",
+      upOut: "{v} is out.", upCur: "You run {v}.", upLatest: "{v} is the latest.",
+      upFail: "Could not reach GitHub.",
+      upIdle: "Not checked yet.",
+    },
+    ar: {
+      tabSpeed: "السرعة", pingTitle: "البينج", ptDomain: "دومين البطاقة", pingBtn: "قيس",
+      thruTitle: "السرعة الفعلية", downBtn: "تحميل", upBtn: "رفع",
+      ms: "مللي ثانية", mbps: "ميجابت", noReply: "لا يوجد رد.",
+      needDomain: "اختار بطاقة من الرئيسية الأول ثم قيس الدومين.",
+      needServer: "اتصل الأول ثم قيس السرعة.",
+      downHint: "تحميل من السيرفر عبر المسار الحالي.",
+      upHint: "رفع إلى السيرفر عبر المسار الحالي.",
+      pingHint: "أفضل محاولتين عبر المسار الحالي.",
+      measuring: "جارٍ القياس…",
+      upTitle: "التحديثات", upCheck: "تحقق من التحديثات", upGet: "تحميل التحديث",
+      upHint: "الإصدارات الجديدة على GitHub.", upChecking: "جارٍ التحقق…",
+      upOut: "الإصدار {v} متاح.", upCur: "إصدارك {v}.", upLatest: "{v} هو الأحدث.",
+      upFail: "تعذر الوصول إلى GitHub.",
+      upIdle: "لم يتم التحقق بعد.",
+    },
+  };
+  const lang = () => document.documentElement.lang === "ar" ? "ar" : "en";
+  const t = (k) => (S[lang()] && S[lang()][k]) || S.en[k] || k;
+  function paint() {
+    document.querySelectorAll("[data-speed-i18n]").forEach((el) => { el.textContent = t(el.dataset.speedI18n); });
+    $("ping-hint").textContent = t("pingHint");
+    $("upd-state").textContent = t("upIdle");
+    $("thru-hint").textContent = "";
+    $("thru-server").textContent = "";
+  }
+  new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
+
+  let ptarget = "google";
+  document.querySelectorAll("#ping-seg button").forEach((b) => {
+    b.onclick = () => {
+      ptarget = b.dataset.ptarget;
+      document.querySelectorAll("#ping-seg button").forEach((x) => x.classList.toggle("on", x === b));
+      $("ping-out").textContent = "-";
+    };
+  });
+
+  function bridge(cmd, args) {
+    if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke)
+      return window.__TAURI_INTERNALS__.invoke(cmd, args);
+    return window.__TAURI__.core.invoke(cmd, args);
+  }
+  async function state() {
+    try { return await bridge("get_state"); } catch (e) { return null; }
+  }
+  async function cardSni() {
+    const st = await state();
+    if (!st || !st.cards) return "";
+    const uuid = localStorage.getItem("qc-tunnel-card");
+    const c = st.cards.find((x) => x.uuid === uuid) || st.cards[0];
+    return c ? (c.sni || "") : "";
+  }
+  // One timed request. no-cors gives an opaque answer, timing still works.
+  async function once(url, ms) {
+    const ctl = new AbortController();
+    const to = setTimeout(() => ctl.abort(), ms || 10000);
+    const t0 = performance.now();
+    try {
+      await fetch(url + (url.includes("?") ? "&" : "?") + "t=" + Date.now(), { mode: "no-cors", cache: "no-store", signal: ctl.signal });
+      return performance.now() - t0;
+    } catch (e) { return -1; }
+    finally { clearTimeout(to); }
+  }
+  async function bestOf(urls) {
+    let best = -1;
+    for (const u of urls) {
+      for (let i = 0; i < 2; i++) {
+        const r = await once(u);
+        if (r >= 0 && (best < 0 || r < best)) best = r;
+      }
+      if (best >= 0) return { ms: best, url: u };
+    }
+    return { ms: -1, url: "" };
+  }
+  function busy(b) {
+    for (const id of ["btn-ping", "btn-down", "btn-up"]) $(id).disabled = b;
+  }
+  $("btn-ping").onclick = async () => {
+    busy(true);
+    $("ping-out").textContent = t("measuring");
+    try {
+      let urls;
+      if (ptarget === "google") urls = ["https://www.google.com/generate_204", "https://connectivitycheck.gstatic.com/generate_204"];
+      else if (ptarget === "quad9") urls = ["https://dns.quad9.net/", "https://www.quad9.net/"];
+      else if (ptarget === "cloudflare") urls = ["https://1.1.1.1/", "https://one.one.one.one/"];
+      else {
+        const sni = await cardSni();
+        if (!sni) { $("ping-out").textContent = "-"; $("ping-hint").textContent = t("needDomain"); return; }
+        urls = ["https://" + sni + "/"];
+      }
+      const r = await bestOf(urls);
+      $("ping-out").innerHTML = "";
+      if (r.ms < 0) { $("ping-out").textContent = t("noReply"); return; }
+      $("ping-out").append(document.createTextNode(String(Math.round(r.ms)) + " "), (() => { const s = document.createElement("small"); s.textContent = t("ms"); return s; })());
+    } finally { busy(false); }
+  };
+  function meter(p) {
+    const m = $("thru-meter");
+    m.hidden = false;
+    m.firstElementChild.style.width = Math.max(4, Math.min(100, Math.round(p * 100))) + "%";
+  }
+  $("btn-down").onclick = async () => {
+    const st = await state();
+    const host = st && st.server_ip;
+    if (!host) { $("thru-hint").textContent = t("needServer"); return; }
+    busy(true);
+    $("thru-hint").textContent = t("downHint");
+    try {
+      let bytes = 4 << 20;
+      let mbps = 0;
+      for (let round = 0; round < 3; round++) {
+        meter(0.05);
+        const t0 = performance.now();
+        const r = await fetch("https://" + host + "/speed/down?bytes=" + bytes, { cache: "no-store" });
+        const buf = await r.arrayBuffer();
+        const dt = (performance.now() - t0) / 1000;
+        if (!buf.byteLength || dt <= 0) break;
+        mbps = (buf.byteLength * 8) / dt / 1e6;
+        meter(Math.min(0.95, (round + 1) / 3));
+        // Scale up while the pipe looks bigger than the probe.
+        if (mbps > 25 && bytes < (40 << 20)) bytes = 40 << 20;
+        else break;
+      }
+      $("down-out").innerHTML = "";
+      $("down-out").append(document.createTextNode(mbps ? mbps.toFixed(1) + " " : "-"), (() => { const s = document.createElement("small"); s.textContent = t("mbps"); return s; })());
+    } catch (e) { $("down-out").textContent = t("noReply"); }
+    finally { $("thru-meter").hidden = true; busy(false); }
+  };
+  $("btn-up").onclick = async () => {
+    const st = await state();
+    const host = st && st.server_ip;
+    if (!host) { $("thru-hint").textContent = t("needServer"); return; }
+    busy(true);
+    $("thru-hint").textContent = t("upHint");
+    try {
+      const body = new Uint8Array(6 << 20).fill(7);
+      meter(0.1);
+      const t0 = performance.now();
+      const r = await fetch("https://" + host + "/speed/up", { method: "POST", body });
+      await r.json();
+      const dt = (performance.now() - t0) / 1000;
+      const mbps = dt > 0 ? (body.length * 8) / dt / 1e6 : 0;
+      meter(1);
+      $("up-out").innerHTML = "";
+      $("up-out").append(document.createTextNode(mbps ? mbps.toFixed(1) + " " : "-"), (() => { const s = document.createElement("small"); s.textContent = t("mbps"); return s; })());
+    } catch (e) { $("up-out").textContent = t("noReply"); }
+    finally { $("thru-meter").hidden = true; busy(false); }
+  };
+  let updUrl = "";
+  const bcu = $("btn-check-upd");
+  if (bcu) bcu.onclick = async () => {
+    $("upd-state").textContent = t("upChecking");
+    $("upd-go-row").hidden = true;
+    try {
+      const r = await bridge("check_update");
+      if (r.available) {
+        updUrl = r.url;
+        $("upd-state").textContent = t("upOut").replace("{v}", r.latest);
+        $("upd-note").textContent = t("upCur").replace("{v}", r.current);
+        $("upd-go-row").hidden = false;
+      } else {
+        $("upd-state").textContent = t("upLatest").replace("{v}", r.latest);
+      }
+    } catch (e) {
+      $("upd-state").textContent = t("upFail");
+    }
+  };
+  const bgu = $("btn-get-upd");
+  if (bgu) bgu.onclick = async () => {
+    if (!updUrl) return;
+    try { await bridge("open_update_url", { url: updUrl }); } catch (e) {}
+  };
+  paint();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+</script>
+</head>
+<body data-platform="desktop">
+<div class="bg" aria-hidden="true"><span class="orb orb-a"></span><span class="orb orb-b"></span><span class="orb orb-c"></span><span class="orb orb-d"></span></div>
+
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <img src="icon.png" alt="" width="30" height="30" />
+      <div class="brand-tx"><b>QuotaCards</b><span id="side-state">Idle</span></div>
+    </div>
+    <nav class="tabbar" aria-label="Primary">
+      <button data-tab="connect" class="on">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
+        <span data-i18n="tabHome">Home</span>
+      </button>
+      <button data-tab="cards">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="13" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2"/></svg>
+        <span data-i18n="tabCards">Cards</span>
+      </button>
+      <button data-tab="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/></svg>
+        <span data-i18n="tabSettings">Settings</span>
+      </button>
+      <button data-tab="speed">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19a9 9 0 1 1 14 0"/><path d="M12 13l4-4"/><circle cx="12" cy="13" r="1.4"/></svg>
+        <span data-speed-i18n="tabSpeed">Speed</span>
+      </button>
+    </nav>
+    <div class="side-foot">
+      <div class="seg langseg" id="lang-seg"><button data-lang="en" class="on">EN</button><button data-lang="ar">عربي</button></div>
+      <button id="btn-how" class="ghostbtn" data-i18n="howTo">How to use</button>
+    </div>
+  </aside>
+
+  <main>
+    <section class="bar" id="infobar" aria-live="polite" hidden>
+      <span class="bar-icon" id="infobar-icon"></span>
+      <span class="bar-text" id="infobar-text"></span>
+      <button class="bar-x" id="infobar-x" aria-label="Dismiss">×</button>
+    </section>
+
+    <section class="view on" id="view-connect">
+      <div class="cols">
+        <div class="hero panel" id="hero">
+          <div class="hero-state"><span class="livedot"></span><span id="hero-state">Not Connected</span></div>
+          <button class="hero-btn" id="btn-connect" aria-label="Toggle VPN">
+            <svg class="power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.34 6.34a8 8 0 1 0 11.32 0"/></svg>
+          </button>
+          <div class="btn-action" id="btn-label">Connect</div>
+          <div class="session" id="session-line" hidden>
+            <span id="sess-time">00:00</span>
+            <span class="sep"></span>
+            <span>↓ <span id="sess-rx">0 B</span></span>
+            <span class="sep"></span>
+            <span>↑ <span id="sess-tx">0 B</span></span>
+          </div>
+          <div class="hero-sub" id="hero-sub">Pick a card and connect.</div>
+        </div>
+        <div class="stack">
+          <div class="panel pad">
+            <label data-i18n="cardForVpn" id="tunnel-card-label">Profile</label>
+            <button class="pick" id="tunnel-card-btn" aria-haspopup="listbox" aria-expanded="false">
+              <span id="tunnel-card-name">-</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <select id="tunnel-card" hidden></select>
+            <div class="homenet" id="home-ipbox" hidden>
+              <div class="homenet-row" id="ip-row"><span class="homenet-label" data-i18n="yourIp">Your IP</span><b id="home-ip" dir="ltr">-</b></div>
+            </div>
+          </div>
+          <div class="panel pad">
+            <label data-i18n="transport">Connection</label>
+            <div class="seg" id="transport-seg"><button data-transport="vless" class="on" data-i18n="trStandard">Standard</button></div>
+            <p class="hint" id="transport-note"></p>
+          </div>
+        </div>
+      </div>
+      <div class="panel pad footpanel">
+        <p class="hint" data-i18n="ksHintDesk">Kill switch: strict routing is always on. If the VPN drops, the engine is stopped and routes are removed instead of leaking.</p>
+      </div>
+    </section>
+
+    <section class="view" id="view-cards">
+      <div class="cards-head panel">
+        <h2><span data-i18n="myCards">My cards</span> <span class="count" id="cards-count"></span></h2>
+        <button id="btn-add-card" class="primary" data-i18n="addCard">+ New</button>
+      </div>
+      <div id="cards" class="cards-grid"></div>
+    </section>
+
+    <section class="view" id="view-apps">
+      <div class="apps-head panel">
+        <button class="backrow" id="btn-apps-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg><span data-i18n="back">Back</span></button>
+        <h2 data-i18n="vpnFor">VPN for</h2>
+        <div class="seg" id="apps-seg">
+          <button data-appsmode="all" class="on" data-i18n="appsAll">All apps</button>
+          <button data-appsmode="allow" data-i18n="appsOnly">Only these</button>
+        </div>
+      </div>
+      <p class="hint" data-i18n="appsHint">Changes apply next time you connect.</p>
+      <p class="appsstatus" id="apps-status"></p>
+      <input id="apps-search" data-i18n-ph="appsSearch" placeholder="Search apps…" autocomplete="off" />
+      <div id="apps-list" class="apps-list"></div>
+    </section>
+
+    <section class="view" id="view-settings">
+      <div class="panel pad setgroup">
+        <h2 data-i18n="secTraffic">Traffic and routing</h2>
+        <button class="opt navrow" id="row-routing"><span class="meta"><span class="roottitle" data-i18n="routing">App routing</span><span class="sub" id="routing-sub"></span></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        <p class="hint" data-i18n="ksHintDesk">Kill switch: strict routing is always on. If the VPN drops, the engine is stopped and routes are removed instead of leaking.</p>
+      </div>
+      <div class="panel pad setgroup">
+        <h2 data-speed-i18n="upTitle">Updates</h2>
+        <p class="hint" data-speed-i18n="upHint">New builds land on GitHub.</p>
+        <div class="updrow">
+          <span class="sub" id="upd-state"></span>
+          <button id="btn-check-upd" class="ghost" data-speed-i18n="upCheck">Check for updates</button>
+        </div>
+        <div class="updrow" id="upd-go-row" hidden>
+          <span class="sub" id="upd-note"></span>
+          <button id="btn-get-upd" class="primary" data-speed-i18n="upGet">Download update</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-speed">
+      <div class="panel pad">
+        <h2 data-speed-i18n="pingTitle">Ping</h2>
+        <div class="seg" id="ping-seg">
+          <button data-ptarget="google" class="on">Google</button>
+          <button data-ptarget="domain" data-speed-i18n="ptDomain">Card domain</button>
+          <button data-ptarget="quad9">Quad9</button>
+          <button data-ptarget="cloudflare">1.1.1.1</button>
+        </div>
+        <div class="speedrow">
+          <button id="btn-ping" class="primary" data-speed-i18n="pingBtn">Ping</button>
+          <div class="speedout" id="ping-out" aria-live="polite">-</div>
+        </div>
+        <p class="hint" id="ping-hint"></p>
+      </div>
+      <div class="panel pad">
+        <h2 data-speed-i18n="thruTitle">Throughput</h2>
+        <p class="hint" id="thru-server"></p>
+        <div class="speedrow">
+          <button id="btn-down" class="primary" data-speed-i18n="downBtn">Download</button>
+          <div class="speedout" id="down-out" aria-live="polite">-</div>
+        </div>
+        <div class="speedrow">
+          <button id="btn-up" class="primary" data-speed-i18n="upBtn">Upload</button>
+          <div class="speedout" id="up-out" aria-live="polite">-</div>
+        </div>
+        <div class="meter" id="thru-meter" hidden><span></span></div>
+        <p class="hint" id="thru-hint"></p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<section class="coach" id="coach" hidden>
+  <div class="coach-card panel pad">
+    <h2 data-i18n="obTitle">How QuotaCards works</h2>
+    <ol>
+      <li data-i18n="ob1">Create a card - pick Gamerz or Streamerz.</li>
+      <li data-i18n="ob2">Pick that card on Home.</li>
+      <li data-i18n="ob3">Hit Connect - back out anytime, the VPN stays on.</li>
+    </ol>
+    <button id="btn-coach" class="second" data-i18n="obGot">Got it</button>
+  </div>
+</section>
+
+<div class="sheet-back" id="sheet-back" hidden></div>
+<div class="sheet panel" id="sheet" role="dialog" aria-modal="true" hidden>
+  <div class="sheet-title" id="sheet-title"></div>
+  <input id="sheet-search" data-i18n-ph="sheetSearch" placeholder="Search domains…" autocomplete="off" hidden />
+  <div class="sheet-list" id="sheet-list" role="listbox"></div>
+</div>
+
+<div class="sheet-back" id="nc-back" hidden></div>
+<div class="sheet form panel" id="newcard-sheet" role="dialog" aria-modal="true" hidden>
+  <div class="sheet-title" data-i18n="newCard">New card</div>
+  <div class="sheet-form">
+    <div class="seg" id="kind-seg">
+      <button data-kind="Gamerz" class="on gamerz">Gamerz</button>
+      <button data-kind="Streamerz" class="streamerz">Streamerz</button>
+    </div>
+    <label data-i18n="cardName">Card name</label>
+    <input id="card-name" data-i18n-ph="exName" placeholder="e.g. Yousef, PC, phone" autocomplete="off" />
+    <label data-i18n="domainSni">Domain</label>
+    <button class="pick" id="card-sni-btn" aria-haspopup="listbox" aria-expanded="false">
+      <span id="card-sni-name">-</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <select id="card-sni-select" hidden></select>
+    <input id="card-sni" autocomplete="off" hidden data-i18n-ph="customDomain" placeholder="custom domain" />
+    <div class="form-actions">
+      <button id="btn-cancel-card" class="ghost" data-i18n="cancel">Cancel</button>
+      <button id="btn-generate" class="primary" data-i18n="generateCard">Generate card</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

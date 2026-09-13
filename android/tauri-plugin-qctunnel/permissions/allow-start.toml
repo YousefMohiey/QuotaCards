@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-start"
+description = "Start the VPN tunnel."
+commands.allow = ["start"]

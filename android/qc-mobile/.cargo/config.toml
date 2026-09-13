@@ -1,0 +1,4 @@
+# Lets the qc-mobile shell link against the NDK (xbuild will own this later).
+[target.aarch64-linux-android]
+linker = "C:/Android/Sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/windows-x86_64/bin/aarch64-linux-android35-clang.cmd"
+ar = "C:/Android/Sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-ar.exe"

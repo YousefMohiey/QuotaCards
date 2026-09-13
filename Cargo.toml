@@ -1,0 +1,29 @@
+[package]
+name = "quotacards"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# NOTE: no `accesskit` (screen-reader stack) - desktop never uses it, and it
+# hard-breaks the Android build (`accesskit` needs `android-game-activity`).
+# wgpu is the renderer on both (DX12 desktop / Vulkan-GLES Android).
+# eframe is desktop-only: it pulls winit/android-activity into the graph and
+# hard-breaks the Android build. Mobile reuses config/server/ssh only.
+russh = { version = "0.63", default-features = false, features = ["ring", "rsa", "flate2"] }
+russh-keys = "0.49"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "fs", "io-util"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "7"
+rand_core = { version = "0.6", features = ["getrandom", "std"] }
+ssh-key = { version = "0.6", features = ["ed25519", "rand_core", "std"] }
+
+[dev-dependencies]
+uuid = { version = "1", features = ["v4"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
+codegen-units = 1

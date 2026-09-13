@@ -1,0 +1,16 @@
+/target
+Cargo.lock
+dist/
+*.exe
+# device private key: baked into local builds only, never committed
+embed/*.pem
+target/
+android/**/target/
+*.apk
+node_modules/
+android/**/gen/
+android/**/build/
+android/tauri-cli-npm/node_modules/
+*.log
+*.idsig
+*.apk

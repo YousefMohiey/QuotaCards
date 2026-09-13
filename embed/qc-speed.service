@@ -1,0 +1,14 @@
+[Unit]
+Description=QuotaCards speed endpoint (localhost, behind Xray fallback)
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+ExecStart=/usr/bin/python3 /usr/local/bin/qc-speed.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

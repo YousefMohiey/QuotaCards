@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-status"
+description = "Read tunnel status."
+commands.allow = ["status"]

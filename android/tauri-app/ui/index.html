@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#04060b" />
+<title>QuotaCards</title>
+<link rel="stylesheet" href="style.css" />
+<script src="app.js" defer></script>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><span class="orb orb-a"></span><span class="orb orb-b"></span><span class="orb orb-c"></span><span class="orb orb-d"></span></div>
+<main>
+  <section class="bar" id="infobar" aria-live="polite" hidden>
+    <span class="bar-icon" id="infobar-icon"></span>
+    <span class="bar-text" id="infobar-text"></span>
+    <button class="bar-x" id="infobar-x" aria-label="Dismiss">×</button>
+  </section>
+
+  <section class="view on" id="view-connect">
+    <div class="hero ready" id="hero">
+      <div class="hero-state"><span class="livedot"></span><span id="hero-state">Not Connected</span></div>
+      <button class="hero-btn" id="btn-connect" aria-label="Toggle VPN">
+        <svg class="power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.34 6.34a8 8 0 1 0 11.32 0"/></svg>
+      </button>
+      <div class="btn-action" id="btn-label">Connect</div>
+      <div class="session" id="session-line" hidden>
+        <span id="sess-time">00:00</span>
+        <span class="sep"></span>
+        <span>↓ <span id="sess-rx">0 B</span></span>
+        <span class="sep"></span>
+        <span>↑ <span id="sess-tx">0 B</span></span>
+      </div>
+      <div class="hero-sub" id="hero-sub">Pick a card and connect.</div>
+      <div class="homenet" id="home-ipbox">
+        <div class="homenet-row" id="ip-row"><span class="homenet-label" data-i18n="yourIp">Your IP</span><b id="home-ip" dir="ltr">-</b></div>
+
+      </div>
+      <div class="seg" id="transport-seg"><button data-transport="vless" class="on" data-i18n="trStandard">Standard</button><button data-transport="hy2" data-i18n="trGame">Game</button><button data-transport="wg" data-i18n="trWg">WireGuard</button></div>
+      <p class="hint" id="transport-note"></p>
+      <label data-i18n="cardForVpn" id="tunnel-card-label">Profile</label>
+      <button class="pick" id="tunnel-card-btn" aria-haspopup="listbox" aria-expanded="false">
+        <span id="tunnel-card-name">-</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <select id="tunnel-card" hidden></select>
+    </div>
+  </section>
+
+  <section class="view" id="view-cards">
+    <div class="sec cards-sec">
+      <div class="cards-head"><h2><span data-i18n="myCards">My cards</span> <span class="count" id="cards-count"></span></h2><button id="btn-add-card" class="addbtn" data-i18n="addCard">+ New</button></div>
+      <div id="cards" class="cards-list"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-apps">
+    <div class="sec apps-sec">
+      <button class="backrow" id="btn-apps-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg><span data-i18n="back">Back</span></button>
+      <h2 data-i18n="vpnFor">VPN for</h2>
+      <div class="seg" id="apps-seg">
+        <button data-appsmode="all" class="on" data-i18n="appsAll">All apps</button>
+        <button data-appsmode="allow" data-i18n="appsOnly">Only these</button>
+        <button data-appsmode="block" data-i18n="appsExcept">All but these</button>
+      </div>
+      <p class="hint" data-i18n="appsHint">Changes apply next time you connect.</p>
+      <p class="appsstatus" id="apps-status"></p>
+      <input id="apps-search" data-i18n-ph="appsSearch" placeholder="Search apps…" autocomplete="off" />
+      <div id="apps-list" class="apps-list"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-settings">
+    <div class="sec">
+      <h2 data-i18n="secTraffic">Traffic and routing</h2>
+      <button class="opt navrow" id="row-routing"><span class="meta"><span class="roottitle" data-i18n="routing">App routing</span><span class="sub" id="routing-sub"></span></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <p class="hint" data-i18n="ksHint">Kill switch: turn on Always-on VPN in the system settings. If the VPN drops, internet stops instead of leaking.</p>
+      <button id="btn-vpn-settings" class="second" data-i18n="openVpnSettings">Open VPN settings</button>
+      <p class="hint" id="bg-hint" data-i18n="bgHint">Some phones stop the VPN when you swipe the app away. Allow background running so it stays on.</p>
+      <button id="btn-bg" class="second" data-i18n="bgBtnAllow">Allow background running</button>
+    </div>
+    <div class="sec">
+      <h2 data-i18n="secGeneral">General</h2>
+      <div class="srvrow"><span data-i18n="language">Language</span><div class="seg langseg" id="lang-seg"><button data-lang="en" class="on">EN</button><button data-lang="ar">عربي</button></div></div>
+      <button id="btn-how" class="second" data-i18n="howTo">How to use</button>
+    </div>
+  </section>
+</main>
+
+<section class="coach" id="coach" hidden>
+  <div class="coach-card sec">
+    <h2 data-i18n="obTitle">How QuotaCards works</h2>
+    <ol>
+      <li data-i18n="ob1">Create a card - pick Gamerz or Streamerz.</li>
+      <li data-i18n="ob2">Pick that card on Home.</li>
+      <li data-i18n="ob3">Hit Connect - back out anytime, the VPN stays on.</li>
+    </ol>
+    <button id="btn-coach" class="second" data-i18n="obGot">Got it</button>
+  </div>
+</section>
+
+<nav class="tabbar">
+  <button data-tab="connect" class="on">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
+    <span data-i18n="tabHome">Home</span>
+  </button>
+  <button data-tab="cards">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="13" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2"/></svg>
+    <span data-i18n="tabCards">Cards</span>
+  </button>
+  <button data-tab="settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/></svg>
+    <span data-i18n="tabSettings">Settings</span>
+  </button>
+</nav>
+
+<div class="sheet-back" id="sheet-back" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden>
+  <div class="sheet-title" id="sheet-title"></div>
+  <input id="sheet-search" data-i18n-ph="sheetSearch" placeholder="Search domains…" autocomplete="off" hidden />
+  <div class="sheet-list" id="sheet-list" role="listbox"></div>
+</div>
+
+<div class="sheet-back" id="nc-back" hidden></div>
+<div class="sheet form" id="newcard-sheet" role="dialog" aria-modal="true" hidden>
+  <div class="sheet-title" data-i18n="newCard">New card</div>
+  <div class="sheet-form">
+    <div class="seg" id="kind-seg">
+      <button data-kind="Gamerz" class="on gamerz">Gamerz</button>
+      <button data-kind="Streamerz" class="streamerz">Streamerz</button>
+    </div>
+    <label data-i18n="cardName">Card name</label>
+    <input id="card-name" data-i18n-ph="exName" placeholder="e.g. Yousef, PC, phone" autocomplete="off" />
+    <label data-i18n="domainSni">Domain</label>
+    <button class="pick" id="card-sni-btn" aria-haspopup="listbox" aria-expanded="false">
+      <span id="card-sni-name">-</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <select id="card-sni-select" hidden></select>
+    <input id="card-sni" autocomplete="off" hidden data-i18n-ph="customDomain" placeholder="custom domain" />
+    <div class="form-actions">
+      <button id="btn-cancel-card" class="ghost" data-i18n="cancel">Cancel</button>
+      <button id="btn-generate" class="primary" data-i18n="generateCard">Generate card</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

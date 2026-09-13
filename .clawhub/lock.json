@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "@akdira/akdira-image-to-code": {
+      "version": "1.0.0",
+      "installedAt": 1789120625874,
+      "ownerHandle": "akdira"
+    },
+    "@pupuking723/canvas-design-anthropic": {
+      "version": "1.0.0",
+      "installedAt": 1789120635632,
+      "ownerHandle": "pupuking723"
+    }
+  }
+}
