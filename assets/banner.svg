@@ -1,32 +1,73 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400">
   <defs>
-    <radialGradient id="glow" cx="50%" cy="45%" r="65%">
-      <stop offset="0%" stop-color="#16233d"/>
-      <stop offset="55%" stop-color="#0a1120"/>
-      <stop offset="100%" stop-color="#04060b"/>
+    <filter id="soft60" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="60"/>
+    </filter>
+    <filter id="soft30" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="30"/>
+    </filter>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="35%" stop-color="#ffffff" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.02"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#101a30" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#080d18" stop-opacity="0.9"/>
+    </linearGradient>
+    <radialGradient id="topshine" cx="50%" cy="0%" r="90%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#f3f4f6"/>
       <stop offset="100%" stop-color="#9aa3b2"/>
     </linearGradient>
   </defs>
-  <rect width="1200" height="400" rx="28" fill="url(#glow)"/>
-  <circle cx="980" cy="70" r="120" fill="#5b9cff" opacity="0.10"/>
-  <circle cx="220" cy="340" r="140" fill="#5b9cff" opacity="0.08"/>
-  <g transform="translate(200,200)">
-    <rect x="-78" y="-78" width="156" height="156" rx="38" fill="#111827"/>
-    <rect x="-78" y="-78" width="156" height="156" rx="38" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="2"/>
-    <circle cx="0" cy="-6" r="40" fill="none" stroke="url(#ring)" stroke-width="17"/>
-    <path d="M22 22 L52 52 L30 56 L12 34 Z" fill="#5b9cff"/>
+
+  <!-- black-blue night backdrop, same as the app -->
+  <rect width="1200" height="400" rx="28" fill="#04060b"/>
+  <ellipse cx="880" cy="110" rx="280" ry="170" fill="#2f5296" opacity="0.5" filter="url(#soft60)"/>
+  <ellipse cx="250" cy="340" rx="300" ry="150" fill="#1d3a75" opacity="0.55" filter="url(#soft60)"/>
+  <ellipse cx="600" cy="200" rx="180" ry="140" fill="#8caadc" opacity="0.28" filter="url(#soft60)"/>
+  <ellipse cx="1050" cy="330" rx="150" ry="110" fill="#3b63a8" opacity="0.35" filter="url(#soft60)"/>
+  <rect width="1200" height="400" rx="28" fill="url(#topshine)"/>
+
+  <!-- liquid-glass iPhone -->
+  <g>
+    <rect x="148" y="42" width="204" height="316" rx="48" fill="url(#glass)" stroke="#ffffff" stroke-opacity="0.35" stroke-width="1.5"/>
+    <rect x="148" y="42" width="204" height="316" rx="48" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="5"/>
+    <rect x="160" y="56" width="180" height="288" rx="38" fill="url(#screen)" stroke="#ffffff" stroke-opacity="0.14"/>
+    <!-- notch -->
+    <rect x="222" y="66" width="56" height="14" rx="7" fill="#000000" opacity="0.8"/>
+    <!-- status pill -->
+    <rect x="196" y="96" width="108" height="24" rx="12" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.5"/>
+    <circle cx="212" cy="108" r="4" fill="#34d399"/>
+    <text x="262" y="112" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="800" letter-spacing="1.5" fill="#34d399">ONLINE</text>
+    <!-- Q mark -->
+    <circle cx="250" cy="148" r="17" fill="none" stroke="url(#ring)" stroke-width="7"/>
+    <path d="M260 158 L272 170 L263 172 L251 160 Z" fill="#5b9cff"/>
+    <!-- power switch: glass disc, blue ring -->
+    <circle cx="250" cy="232" r="46" fill="#0d1424" fill-opacity="0.6" stroke="#ffffff" stroke-opacity="0.16"/>
+    <circle cx="250" cy="232" r="46" fill="none" stroke="#5b9cff" stroke-opacity="0.55" stroke-width="3"/>
+    <circle cx="250" cy="232" r="52" fill="none" stroke="#5b9cff" stroke-opacity="0.18" stroke-width="6" filter="url(#soft30)"/>
+    <path d="M250 212 L250 230 M236 219 A20 20 0 1 0 264 219" fill="none" stroke="#5b9cff" stroke-width="6" stroke-linecap="round"/>
+    <!-- session strip -->
+    <rect x="184" y="292" width="132" height="30" rx="10" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.12"/>
+    <circle cx="198" cy="307" r="4" fill="#5b9cff"/>
+    <rect x="208" y="301" width="70" height="6" rx="3" fill="#ffffff" opacity="0.35"/>
+    <rect x="208" y="310" width="46" height="6" rx="3" fill="#ffffff" opacity="0.2"/>
   </g>
-  <text x="320" y="195" font-family="'Segoe UI', system-ui, sans-serif" font-size="72" font-weight="800" fill="#f3f4f6">QuotaCards</text>
-  <text x="322" y="248" font-family="'Segoe UI', system-ui, sans-serif" font-size="28" fill="#9aa3b2">Quota-aware VPN for Windows and Android</text>
+
+  <!-- wordmark -->
+  <text x="410" y="180" font-family="'Segoe UI', system-ui, sans-serif" font-size="76" font-weight="800" fill="#f3f4f6">QuotaCards</text>
+  <text x="412" y="228" font-family="'Segoe UI', system-ui, sans-serif" font-size="27" fill="#9aa3b2">Quota-aware VPN for Windows and Android</text>
   <g font-family="'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="700">
-    <rect x="322" y="282" width="132" height="44" rx="22" fill="#5b9cff" fill-opacity="0.14" stroke="#5b9cff" stroke-opacity="0.45"/>
-    <text x="388" y="311" text-anchor="middle" fill="#5b9cff">Windows</text>
-    <rect x="466" y="282" width="128" height="44" rx="22" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.45"/>
-    <text x="530" y="311" text-anchor="middle" fill="#34d399">Android</text>
-    <rect x="606" y="282" width="150" height="44" rx="22" fill="#e8a33d" fill-opacity="0.12" stroke="#e8a33d" stroke-opacity="0.45"/>
-    <text x="681" y="311" text-anchor="middle" fill="#e8a33d">EN + AR</text>
+    <rect x="412" y="258" width="136" height="46" rx="23" fill="#5b9cff" fill-opacity="0.14" stroke="#5b9cff" stroke-opacity="0.6"/>
+    <text x="480" y="288" text-anchor="middle" fill="#8fb8ff">Windows</text>
+    <rect x="560" y="258" width="128" height="46" rx="23" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.22"/>
+    <text x="624" y="288" text-anchor="middle" fill="#c9d4e6">Android</text>
+    <rect x="700" y="258" width="130" height="46" rx="23" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.22"/>
+    <text x="765" y="288" text-anchor="middle" fill="#c9d4e6">EN + AR</text>
   </g>
 </svg>
