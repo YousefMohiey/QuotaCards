@@ -45,6 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
       measuring: "Measuring…",
       upTitle: "Updates", upCheck: "Check for updates", upGet: "Download and install",
       updHint: "New builds install by themselves.", upChecking: "Checking…",
+      updRow: "Update check",
       upOut: "{v} is out.", upCur: "You run {v}.", upLatest: "{v} is the latest.",
       upFail: "Could not reach GitHub.",
       upIdle: "Not checked yet.",
@@ -65,6 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
       measuring: "جارٍ القياس…",
       upTitle: "التحديثات", upCheck: "التحقق من التحديثات", upGet: "تحميل وتثبيت",
       updHint: "التحديثات تُثبَّت تلقائياً.", upChecking: "جارٍ التحقق…",
+      updRow: "حالة التحديث",
       upOut: "الإصدار {v} متاح.", upCur: "إصدارك الحالي {v}.", upLatest: "الإصدار {v} هو الأحدث.",
       upFail: "تعذر الوصول إلى GitHub.",
       upIdle: "لم يتم التحقق بعد.",
@@ -193,6 +195,11 @@ document.addEventListener("DOMContentLoaded", () => {
       s.textContent = v >= 1000 ? "1k" : String(v);
       g.append(s);
     }
+  })();
+  // The gauge shows throughput, so its chip is the one lit while idle.
+  (function ownGauge() {
+    const c = $("chip-down");
+    if (c) c.closest(".chip").classList.add("on");
   })();
   $("btn-ping").onclick = async () => {
     busy(true);
@@ -350,6 +357,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   } catch (e) {}
   paint();
+  // The routing screen is a sub-screen of Home, so the Home nav item stays lit
+  // while it is open (the router lives in app.js and knows nothing of the nav).
+  new MutationObserver(() => {
+    const apps = document.getElementById("view-apps");
+    if (!apps || !apps.classList.contains("on")) return;
+    document.querySelectorAll(".tabbar button").forEach((b) => b.classList.toggle("on", b.dataset.tab === "connect"));
+  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["class"] });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
@@ -435,32 +449,34 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>
 
-      <div class="panel pad setgroup">
-        <div class="setrow">
-          <span class="setlabel" data-i18n="cardForVpn">Profile</span>
-          <div class="setctl">
-            <button class="pick" id="tunnel-card-btn" aria-haspopup="listbox" aria-expanded="false">
-              <span id="tunnel-card-name">-</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-            </button>
-            <select id="tunnel-card" hidden></select>
+      <div class="group">
+        <div class="panel setgroup">
+          <div class="setrow">
+            <span class="setlabel" data-i18n="cardForVpn">Profile</span>
+            <div class="setctl">
+              <button class="pick" id="tunnel-card-btn" aria-haspopup="listbox" aria-expanded="false">
+                <span id="tunnel-card-name">-</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+              <select id="tunnel-card" hidden></select>
+            </div>
           </div>
-        </div>
-        <div class="setrow">
-          <span class="setlabel" data-i18n="routing">App routing</span>
-          <div class="setctl">
-            <button class="navlink" id="home-routing-btn">
-              <span id="home-routing-sub">-</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-            </button>
+          <div class="setrow">
+            <span class="setlabel" data-i18n="routing">App routing</span>
+            <div class="setctl">
+              <button class="navlink" id="home-routing-btn">
+                <span id="home-routing-sub">-</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+              </button>
+            </div>
           </div>
-        </div>
-        <div class="setrow">
-          <span class="setlabel" data-i18n="transport">Connection</span>
-          <div class="setctl col">
-            <div class="seg" id="transport-seg"><button data-transport="vless" class="on" data-i18n="trStandard">Standard</button></div>
-            <p class="hint" id="transport-note"></p>
+          <div class="setrow">
+            <span class="setlabel" data-i18n="transport">Connection</span>
+            <div class="setctl">
+              <div class="seg" id="transport-seg"><button data-transport="vless" class="on" data-i18n="trStandard">Standard</button></div>
+            </div>
           </div>
+          <p class="hint" id="transport-note"></p>
         </div>
       </div>
       <p class="hero-foot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-2.9 8.1-7 10-4.1-1.9-7-5.4-7-10V6l7-3z"/></svg><span data-i18n="ksFoot">Kill switch on. If the VPN drops, traffic stops instead of leaking.</span></p>
@@ -478,7 +494,7 @@ document.addEventListener("DOMContentLoaded", () => {
     <section class="view" id="view-apps">
       <div class="apps-head">
         <button class="backrow" id="btn-apps-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg><span data-i18n="back">Back</span></button>
-        <h1 data-i18n="vpnFor">VPN for</h1>
+        <h1 data-i18n="routing">App routing</h1>
         <div class="seg" id="apps-seg">
           <button data-appsmode="all" class="on" data-i18n="appsAll">All apps</button>
           <button data-appsmode="allow" data-i18n="appsOnly">Only these</button>
@@ -493,32 +509,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
     <section class="view" id="view-settings">
       <div class="pagehead"><h1 data-i18n="tabSettings">Settings</h1></div>
-      <div class="panel pad setgroup">
-        <h2 data-i18n="secGeneral">General</h2>
-        <div class="setrow">
-          <span class="setlabel" data-i18n="language">Language</span>
-          <div class="setctl">
-            <div class="seg" id="lang-seg"><button data-lang="en" class="on">EN</button><button data-lang="ar">عربي</button></div>
+      <div class="group">
+        <h2 class="grouplabel" data-i18n="secGeneral">General</h2>
+        <div class="panel setgroup">
+          <div class="setrow">
+            <span class="setlabel" data-i18n="language">Language</span>
+            <div class="setctl">
+              <div class="seg" id="lang-seg"><button data-lang="en" class="on">EN</button><button data-lang="ar">عربي</button></div>
+            </div>
           </div>
+          <button class="setrow" id="btn-how">
+            <span data-i18n="howTo">How to use</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
         </div>
-        <button class="setrow" id="btn-how">
-          <span data-i18n="howTo">How to use</span>
-          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-        </button>
       </div>
-      <div class="panel pad setgroup">
-        <h2 data-i18n="secProtection">Protection</h2>
-        <p class="hint" data-i18n="ksHintDesk">Kill switch: strict routing is always on. If the VPN drops, the engine is stopped and routes are removed instead of leaking.</p>
-      </div>
-      <div class="panel pad setgroup">
-        <h2 data-speed-i18n="upTitle">Updates</h2>
-        <p class="hint" data-speed-i18n="updHint">New builds install by themselves.</p>
-        <p class="hint" id="upd-state" data-speed-i18n="upIdle">Not checked yet.</p>
-        <div class="updrow">
-          <button id="btn-check-upd" class="ghost" data-speed-i18n="upCheck">Check for updates</button>
-          <button id="btn-get-upd" class="primary" data-speed-i18n="upGet" hidden>Download and install</button>
+      <div class="group">
+        <h2 class="grouplabel" data-i18n="secProtection">Protection</h2>
+        <div class="panel pad">
+          <p class="hint wide" data-i18n="ksHintDesk">Kill switch: strict routing is always on. If the VPN drops, the engine is stopped and routes are removed instead of leaking.</p>
         </div>
-        <p class="hint" id="upd-note" hidden></p>
+      </div>
+      <div class="group">
+        <h2 class="grouplabel" data-speed-i18n="upTitle">Updates</h2>
+        <div class="panel setgroup">
+          <div class="setrow">
+            <span class="setlabel" data-speed-i18n="updRow">App version</span>
+            <div class="setctl">
+              <span class="updstate" id="upd-state" data-speed-i18n="upIdle">Not checked yet.</span>
+              <button id="btn-get-upd" class="primary" data-speed-i18n="upGet" hidden>Download and install</button>
+              <button id="btn-check-upd" class="ghost" data-speed-i18n="upCheck">Check for updates</button>
+            </div>
+          </div>
+          <p class="hint" id="upd-note" hidden></p>
+        </div>
       </div>
     </section>
 
@@ -550,16 +574,16 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="gauge-unit"><span id="gauge-dir"></span><span data-speed-i18n="mbps">Mbps</span></div>
           </div>
         </div>
-        <div class="speedrow">
-          <button id="btn-ping" class="ghost" data-speed-i18n="pingBtn">Ping</button>
-          <button id="btn-down" class="ghost" data-speed-i18n="downBtn">Download</button>
-          <button id="btn-up" class="ghost" data-speed-i18n="upBtn">Upload</button>
-        </div>
         <div class="seg" id="ping-seg">
           <button data-ptarget="google" class="on">Google</button>
           <button data-ptarget="domain" data-speed-i18n="ptDomain">Card domain</button>
           <button data-ptarget="quad9">Quad9</button>
           <button data-ptarget="cloudflare">1.1.1.1</button>
+        </div>
+        <div class="speedrow">
+          <button id="btn-ping" class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3.5l2-5.5 3 11 2.5-7 1.6 3.5H21"/></svg><span data-speed-i18n="pingBtn">Ping</span></button>
+          <button id="btn-down" class="primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10.5L12 15.5l5-5"/><path d="M5 20h14"/></svg><span data-speed-i18n="downBtn">Download</span></button>
+          <button id="btn-up" class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V9"/><path d="M7 13.5L12 8.5l5 5"/><path d="M5 4h14"/></svg><span data-speed-i18n="upBtn">Upload</span></button>
         </div>
         <div class="meter" id="thru-meter" hidden><span></span></div>
         <p class="hint" id="speed-hint"></p>
