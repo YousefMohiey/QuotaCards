@@ -279,6 +279,10 @@ p.empty button {
 }
 .sheet[hidden] { display: none; }
 .sheet.open { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+/* The pickers always sit above the New card dialog: opening the domain
+   list from inside it must never slide behind. */
+#sheet-back { z-index: 26; }
+#sheet { z-index: 27; }
 .sheet-title { font-size: 15px; font-weight: 800; margin-bottom: 12px; }
 .sheet-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; padding-inline-end: 2px; }
 .sheet-form { display: flex; flex-direction: column; }

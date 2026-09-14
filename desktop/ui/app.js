@@ -891,7 +891,7 @@ $("btn-connect").onclick = async () => {
   try {
     const r = await call("tunnel_start", {
       uuid,
-      apps_mode: appsMode === "all" ? "" : appsMode,
+      appsMode: appsMode === "all" ? "" : appsMode,
       apps: appsPicked,
       transport,
     });

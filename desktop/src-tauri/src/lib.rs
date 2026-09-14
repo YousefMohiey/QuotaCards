@@ -567,6 +567,15 @@ async fn apply_update(app: tauri::AppHandle) -> Result<String, String> {
 
 pub fn run() {
     tauri::Builder::default()
+        // Single instance: a second launch brings the running app forward
+        // instead of starting a twin. Must be the first plugin registered.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.show();
+                let _ = w.unminimize();
+                let _ = w.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(State(Mutex::new(AppConfig::default())))
