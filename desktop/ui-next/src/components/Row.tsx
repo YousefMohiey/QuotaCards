@@ -25,7 +25,7 @@ export function Row({
 }
 
 export function Panel({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("overflow-hidden rounded-[12px] border border-line", className)}>{children}</div>
+  return <div className={cn("glass overflow-hidden rounded-[20px]", className)}>{children}</div>
 }
 
 export function GroupLabel({ children }: { children: ReactNode }) {

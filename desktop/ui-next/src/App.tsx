@@ -37,27 +37,36 @@ export default function App() {
   }, [])
 
   return (
-    <div className="flex h-full">
-      <Sidebar tab={tab} onTab={go} />
-      <main id="content" className="min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-[900px] px-8 py-7">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={tab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.2, ease: EASE_OUT }}
-            >
-              {tab === "home" && <Home onOpenApps={() => go("apps")} />}
-              {tab === "cards" && <Cards />}
-              {tab === "speed" && <Speed />}
-              {tab === "settings" && <Settings />}
-              {tab === "apps" && <Apps onBack={() => go("home")} />}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </main>
-    </div>
+    <>
+      {/* the night scene the glass refracts: fixed, inert, behind everything */}
+      <div className="scene" aria-hidden>
+        <span className="orb orb-a" />
+        <span className="orb orb-b" />
+        <span className="orb orb-c" />
+        <span className="orb orb-d" />
+      </div>
+      <div className="relative z-10 flex h-full">
+        <Sidebar tab={tab} onTab={go} />
+        <main id="content" className="min-w-0 flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-[900px] px-8 py-7">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={tab}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2, ease: EASE_OUT }}
+              >
+                {tab === "home" && <Home onOpenApps={() => go("apps")} />}
+                {tab === "cards" && <Cards />}
+                {tab === "speed" && <Speed />}
+                {tab === "settings" && <Settings />}
+                {tab === "apps" && <Apps onBack={() => go("home")} />}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </main>
+      </div>
+    </>
   )
 }

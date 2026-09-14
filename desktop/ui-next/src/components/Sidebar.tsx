@@ -26,7 +26,7 @@ export function Sidebar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
           : "ready"
 
   return (
-    <aside className="flex w-[216px] shrink-0 flex-col border-e border-line">
+    <aside className="glass-side flex w-[216px] shrink-0 flex-col">
       <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
         <img src="/icon.png" alt="" aria-hidden className="size-7 rounded-[8px]" />
         <div className="min-w-0">

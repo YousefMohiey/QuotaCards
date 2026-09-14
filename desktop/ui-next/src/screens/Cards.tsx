@@ -133,8 +133,8 @@ export function Cards() {
               <div
                 key={c.uuid}
                 className={cn(
-                  "rounded-[12px] border p-4 transition-colors",
-                  inUse ? "border-[var(--brand-line)]" : "border-line hover:bg-white/[0.015]",
+                  "glass-tile rounded-[14px] p-4 transition-colors",
+                  inUse ? "border-[var(--brand-line)]" : "hover:bg-white/[0.02]",
                 )}
               >
                 <div className="flex items-start justify-between gap-3">

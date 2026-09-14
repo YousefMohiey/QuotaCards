@@ -32,7 +32,7 @@ export function Hero() {
   useTick(1000, connected)
 
   return (
-    <section className="rounded-[12px] border border-line p-6">
+    <section className="glass rounded-[24px] p-6">
       <div className="flex min-h-[214px] items-center">
         <motion.div
           layout
@@ -109,7 +109,7 @@ export function Hero() {
 
 function StatTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-[12px] border border-line bg-white/[0.02] px-3 py-2.5">
+    <div className="glass-tile rounded-[14px] px-3 py-2.5">
       <div className="text-[11px] text-txt3">{label}</div>
       <div className="mt-1 truncate text-[13px] font-medium text-txt">{value}</div>
       {sub && <div className="mt-0.5 truncate text-[11.5px] text-txt3">{sub}</div>}

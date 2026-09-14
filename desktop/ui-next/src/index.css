@@ -145,7 +145,8 @@
     height: 100%;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased;
+    background: #04060b;
     margin: 0;
     font-size: 13.5px;
     line-height: 1.45;
@@ -191,4 +192,123 @@
       animation: none !important;
     }
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Liquid glass layer. The phone's theme on the desktop layout: a luminous
+   night scene sits fixed behind everything, and the control surfaces float
+   above it as frosted panes with a lit top edge. Recipe, traps and the
+   legibility rules live in the `liquid-glass-ui` skill.
+   --------------------------------------------------------------------------- */
+:root {
+  --glass-fill: rgb(13 18 30 / 0.45);
+  --glass-line: rgb(255 255 255 / 0.12);
+  --glass-top: rgb(255 255 255 / 0.1);
+  --glass-blur: blur(20px) saturate(150%);
+}
+
+.scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.orb {
+  position: absolute;
+  border-radius: 50%;
+}
+.orb-a {
+  width: 560px;
+  height: 560px;
+  left: 46%;
+  margin-left: -160px;
+  top: -140px;
+  background: rgb(140 170 220 / 0.3);
+  filter: blur(75px);
+}
+.orb-b {
+  width: 460px;
+  height: 460px;
+  right: -130px;
+  top: 18%;
+  background: rgb(90 115 165 / 0.26);
+  filter: blur(85px);
+}
+.orb-c {
+  width: 520px;
+  height: 520px;
+  left: -150px;
+  bottom: -140px;
+  background: rgb(60 95 170 / 0.26);
+  filter: blur(90px);
+}
+.orb-d {
+  width: 340px;
+  height: 340px;
+  right: 4%;
+  bottom: -80px;
+  background: rgb(185 150 110 / 0.16);
+  filter: blur(75px);
+}
+.scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+}
+
+/* The one shared material: diagonal lit wash, dark frosted fill, lit edge,
+   inner thickness, outer float. */
+.glass {
+  background:
+    linear-gradient(115deg, rgb(255 255 255 / 0.06), transparent 32%),
+    var(--glass-fill);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-line);
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    inset 0 -12px 24px rgb(0 0 0 / 0.18),
+    0 24px 60px rgb(0 0 0 / 0.35);
+}
+
+/* Sidebar: same pane, cooler and quieter, so content stays the focus. */
+.glass-side {
+  background: rgb(9 12 20 / 0.5);
+  backdrop-filter: blur(26px) saturate(150%);
+  border-inline-end: 1px solid var(--glass-line);
+}
+
+/* Sheets: heavier blur, never heavier opacity than this or the scene dies. */
+.glass-dialog {
+  background:
+    linear-gradient(115deg, rgb(255 255 255 / 0.07), transparent 30%),
+    rgb(12 17 28 / 0.74) !important;
+  backdrop-filter: blur(30px) saturate(150%);
+  border: 1px solid var(--glass-line);
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    0 30px 80px rgb(0 0 0 / 0.5);
+}
+
+/* Small surfaces: lighter frost so stacked glass never turns muddy. */
+.glass-tile {
+  background:
+    linear-gradient(115deg, rgb(255 255 255 / 0.05), transparent 34%),
+    rgb(13 18 30 / 0.38);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgb(255 255 255 / 0.1);
+}
+
+/* Popovers, selects and menus are part of the same material. */
+[data-slot="select-content"],
+[data-slot="dropdown-menu-content"],
+[data-slot="popover-content"] {
+  background-color: rgb(15 21 34 / 0.84) !important;
+  backdrop-filter: blur(24px) saturate(150%);
+  border-color: var(--glass-line);
+}
+[data-slot="dialog-overlay"] {
+  backdrop-filter: blur(6px);
 }
