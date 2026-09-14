@@ -22,6 +22,10 @@
   same theme as the phone.
 - Per-app routing on PC: all / only-these / all-except, matched by
   process in the engine; config shapes locked by cargo tests.
+- Motion: the connection dial sits centred and slides left the moment
+  Connect is pressed, with the status/traffic panel revealing alongside
+  it. Motion survives the OS "animation effects off" setting (that
+  setting only stands down the endless decorative pulses).
 - Phone app has its own update check (Settings, Updates): checks
   GitHub, downloads the APK, opens the system installer for one
   confirm tap. Same version number as the PC build.

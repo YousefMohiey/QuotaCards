@@ -26,16 +26,21 @@ node ../../tauri-cli-npm/node_modules/@tauri-apps/cli/tauri.js android build -t 
 UNSIGNED="$ROOT/android/tauri-app/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk"
 [ -f "$UNSIGNED" ] || { echo "NO_UNSIGNED_APK"; exit 1; }
 
+# Native .exe tools cannot read MSYS /c/... paths; hand them Windows paths.
+UNSIGNED_W="$(cygpath -w "$UNSIGNED")"
+ALIGNED_W="$(cygpath -w "$ROOT/android/app-aligned.apk")"
+OUT_W="$(cygpath -w "$ROOT/android/QuotaCards-mobile-signed.apk")"
+
 . /c/Tools/qc-keystore-pass.txt
 KS="C:/Tools/qc-release.keystore"
 ALIAS="$("$JAVA_HOME/bin/keytool.exe" -list -keystore "$KS" -storepass "$KEYSTORE_PASS" | grep -i privatekeyentry | head -1 | cut -d, -f1)"
 
-"$BT/zipalign.exe" -f -p 4 "$UNSIGNED" "$ROOT/android/app-aligned.apk"
+"$BT/zipalign.exe" -f -p 4 "$UNSIGNED_W" "$ALIGNED_W"
 "$BT/apksigner.bat" sign --ks "$KS" --ks-pass "pass:$KEYSTORE_PASS" --ks-key-alias "$ALIAS" \
-  --out "$ROOT/android/QuotaCards-mobile-signed.apk" "$ROOT/android/app-aligned.apk"
+  --out "$OUT_W" "$ALIGNED_W"
 rm -f "$ROOT/android/app-aligned.apk"
 
-"$BT/apksigner.bat" verify "$ROOT/android/QuotaCards-mobile-signed.apk" && echo SIGN_VERIFY_OK
-"$BT/aapt.exe" dump badging "$ROOT/android/QuotaCards-mobile-signed.apk" | head -1
+"$BT/apksigner.bat" verify "$OUT_W" && echo SIGN_VERIFY_OK
+"$BT/aapt.exe" dump badging "$OUT_W" | head -1
 ls -la "$ROOT/android/QuotaCards-mobile-signed.apk"
 echo APK_BUILD_DONE
