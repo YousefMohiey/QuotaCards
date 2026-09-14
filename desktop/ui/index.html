@@ -36,8 +36,8 @@ document.addEventListener("DOMContentLoaded", () => {
       thruTitle: "Throughput", downBtn: "Download", upBtn: "Upload",
       ms: "ms", mbps: "Mbps", noReply: "No reply.",
       jitter: "Jitter", chDown: "Down", chUp: "Up",
-      needDomain: "Pick a card on Home first, then ping its domain.",
       speedIdle: "Run a test to measure the connection through your card.",
+      needDomain: "Pick a card on Home first, then ping its domain.",
       needServer: "Connect first, then measure throughput.",
       downHint: "Download from your server through the active path.",
       upHint: "Upload to your server through the active path.",
@@ -56,8 +56,8 @@ document.addEventListener("DOMContentLoaded", () => {
       thruTitle: "السرعة الفعلية", downBtn: "تحميل", upBtn: "رفع",
       ms: "مللي ثانية", mbps: "ميجابت", noReply: "لا يوجد رد.",
       jitter: "التذبذب", chDown: "تنزيل", chUp: "رفع",
-      needDomain: "اختر بطاقة من الرئيسية أولاً ثم قِس النطاق.",
       speedIdle: "ابدأ قياساً لمعرفة سرعة الاتصال عبر بطاقتك.",
+      needDomain: "اختر بطاقة من الرئيسية أولاً ثم قِس النطاق.",
       needServer: "اتصل أولاً ثم قِس السرعة.",
       downHint: "قياس التحميل من الخادم عبر المسار الحالي.",
       upHint: "قياس الرفع إلى الخادم عبر المسار الحالي.",
@@ -76,10 +76,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const t = (k) => (S[lang()] && S[lang()][k]) || S.en[k] || k;
   function paint() {
     document.querySelectorAll("[data-speed-i18n]").forEach((el) => { el.textContent = t(el.dataset.speedI18n); });
-    document.querySelectorAll(".chip").forEach((c) => {
-      const b = c.querySelector("b");
-      if (b) c.classList.toggle("empty", b.textContent === "-");
-    });
     $("speed-hint").textContent = t("speedIdle");
     $("upd-state").textContent = t("upIdle");
   }
@@ -138,42 +134,13 @@ document.addEventListener("DOMContentLoaded", () => {
       $(id).classList.toggle("measuring", b);
     }
   }
-  // Rolling bars: one bar per measurement, rescaled as history moves.
-  function pushBar(id, value, kind) {
-    const box = $(id);
-    if (!box) return;
-    box.hidden = false;
-    const i = document.createElement("i");
-    if (kind === "ping") i.className = value <= 80 ? "ok" : value <= 160 ? "mid" : "bad";
-    else if (kind === "up") i.className = "up";
-    i.dataset.v = String(value);
-    i.title = (kind === "ping" ? Math.round(value) + " " + t("ms") : value.toFixed(1) + " " + t("mbps"));
-    box.append(i);
-    // Only real bars count: the corner legend lives in the same box.
-    const bars = () => [...box.children].filter((el) => el.tagName === "I" && !el.classList.contains("sw"));
-    while (bars().length > 14) bars()[0].remove();
-    requestAnimationFrame(() => {
-      const list = bars();
-      const max = Math.max(...list.map((el) => parseFloat(el.dataset.v || "0")), 1);
-      list.forEach((el) => {
-        const v = parseFloat(el.dataset.v || "0");
-        el.style.height = Math.max(8, Math.round((v / max) * 100)) + "%";
-      });
-    });
-  }
-  function setChip(id, text) {
-    const el = $(id);
-    if (!el) return;
-    el.textContent = text;
-    const chip = el.closest(".chip");
-    if (chip) chip.classList.toggle("empty", text === "-");
-  }
+  function setChip(id, text) { const el = $(id); if (el) el.textContent = text; }
   // The last metric that ran keeps a ring, so the gauge always has an owner.
   function markRan(id) {
     for (const b of ["btn-ping", "btn-down", "btn-up"]) $(b).classList.toggle("ran", b === id);
     for (const c of [["chip-ping", "btn-ping"], ["chip-down", "btn-down"], ["chip-up", "btn-up"]]) {
       const el = $(c[0]);
-      if (el) el.closest(".chip").classList.toggle("on", c[1] === id);
+      if (el) el.parentElement.classList.toggle("on", c[1] === id);
     }
   }
   // The needle sweeps and the number counts, both on the same Fluent timing.
@@ -201,14 +168,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (fill) fill.style.strokeDashoffset = String(100 - f * 100);
       const nd = $("gauge-needle");
       if (nd) nd.style.transform = "rotate(" + (-120 + f * 240).toFixed(1) + "deg)";
-      const head = $("gauge-head");
-      if (head) {
-        head.style.opacity = "1";
-        head.style.transform = "rotate(" + (-120 + f * 240).toFixed(1) + "deg)";
-      }
-    } else {
-      const head = $("gauge-head");
-      if (head) head.style.opacity = "0";
     }
   }
   // Ticks sit on the same log scale as the needle, drawn once at startup.
@@ -264,7 +223,6 @@ document.addEventListener("DOMContentLoaded", () => {
       setChip("chip-ping", String(best));
       setChip("chip-jitter", jit >= 10 ? String(Math.round(jit)) : jit.toFixed(1));
       markRan("btn-ping");
-      pushBar("ping-bars", best, "ping");
       $("speed-hint").textContent = t("pingHint");
     } finally { busy(false); }
   };
@@ -299,7 +257,6 @@ document.addEventListener("DOMContentLoaded", () => {
         setGauge(mbps, "mbps", "↓", 1);
         setChip("chip-down", mbps.toFixed(1));
         markRan("btn-down");
-        pushBar("thru-bars", mbps, "down");
         $("speed-hint").textContent = t("downHint");
       } else {
         $("speed-hint").textContent = t("noReply");
@@ -326,7 +283,6 @@ document.addEventListener("DOMContentLoaded", () => {
         setGauge(mbps, "mbps", "↑", 1);
         setChip("chip-up", mbps.toFixed(1));
         markRan("btn-up");
-        pushBar("thru-bars", mbps, "up");
         $("speed-hint").textContent = t("upHint");
       } else {
         $("speed-hint").textContent = t("noReply");
@@ -570,10 +526,10 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="pagehead"><h1 data-speed-i18n="tabSpeed">Speed</h1></div>
       <div class="panel pad speedtest">
         <div class="chips">
-          <div class="chip empty"><i class="cdot ping"></i><span class="ct"><span class="clab" data-speed-i18n="pingTitle">Ping</span><span class="cval"><b id="chip-ping">-</b><em class="cu" data-speed-i18n="ms">ms</em></span></span></div>
-          <div class="chip empty"><i class="cdot jitter"></i><span class="ct"><span class="clab" data-speed-i18n="jitter">Jitter</span><span class="cval"><b id="chip-jitter">-</b><em class="cu" data-speed-i18n="ms">ms</em></span></span></div>
-          <div class="chip empty"><i class="cdot down"></i><span class="ct"><span class="clab" data-speed-i18n="chDown">Down</span><span class="cval"><b id="chip-down">-</b><em class="cu" data-speed-i18n="mbps">Mbps</em></span></span></div>
-          <div class="chip empty"><i class="cdot up"></i><span class="ct"><span class="clab" data-speed-i18n="chUp">Up</span><span class="cval"><b id="chip-up">-</b><em class="cu" data-speed-i18n="mbps">Mbps</em></span></span></div>
+          <div class="chip"><i class="cdot ping"></i><span data-speed-i18n="pingTitle">Ping</span><b id="chip-ping">-</b><span class="cu" data-speed-i18n="ms">ms</span></div>
+          <div class="chip"><i class="cdot jitter"></i><span data-speed-i18n="jitter">Jitter</span><b id="chip-jitter">-</b><span class="cu" data-speed-i18n="ms">ms</span></div>
+          <div class="chip"><i class="cdot down"></i><span data-speed-i18n="chDown">Down</span><b id="chip-down">-</b><span class="cu" data-speed-i18n="mbps">Mbps</span></div>
+          <div class="chip"><i class="cdot up"></i><span data-speed-i18n="chUp">Up</span><b id="chip-up">-</b><span class="cu" data-speed-i18n="mbps">Mbps</span></div>
         </div>
         <div class="gauge">
           <svg viewBox="0 0 320 320" aria-hidden="true">
@@ -588,7 +544,6 @@ document.addEventListener("DOMContentLoaded", () => {
             <path class="gauge-fill" id="gauge-fill" pathLength="100" d="M 58 219 A 118 118 0 1 1 262 219" />
             <g id="gauge-ticks"></g>
             <g id="gauge-needle"><line x1="160" y1="116" x2="160" y2="60" /></g>
-            <g id="gauge-head"><circle cx="160" cy="42" r="6.5" /></g>
           </svg>
           <div class="gauge-center">
             <div class="gauge-num" id="gauge-num" aria-live="polite">-</div>
@@ -596,9 +551,9 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
         <div class="speedrow">
-          <button id="btn-ping" class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3.5l2-5.5 3 11 2.5-7 1.6 3.5H21"/></svg><span data-speed-i18n="pingBtn">Ping</span></button>
-          <button id="btn-down" class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10.5L12 15.5l5-5"/><path d="M5 20h14"/></svg><span data-speed-i18n="downBtn">Download</span></button>
-          <button id="btn-up" class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V9"/><path d="M7 13.5L12 8.5l5 5"/><path d="M5 4h14"/></svg><span data-speed-i18n="upBtn">Upload</span></button>
+          <button id="btn-ping" class="ghost" data-speed-i18n="pingBtn">Ping</button>
+          <button id="btn-down" class="ghost" data-speed-i18n="downBtn">Download</button>
+          <button id="btn-up" class="ghost" data-speed-i18n="upBtn">Upload</button>
         </div>
         <div class="seg" id="ping-seg">
           <button data-ptarget="google" class="on">Google</button>
@@ -607,8 +562,6 @@ document.addEventListener("DOMContentLoaded", () => {
           <button data-ptarget="cloudflare">1.1.1.1</button>
         </div>
         <div class="meter" id="thru-meter" hidden><span></span></div>
-        <div class="bars" id="thru-bars" hidden><span class="bars-lg"><i class="sw down"></i><span data-speed-i18n="chDown">Down</span><i class="sw up"></i><span data-speed-i18n="chUp">Up</span></span></div>
-        <div class="bars" id="ping-bars" hidden><span class="bars-lg"><span data-speed-i18n="pingTitle">Ping</span></span></div>
         <p class="hint" id="speed-hint"></p>
       </div>
     </section>
