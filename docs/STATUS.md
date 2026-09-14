@@ -17,6 +17,11 @@
 - Windows ships as an NSIS installer; closing the window hides to the
   tray (Show / Check for updates / Quit), and updates install from
   GitHub by themselves (signed feed, auto-restart).
+- PC app redesigned as a native Windows app (Fluent spacing, Segoe UI
+  Variable, connection card with live traffic, Settings-style rows),
+  same theme as the phone.
+- Per-app routing on PC: all / only-these / all-except, matched by
+  process in the engine; config shapes locked by cargo tests.
 - Phone app has its own update check (Settings, Updates): checks
   GitHub, downloads the APK, opens the system installer for one
   confirm tap. Same version number as the PC build.
