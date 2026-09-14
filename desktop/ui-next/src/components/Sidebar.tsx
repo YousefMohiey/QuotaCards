@@ -14,9 +14,16 @@ const PRIMARY: Array<{ id: Tab; icon: typeof Home; key: StrKey }> = [
 
 export function Sidebar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   const { t } = useI18n()
-  const { vpnOn, connected, busy } = useApp()
+  const { phase } = useApp()
 
-  const state = busy ? "working" : connected ? "connected" : vpnOn ? "connecting" : "ready"
+  const state =
+    phase === "connecting"
+      ? "working"
+      : phase === "on"
+        ? "connected"
+        : phase === "stopping"
+          ? "connecting"
+          : "ready"
 
   return (
     <aside className="flex w-[216px] shrink-0 flex-col border-e border-line">

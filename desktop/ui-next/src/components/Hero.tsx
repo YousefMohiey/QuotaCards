@@ -21,12 +21,12 @@ function useTick(ms: number, on: boolean) {
 
 export function Hero() {
   const { t } = useI18n()
-  const { vpnOn, connected, busy, toggle, card, rx, tx, sessionStart, serverIp } = useApp()
+  const { phase, connected, busy, toggle, card, rx, tx, sessionStart, serverIp } = useApp()
 
-  // The dial parks left from the moment Connect is pressed, not when the
-  // tunnel finishes: a slow connect must not look like a dead button.
-  const active = vpnOn || busy
-  const state: DialState = vpnOn && connected ? "on" : vpnOn || busy ? "connecting" : "idle"
+  // The dial parks left from the moment Connect is pressed, and starts its
+  // way back the moment Disconnect is pressed, not when the engine answers.
+  const active = phase === "connecting" || phase === "on"
+  const state: DialState = phase === "on" ? "on" : phase === "connecting" ? "connecting" : "idle"
   const name = card?.name.split(" (")[0] ?? ""
 
   useTick(1000, connected)
@@ -63,7 +63,7 @@ export function Hero() {
                     )}
                   />
                   <span className="text-[12.5px] text-txt2">
-                    {connected ? t("connected") : vpnOn ? t("connecting") : t("working")}
+                    {connected ? t("connected") : phase === "on" ? t("connecting") : t("working")}
                   </span>
                   {card && (
                     <span className="rounded-full border border-line-strong px-2 py-[3px] text-[11px] text-txt3">

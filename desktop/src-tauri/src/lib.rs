@@ -371,19 +371,25 @@ fn tun_octets() -> (u64, u64) {
             (*table).Table.as_ptr(),
             (*table).NumEntries as usize,
         );
-        let mut found = (0, 0);
+        // A force-killed run can leave a ghost adapter carrying the same
+        // name as the live one, and a ghost reports zeros forever. Take the
+        // busiest match instead of the first.
+        let mut best = (0u64, 0u64);
         for row in rows {
             let alias = String::from_utf16_lossy(&row.Alias);
             let desc = String::from_utf16_lossy(&row.Description);
-            if alias.trim_end_matches('\0').starts_with("QuotaCards")
-                || desc.trim_end_matches('\0').contains("QuotaCards")
-            {
-                found = (row.InOctets, row.OutOctets);
-                break;
+            let alias = alias.trim_end_matches('\0');
+            let desc = desc.trim_end_matches('\0');
+            let ours = alias.starts_with("QuotaCards")
+                || desc.contains("QuotaCards")
+                || desc.to_ascii_lowercase().contains("wintun")
+                || desc.to_ascii_lowercase().contains("sing-box");
+            if ours && row.InOctets + row.OutOctets > best.0 + best.1 {
+                best = (row.InOctets, row.OutOctets);
             }
         }
         FreeMibTable(table as *const core::ffi::c_void);
-        found
+        best
     }
 }
 

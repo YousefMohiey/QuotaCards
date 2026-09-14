@@ -12,6 +12,8 @@ import { api, type Card, type CmdResult, type UpdateInfo } from "@/lib/ipc"
 
 export type AppsMode = "all" | "allow" | "block"
 export type Transport = "vless" | "wg" | "hy2"
+/** One dial state that both the hero and the sidebar read. */
+export type Phase = "idle" | "connecting" | "on" | "stopping"
 
 type Value = {
   ready: boolean
@@ -25,6 +27,7 @@ type Value = {
   vpnOn: boolean
   connected: boolean
   busy: boolean
+  phase: Phase
   status: string
   rx: number
   tx: number
@@ -43,7 +46,7 @@ type Value = {
   toggle: () => void
   checkUpdates: () => void
   applyUpdate: () => void
-  loadApps: () => Promise<string[]>
+  loadApps: () => Promise<Array<{ pkg: string; label: string }>>
 }
 
 const Ctx = createContext<Value | null>(null)
@@ -75,6 +78,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [vpnOn, setVpnOn] = useState(false)
   const [connected, setConnected] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [phase, setPhase] = useState<Phase>("idle")
   const [status, setStatus] = useState("")
   const [rx, setRx] = useState(0)
   const [tx, setTx] = useState(0)
@@ -102,6 +106,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         const tunnel = await api.status().catch(() => null)
         if (alive && tunnel?.running) {
           setVpnOn(true)
+          setPhase("on")
           setSessionStart(Date.now())
         }
       } catch {
@@ -171,12 +176,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       return
     }
     setBusy(true)
+    setPhase("connecting")
     setStatus("")
     try {
       await api.probeServer()
       const r = await api.start(cardUuid, appsMode, apps, transport)
       setStatus(r.msg)
-      if (!r.ok) return
+      if (!r.ok) {
+        setPhase("idle")
+        return
+      }
       setVpnOn(true)
       setSessionStart(Date.now())
       setRx(0)
@@ -187,14 +196,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         if (st.running) break
         if (st.error) {
           setStatus(st.error)
-          break
+          setPhase("idle")
+          return
         }
       }
       const probe = await api.probeTunnel().catch(() => null)
       setConnected(!!probe?.ok)
+      setPhase("on")
       if (probe?.msg) setStatus(probe.msg)
     } catch (e) {
       setStatus(String(e))
+      setPhase("idle")
     } finally {
       setBusy(false)
     }
@@ -202,17 +214,33 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const disconnect = useCallback(async () => {
     setBusy(true)
+    // Flip the dial first: waiting for the engine round-trip is what made
+    // disconnecting feel like it lagged.
+    setPhase("stopping")
+    setVpnOn(false)
+    setConnected(false)
     try {
       const r = await api.stop()
       setStatus(r.msg)
+      if (!r.ok) {
+        // engine still up: put the UI back where it was
+        setVpnOn(true)
+        setConnected(true)
+        setPhase("on")
+        return
+      }
     } catch (e) {
       setStatus(String(e))
+      setVpnOn(true)
+      setPhase("on")
+      return
     } finally {
-      setVpnOn(false)
-      setConnected(false)
-      setSessionStart(null)
       setBusy(false)
     }
+    setSessionStart(null)
+    setRx(0)
+    setTx(0)
+    setPhase("idle")
   }, [])
 
   const toggle = useCallback(() => {
@@ -241,11 +269,21 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const loadApps = useCallback(async () => {
     try {
-      const raw = await api.apps()
+      const raw = (await api.apps()).trim()
+      if (!raw) return []
+      // Windows sends a JSON array of {pkg, label}; the phone sends one
+      // process name per line. Take either.
+      if (raw.startsWith("[")) {
+        const arr = JSON.parse(raw) as Array<{ pkg?: string; label?: string }>
+        return arr
+          .map((a) => ({ pkg: a.pkg ?? "", label: a.label ?? a.pkg ?? "" }))
+          .filter((a) => a.pkg)
+      }
       return raw
         .split("\n")
         .map((s) => s.trim())
         .filter(Boolean)
+        .map((pkg) => ({ pkg, label: pkg }))
     } catch {
       return []
     }
@@ -294,6 +332,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     vpnOn,
     connected,
     busy,
+    phase,
     status,
     rx,
     tx,

@@ -1,29 +1,10 @@
 import { useRef, useState, type ReactNode } from "react"
-import { Gamepad2, Globe, MonitorPlay, Users } from "lucide-react"
-import { SpeedGauge, Stars, type GaugePhase } from "@/components/SpeedGauge"
+import { Globe, Users } from "lucide-react"
+import { SpeedGauge, type GaugePhase } from "@/components/SpeedGauge"
 import { useApp } from "@/state/app"
 import { useI18n } from "@/lib/i18n"
 import { measureDownload, measurePing, measureUpload } from "@/lib/speedtest"
 import { cn } from "@/lib/utils"
-
-/** Higher is better. 0 means "not measured yet". */
-const up = (v: number | null, bands: [number, number, number, number]): number => {
-  if (v === null) return 0
-  if (v >= bands[0]) return 5
-  if (v >= bands[1]) return 4
-  if (v >= bands[2]) return 3
-  if (v >= bands[3]) return 2
-  return 1
-}
-/** Lower is better. */
-const down = (v: number | null, bands: [number, number, number, number]): number => {
-  if (v === null) return 0
-  if (v <= bands[0]) return 5
-  if (v <= bands[1]) return 4
-  if (v <= bands[2]) return 3
-  if (v <= bands[3]) return 2
-  return 1
-}
 
 export function Speed() {
   const { t } = useI18n()
@@ -134,14 +115,6 @@ export function Speed() {
         ))}
       </div>
 
-      {/* What the numbers are good for */}
-      <div className="flex w-full items-start justify-between px-8">
-        <Activity icon={Globe} label="Web" score={Math.min(down(ping, [20, 40, 80, 150]), down(jitter, [5, 12, 25, 50]))} />
-        <Activity icon={Gamepad2} label="Gaming" score={down(ping, [20, 40, 80, 150])} />
-        <Activity icon={MonitorPlay} label="Streaming" score={up(downMbps, [200, 100, 50, 20])} />
-        <Activity icon={Users} label="Social" score={up(upMbps, [50, 25, 10, 5])} />
-      </div>
-
       <SpeedGauge value={value} unit={unit} phase={phase} caption={label} />
 
       <div className="flex items-center gap-2">
@@ -165,7 +138,11 @@ export function Speed() {
         <div>
           <div className="text-[15px] font-medium text-txt">{serverIp || "—"}</div>
           <div className="mt-1 text-[12px] text-txt3">
-            {ping !== null ? `${ping} ${t("ms")}` : "—"} · {jitter !== null ? `${jitter} ${t("ms")}` : "—"}
+            {downMbps !== null || upMbps !== null
+              ? `${downMbps !== null ? "↓ " + downMbps.toFixed(1) : "↓ —"} · ${upMbps !== null ? "↑ " + upMbps.toFixed(1) : "↑ —"} ${t("mbps")}`
+              : ping !== null
+                ? `${t("pingTitle")} ${ping} ${t("ms")} · ${t("jitter")} ${jitter} ${t("ms")}`
+                : "—"}
           </div>
         </div>
         <div className="flex flex-col items-end">
@@ -177,16 +154,6 @@ export function Speed() {
           <div className="text-[12px] text-txt3">{card?.sni ?? "—"}</div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function Activity({ icon: Icon, label, score }: { icon: typeof Globe; label: string; score: number }) {
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <Icon className="size-8 text-txt" strokeWidth={1.4} aria-hidden />
-      <Stars score={score} />
-      <span className="text-[11.5px] text-txt3">{label}</span>
     </div>
   )
 }

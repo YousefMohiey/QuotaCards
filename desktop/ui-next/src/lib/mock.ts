@@ -65,7 +65,7 @@ export async function mockCall<T>(cmd: string, args?: Record<string, unknown>): 
     case "tunnel_copy_log":
       return ok("Log copied.") as T
     case "tunnel_apps":
-      return APPS.join("\n") as T
+      return JSON.stringify(APPS.map((label) => ({ pkg: label.toLowerCase().replace(/\s+/g, "") + ".exe", label }))) as T
     case "resolve_host":
       return "203.0.113.10" as T
     case "check_update":

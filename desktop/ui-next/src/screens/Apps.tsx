@@ -8,10 +8,12 @@ import { Segmented } from "@/components/Segmented"
 import { useApp, type AppsMode } from "@/state/app"
 import { useI18n } from "@/lib/i18n"
 
+type Row = { pkg: string; label: string }
+
 export function Apps({ onBack }: { onBack: () => void }) {
   const { t } = useI18n()
   const { appsMode, setAppsMode, apps, setApps, loadApps } = useApp()
-  const [list, setList] = useState<string[]>([])
+  const [list, setList] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState("")
 
@@ -29,12 +31,12 @@ export function Apps({ onBack }: { onBack: () => void }) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return q ? list.filter((n) => n.toLowerCase().includes(q)) : list
+    return q ? list.filter((r) => r.label.toLowerCase().includes(q)) : list
   }, [list, query])
 
-  const toggle = (name: string) => {
+  const toggle = (pkg: string) => {
     if (appsMode === "all") return
-    setApps(apps.includes(name) ? apps.filter((n) => n !== name) : [...apps, name])
+    setApps(apps.includes(pkg) ? apps.filter((n) => n !== pkg) : [...apps, pkg])
   }
 
   const status =
@@ -81,19 +83,22 @@ export function Apps({ onBack }: { onBack: () => void }) {
           {filtered.length === 0 ? (
             <p className="px-4 py-6 text-[12.5px] text-txt3">{loading ? t("appsLoading") : t("appsEmpty")}</p>
           ) : (
-            filtered.map((name) => {
-              const on = apps.includes(name)
+            filtered.map((row) => {
+              const on = apps.includes(row.pkg)
               return (
                 <div
-                  key={name}
+                  key={row.pkg}
                   className="flex items-center justify-between gap-4 border-b border-line px-4 py-2.5 last:border-b-0"
                 >
-                  <span className="min-w-0 truncate text-[13px] text-txt2">{name}</span>
+                  <div className="min-w-0">
+                    <div className="truncate text-[13px] text-txt2">{row.label}</div>
+                    <div className="truncate text-[11px] text-txt3">{row.pkg}</div>
+                  </div>
                   <Switch
                     checked={on}
                     disabled={appsMode === "all"}
-                    onCheckedChange={() => toggle(name)}
-                    aria-label={name}
+                    onCheckedChange={() => toggle(row.pkg)}
+                    aria-label={row.label}
                   />
                 </div>
               )

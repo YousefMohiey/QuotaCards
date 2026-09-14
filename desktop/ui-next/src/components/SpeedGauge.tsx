@@ -29,9 +29,8 @@ function arcPath(r: number, f0: number, f1: number): string {
 }
 
 /**
- * Thin 270 degree dial: hairline track, one accent arc, tapered needle and a
- * light numeral. Both arc and needle are Motion-driven; the number counts
- * with them so a new sample never snaps.
+ * Thin 270 degree dial. The arc, the needle and the numeral all read the
+ * SAME animated value, so the three can never disagree with each other.
  */
 export function SpeedGauge({
   value,
@@ -49,7 +48,7 @@ export function SpeedGauge({
 
   useEffect(() => {
     const controls = animate(from.current, value, {
-      duration: phase === "idle" ? 0.35 : 0.5,
+      duration: phase === "idle" ? 0.35 : 0.3,
       ease: [0.1, 0.9, 0.2, 1],
       onUpdate: (v) => setShown(v),
       onComplete: () => {
@@ -59,7 +58,8 @@ export function SpeedGauge({
     return () => controls.stop()
   }, [value, phase])
 
-  const f = toFrac(value)
+  // everything derives from the moving value, never from the raw target
+  const f = toFrac(shown)
   const angle = -135 + f * SWEEP
   const accent = phase === "upload" ? "#63a8bb" : phase === "ping" ? "var(--amber)" : "var(--brand)"
   const shownText =
@@ -84,14 +84,14 @@ export function SpeedGauge({
         strokeLinecap="round"
         initial={{ pathLength: 0 }}
         animate={{ pathLength: f }}
-        transition={{ duration: phase === "idle" ? 0.35 : 0.5, ease: [0.1, 0.9, 0.2, 1] }}
+        transition={{ duration: 0.3, ease: [0.1, 0.9, 0.2, 1] }}
       />
 
       {TICKS.map((tick) => {
         const tf = toFrac(tick)
         const a = START + tf * SWEEP
         const [tx, ty] = polar(R - 30, a)
-        const lit = value >= tick && value > 0
+        const lit = shown >= tick && shown > 0
         return (
           <text
             key={tick}
@@ -111,7 +111,7 @@ export function SpeedGauge({
         style={{ transformOrigin: `${C}px ${C}px` }}
         initial={{ rotate: -135 }}
         animate={{ rotate: angle }}
-        transition={{ duration: phase === "idle" ? 0.35 : 0.5, ease: [0.1, 0.9, 0.2, 1] }}
+        transition={{ duration: 0.3, ease: [0.1, 0.9, 0.2, 1] }}
       >
         <polygon points={`${C - 3},${C} ${C},${C - (R - 18)} ${C + 3},${C}`} fill="url(#needle)" />
         <circle cx={C} cy={C} r="7" fill="#2a2f3c" stroke="var(--line-strong)" strokeWidth="1" />
@@ -121,7 +121,7 @@ export function SpeedGauge({
         {shownText}
       </text>
       <g transform={`translate(${C - 34}, ${C + 84})`}>
-        <circle cx="7" cy="7" r="7" fill={value > 0 ? "var(--brand)" : "var(--line-strong)"} />
+        <circle cx="7" cy="7" r="7" fill={shown > 0 ? "var(--brand)" : "var(--line-strong)"} />
         <path
           d="M4 7.4l2 2 3.6-3.9"
           fill="none"
@@ -137,30 +137,6 @@ export function SpeedGauge({
       <text x={C} y={C + 112} textAnchor="middle" fontSize="12.5" fill="var(--txt3)">
         {caption}
       </text>
-    </svg>
-  )
-}
-
-/** Five thin stars: how the measured numbers rate for a given use. */
-export function Stars({ score }: { score: number }) {
-  return (
-    <div className="flex items-center gap-[3px]">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <Star key={n} on={n <= score} />
-      ))}
-    </div>
-  )
-}
-
-function Star({ on }: { on: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" className="size-[11px]" aria-hidden>
-      <path
-        d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8L3.6 9.7l5.8-.8z"
-        fill={on ? "var(--txt)" : "none"}
-        stroke={on ? "var(--txt)" : "var(--txt3)"}
-        strokeWidth={on ? 0.6 : 1.1}
-      />
     </svg>
   )
 }
