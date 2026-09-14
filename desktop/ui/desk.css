@@ -87,6 +87,14 @@
 }
 
 * { box-sizing: border-box; }
+.skiplink {
+  position: fixed; z-index: 60; inset-block-start: 10px; inset-inline-start: 10px;
+  padding: 8px 14px; border-radius: var(--r-ctl);
+  background: var(--accent); color: #08111f; font-size: 13px; font-weight: 600;
+  text-decoration: none; transform: translateY(-200%);
+  transition: transform 160ms var(--ease-out);
+}
+.skiplink:focus-visible { transform: none; }
 html, body { height: 100%; }
 body {
   margin: 0;
@@ -107,7 +115,6 @@ b, strong { font-weight: 600; }
 :focus-visible {
   outline: 2px solid var(--accent-line);
   outline-offset: 2px;
-  border-radius: var(--r-ctl);
 }
 
 /* Quiet backdrop: two faint tints, no glow blobs. */
@@ -169,7 +176,7 @@ b, strong { font-weight: 600; }
 /* ---------- Content ---------- */
 
 main {
-  flex: 1; min-width: 0; overflow-y: auto;
+  flex: 1; min-width: 0; overflow-y: auto; overscroll-behavior: contain;
   padding: 24px 32px 32px;
   display: flex; flex-direction: column;
 }
@@ -178,7 +185,7 @@ main {
 #view-connect.on { flex: 1 1 auto; min-height: 0; }
 
 .pagehead { display: flex; align-items: center; gap: 12px; min-height: 36px; padding-bottom: 4px; }
-.pagehead h1 { margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 600; letter-spacing: -0.015em; }
+.pagehead h1 { margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 600; letter-spacing: -0.015em; text-wrap: balance; }
 .pagehead h1 .count { color: var(--txt3); font-weight: 500; font-size: 14px; margin-inline-start: 6px; }
 .pagehead .spacer { flex: 1 1 auto; }
 
@@ -217,7 +224,6 @@ main {
   background: radial-gradient(560px 340px at 210px 50%, rgb(74 134 232 / 0.13), transparent 72%);
   transition: background 300ms var(--ease);
 }
-.hero[data-kind="Streamerz"]::before { background: radial-gradient(560px 340px at 210px 50%, rgb(196 154 88 / 0.13), transparent 72%); }
 .hero.connected::before {
   background:
     radial-gradient(560px 340px at 210px 50%, rgb(92 178 142 / 0.14), transparent 72%),
@@ -239,20 +245,12 @@ main {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
   background: radial-gradient(circle at 50% 34%, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.02) 74%);
   border: 1.5px solid var(--line-strong);
-  box-shadow: 0 0 0 12px rgb(255 255 255 / 0.02);
   color: var(--txt2); cursor: pointer; position: relative;
   transition: border-color 200ms var(--ease), color 200ms var(--ease), background 200ms var(--ease), box-shadow 200ms var(--ease), transform 140ms var(--ease);
 }
-.hero-btn:hover { transform: scale(1.015); }
+
 .hero-btn .power { width: 44px; height: 44px; }
-.dial-arc {
-  position: absolute; inset: -3px; border-radius: 50%;
-  opacity: 0; transition: opacity 320ms var(--ease);
-  background: conic-gradient(from 0deg, var(--accent) 0 0deg, transparent 0deg);
-  -webkit-mask: radial-gradient(closest-side, transparent 94%, #000 95%);
-  mask: radial-gradient(closest-side, transparent 94%, #000 95%);
-  pointer-events: none;
-}
+
 .hero-btn:hover { border-color: var(--accent-line); color: var(--txt); }
 .hero-btn:active { transform: scale(0.98); }
 .hero-btn:disabled { opacity: 0.6; cursor: default; }
@@ -266,25 +264,9 @@ main {
 .hero.connected .hero-btn {
   border-color: var(--green); color: var(--green);
   background: radial-gradient(circle at 50% 36%, rgb(92 178 142 / 0.14), rgb(92 178 142 / 0.03) 72%);
-  box-shadow: 0 0 0 12px rgb(92 178 142 / 0.05);
-}
-.hero.ready .dial-arc {
-  opacity: 1;
-  background: conic-gradient(from -120deg, rgb(74 134 232 / 0.30) 0 240deg, transparent 240deg);
 }
 .hero.connecting .hero-info, .hero.ready .hero-info { transition-delay: 0ms; }
 .hero.ready .hero-btn { border-color: var(--accent-line); color: var(--accent-strong); }
-.hero.connected .dial-arc {
-  opacity: 1;
-  background: conic-gradient(from -120deg, var(--green) 0 240deg, transparent 240deg);
-  animation: arcSettle 640ms var(--ease-out) 320ms both;
-}
-@keyframes arcSettle { from { transform: rotate(-40deg); opacity: 0.2; } }
-.hero.connecting .dial-arc {
-  opacity: 1;
-  background: conic-gradient(from 0deg, var(--accent) 0 110deg, transparent 110deg);
-  animation: spin 1.1s linear infinite;
-}
 @keyframes spin { to { transform: rotate(360deg); } }
 .btn-action { font-size: 13px; font-weight: 600; letter-spacing: 0.01em; }
 .hero-idle { margin: 0; font-size: 12.5px; color: var(--txt3); animation: fadeIn 320ms var(--ease-out) both; }
@@ -307,9 +289,9 @@ main {
 .hero.connecting .livedot { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
 .hero.connected .livedot { background: var(--green); box-shadow: 0 0 0 3px var(--green-bg); }
 .hero.connected .hero-state { color: var(--green); }
-.hero-name { margin: 0; font-family: var(--font-display); font-size: 28px; font-weight: 600; letter-spacing: -0.025em; }
+.hero-name { margin: 0; font-family: var(--font-display); font-size: 28px; font-weight: 600; letter-spacing: -0.025em; text-wrap: balance; overflow-wrap: anywhere; }
 .hero-name:empty { display: none; }
-.hero-sub { margin: 0; font-size: 13px; color: var(--txt2); }
+.hero-sub { margin: 0; font-size: 13px; color: var(--txt2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hero-sub:empty { display: none; }
 
 /* Live throughput: one card, sparkline inside. */
@@ -370,8 +352,9 @@ button.setrow svg { width: 16px; height: 16px; color: var(--txt3); flex: none; }
   font-size: 11px; font-weight: 600; letter-spacing: 0.01em;
   border: 1px solid transparent; white-space: nowrap;
 }
-.kindbadge.gamerz { color: var(--accent-strong); background: var(--accent-bg); border-color: var(--accent-line); }
-.kindbadge.streamerz { color: var(--amber); background: var(--amber-bg); border-color: var(--amber-line); }
+.kindbadge.gamerz, .kindbadge.streamerz {
+  color: var(--txt2); background: rgb(255 255 255 / 0.06); border-color: var(--line);
+}
 
 /* ---------- Controls ---------- */
 
@@ -426,7 +409,7 @@ input:focus { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0
 }
 .primary:hover { background: var(--accent-strong); }
 .primary:active { transform: translateY(1px); }
-.primary:disabled { opacity: 0.5; cursor: default; transform: none; }
+.primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .second {
   width: 100%; min-height: 36px; padding: 9px;
   background: var(--accent-bg); border: 1px solid var(--accent-line); border-radius: var(--r-ctl);
@@ -439,7 +422,7 @@ input:focus { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0
   transition: background 140ms var(--ease), border-color 140ms var(--ease);
 }
 .ghost:hover { background: rgb(255 255 255 / 0.05); border-color: rgb(255 255 255 / 0.22); }
-.ghost:disabled { opacity: 0.5; cursor: default; }
+.ghost:disabled { opacity: 0.5; cursor: not-allowed; }
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 
 /* ---------- Cards view ---------- */
@@ -448,20 +431,15 @@ input:focus { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0
 .cards-grid.is-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 56px 0; gap: 12px; }
 .cardrow {
   position: relative; overflow: hidden;
-  display: flex; align-items: center; gap: 12px; padding: 16px 16px 16px 20px;
+  display: flex; align-items: center; gap: 12px; padding: 16px;
   background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card);
   transition: border-color 140ms var(--ease), background 140ms var(--ease), transform 140ms var(--ease);
 }
-.cardrow::before { content: ""; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 3px; background: var(--txt3); }
-.cardrow[data-kind="gamerz"] { border-color: rgb(74 134 232 / 0.22); }
-.cardrow[data-kind="gamerz"]::before { background: var(--accent); }
-.cardrow[data-kind="streamerz"] { border-color: rgb(196 154 88 / 0.22); }
-.cardrow[data-kind="streamerz"]::before { background: var(--amber); }
 .cardrow:hover { border-color: var(--line-strong); transform: translateY(-1px); }
-.cardrow.active { border-color: rgb(92 178 142 / 0.30); box-shadow: inset 0 0 0 1px rgb(92 178 142 / 0.16); }
+.cardrow.active { border-color: var(--line-strong); }
 .cardrow .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--txt3); }
-.cardrow .dot.gamerz { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
-.cardrow .dot.streamerz { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-bg); }
+/* One colour for every card: the kind is a word in the badge, not a hue. */
+.cardrow .dot.gamerz, .cardrow .dot.streamerz { background: var(--txt3); }
 .cardrow .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .cardrow .name { font-family: var(--font-display); font-weight: 600; font-size: 16px; letter-spacing: -0.015em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cardrow .row2 { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -474,7 +452,7 @@ input:focus { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0
 .cardrow .use:empty { display: none; }
 .cardrow button {
   border: 1px solid transparent; background: rgb(255 255 255 / 0.04); border-radius: 7px;
-  padding: 6px 11px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--txt2);
+  min-height: 30px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--txt2);
   white-space: nowrap;
   transition: color 140ms var(--ease), background 140ms var(--ease), border-color 140ms var(--ease);
 }
@@ -495,6 +473,7 @@ p.empty button {
 .backrow svg { width: 16px; height: 16px; }
 .appsstatus { font-size: 12.5px; color: var(--txt2); margin: 0; }
 .apps-list { display: flex; flex-direction: column; gap: 2px; }
+.apps-list .opt { content-visibility: auto; contain-intrinsic-size: auto 42px; }
 .opt {
   display: flex; align-items: center; gap: 10px; width: 100%; text-align: start;
   background: transparent; border: 1px solid transparent; border-radius: var(--r-ctl);
@@ -529,13 +508,13 @@ p.empty button {
   transition: border-color 140ms var(--ease), background 140ms var(--ease), color 140ms var(--ease);
 }
 #kind-seg button:hover { color: var(--txt); border-color: var(--line-strong); }
-#kind-seg button.gamerz.on { border-color: var(--accent-line); background: linear-gradient(180deg, rgb(74 134 232 / 0.18), rgb(74 134 232 / 0.05)); color: var(--txt); }
-#kind-seg button.streamerz.on { border-color: var(--amber-line); background: linear-gradient(180deg, rgb(196 154 88 / 0.18), rgb(196 154 88 / 0.05)); color: var(--txt); }
+#kind-seg button.on { border-color: var(--accent-line); background: linear-gradient(180deg, rgb(74 134 232 / 0.16), rgb(74 134 232 / 0.04)); color: var(--txt); }
 
 /* ---------- Overlays: dialogs and sheets ---------- */
 
 .sheet-back { position: fixed; inset: 0; z-index: 20; background: rgb(6 9 14 / 0.62); }
 .sheet {
+  overscroll-behavior: contain;
   position: fixed; z-index: 21; left: 50%; top: 50%;
   transform: translate(-50%, -50%) scale(0.98); opacity: 0;
   width: 440px; max-width: calc(100vw - 64px); max-height: calc(100vh - 80px);
@@ -622,7 +601,6 @@ p.empty button {
 @keyframes barIn { from { opacity: 0; transform: translateY(-6px); } }
 @keyframes pillIn { from { opacity: 0; transform: translateY(-50%) scaleY(0.4); } }
 @keyframes softPulse { 50% { opacity: 0.55; } }
-@keyframes ringOut { from { transform: scale(1); opacity: 0.85; } to { transform: scale(1.34); opacity: 0; } }
 @keyframes dotPulse { 50% { transform: scale(1.7); opacity: 0.5; } }
 .view.on { animation: viewIn 240ms var(--ease-out); }
 /* Panels of whatever view is on stage file in one after another. */
@@ -640,11 +618,7 @@ p.empty button {
 .bar { animation: barIn 200ms var(--ease-out); }
 .tabbar button.on::before { animation: pillIn 160ms var(--ease-out); }
 .hero.connecting .livedot { animation: dotPulse 1.1s ease-in-out infinite; }
-.hero.connected .hero-btn::before {
-  content: ""; position: absolute; inset: -1.5px; border-radius: 50%;
-  border: 2px solid var(--green); pointer-events: none;
-  animation: ringOut 650ms var(--ease-out) forwards;
-}
+
 .primary.measuring { animation: softPulse 900ms ease-in-out infinite; }
 .cardrow { animation: rowIn 240ms var(--ease-out) both; }
 .sheet-list > .opt, .apps-list > .opt { animation: rowIn 200ms var(--ease-out) both; }
