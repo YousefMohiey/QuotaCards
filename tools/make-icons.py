@@ -124,6 +124,42 @@ def build():
         im.save(p, optimize=True)
         print("wrote", p)
 
+    # Android launcher mipmaps (staging folder that tauri packs into the APK).
+    # Framing replicates the previous launcher geometry: the tile occupies
+    # 75% of the launcher canvas / 78% of the adaptive foreground, centered.
+    tile = master.crop(master.getchannel("A").getbbox())
+
+    def on_canvas(size: int, content: float, percent: int) -> Image.Image:
+        canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        inner = max(1, round(size * content))
+        t = tile.resize((inner, inner), Image.LANCZOS)
+        if percent:
+            rgb = t.convert("RGB").filter(
+                ImageFilter.UnsharpMask(radius=0.7, percent=percent, threshold=2)
+            ).convert("RGBA")
+            rgb.putalpha(t.getchannel("A"))
+            t = rgb
+        off = (size - inner) // 2
+        canvas.paste(t, (off, off), t)
+        return canvas
+
+    res = ROOT / "android" / "tauri-app" / "src-tauri" / "gen" / "android" / "app" / "src" / "main" / "res"
+    mipmaps = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
+    fg = {"mdpi": 108, "hdpi": 162, "xhdpi": 216, "xxhdpi": 324, "xxxhdpi": 432}
+    launcher_pct = {48: 95, 72: 80, 96: 65, 144: 45, 192: 30}
+    fg_pct = {108: 60, 162: 45, 216: 35, 324: 20, 432: 0}
+    if res.exists():
+        for d, size in mipmaps.items():
+            im = on_canvas(size, 0.75, launcher_pct.get(size, 0))
+            for name in ["ic_launcher.png", "ic_launcher_round.png"]:
+                im.save(res / f"mipmap-{d}" / name, optimize=True)
+                print("wrote", res / f"mipmap-{d}" / name)
+            fgm = on_canvas(fg[d], 0.78, fg_pct.get(fg[d], 0))
+            fgm.save(res / f"mipmap-{d}" / "ic_launcher_foreground.png", optimize=True)
+            print("wrote", res / f"mipmap-{d}" / "ic_launcher_foreground.png")
+    else:
+        print("skip mipmaps: staging dir missing", res)
+
     # verify: reopen the icos, compare every frame to the tuned render
     from PIL import ImageChops, ImageStat
     ok = True
