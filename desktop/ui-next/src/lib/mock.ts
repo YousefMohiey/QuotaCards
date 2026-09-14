@@ -64,6 +64,8 @@ export async function mockCall<T>(cmd: string, args?: Record<string, unknown>): 
       return "[mock] engine log line\n[mock] tunnel up\n" as T
     case "tunnel_copy_log":
       return ok("Log copied.") as T
+    case "import_card":
+      return ok("Card added.") as T
     case "tunnel_apps":
       return JSON.stringify(APPS.map((label) => ({ pkg: label.toLowerCase().replace(/\s+/g, "") + ".exe", label }))) as T
     case "resolve_host":

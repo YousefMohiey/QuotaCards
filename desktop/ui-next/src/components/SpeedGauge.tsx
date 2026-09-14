@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { animate, motion } from "motion/react"
+import { animate } from "motion/react"
 
 export type GaugePhase = "idle" | "ping" | "download" | "upload" | "done"
 
@@ -29,8 +29,10 @@ function arcPath(r: number, f0: number, f1: number): string {
 }
 
 /**
- * Thin 270 degree dial. The arc, the needle and the numeral all read the
- * SAME animated value, so the three can never disagree with each other.
+ * Thin 270 degree dial. The needle is drawn as a segment whose endpoint is
+ * computed from the angle, so it needs no transform at all: whatever the
+ * animated value is, the needle points exactly at that fraction of the scale
+ * and the numeral reads the same number. Nothing can drift apart.
  */
 export function SpeedGauge({
   value,
@@ -48,22 +50,21 @@ export function SpeedGauge({
 
   useEffect(() => {
     const controls = animate(from.current, value, {
-      duration: phase === "idle" ? 0.35 : 0.3,
-      ease: [0.1, 0.9, 0.2, 1],
+      duration: 0.28,
+      ease: [0.12, 0.9, 0.2, 1],
       onUpdate: (v) => setShown(v),
       onComplete: () => {
         from.current = value
       },
     })
     return () => controls.stop()
-  }, [value, phase])
+  }, [value])
 
-  // everything derives from the moving value, never from the raw target
   const f = toFrac(shown)
-  const angle = -135 + f * SWEEP
   const accent = phase === "upload" ? "#63a8bb" : phase === "ping" ? "var(--amber)" : "var(--brand)"
   const shownText =
     unit === "ms" ? shown.toFixed(0) : shown >= 100 ? shown.toFixed(0) : shown >= 10 ? shown.toFixed(1) : shown.toFixed(2)
+  const [tipX, tipY] = polar(R - 20, START + f * SWEEP)
 
   return (
     <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="size-[320px]" role="img" aria-label={`${shownText} ${unit}`}>
@@ -75,21 +76,16 @@ export function SpeedGauge({
       </defs>
 
       <path d={arcPath(R, 0, 1)} stroke="var(--line-strong)" strokeWidth={STROKE} fill="none" strokeLinecap="round" />
-      <motion.path
-        d={arcPath(R, 0, 1)}
-        pathLength={1}
+      <path
+        d={arcPath(R, 0, f)}
         stroke={accent}
         strokeWidth={STROKE}
         fill="none"
         strokeLinecap="round"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: f }}
-        transition={{ duration: 0.3, ease: [0.1, 0.9, 0.2, 1] }}
       />
 
       {TICKS.map((tick) => {
-        const tf = toFrac(tick)
-        const a = START + tf * SWEEP
+        const a = START + toFrac(tick) * SWEEP
         const [tx, ty] = polar(R - 30, a)
         const lit = shown >= tick && shown > 0
         return (
@@ -102,20 +98,13 @@ export function SpeedGauge({
             fontWeight="500"
             fill={lit ? "var(--txt2)" : "var(--txt3)"}
           >
-            {tick >= 1000 ? "1000" : tick}
+            {tick}
           </text>
         )
       })}
 
-      <motion.g
-        style={{ transformOrigin: `${C}px ${C}px` }}
-        initial={{ rotate: -135 }}
-        animate={{ rotate: angle }}
-        transition={{ duration: 0.3, ease: [0.1, 0.9, 0.2, 1] }}
-      >
-        <polygon points={`${C - 3},${C} ${C},${C - (R - 18)} ${C + 3},${C}`} fill="url(#needle)" />
-        <circle cx={C} cy={C} r="7" fill="#2a2f3c" stroke="var(--line-strong)" strokeWidth="1" />
-      </motion.g>
+      <line x1={C} y1={C} x2={tipX} y2={tipY} stroke="url(#needle)" strokeWidth="3" strokeLinecap="round" />
+      <circle cx={C} cy={C} r="7" fill="#2a2f3c" stroke="var(--line-strong)" strokeWidth="1" />
 
       <text x={C} y={C + 62} textAnchor="middle" fontSize="46" fontWeight="300" fill="var(--txt)" letterSpacing="0.02em">
         {shownText}

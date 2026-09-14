@@ -36,6 +36,7 @@ type Value = {
   updateState: "idle" | "checking" | "latest" | "available" | "error"
   refresh: () => Promise<void>
   generateCard: (name: string, kind: string, sni: string) => Promise<CmdResult>
+  importCard: (uuid: string, name: string, kind: string, sni: string) => Promise<CmdResult>
   revokeCard: (uuid: string) => Promise<CmdResult>
   copyCard: (uuid: string) => Promise<CmdResult>
   copyLog: () => Promise<CmdResult>
@@ -308,6 +309,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [refresh],
   )
 
+  const importCard = useCallback(
+    async (uuid: string, name: string, kind: string, sni: string) => {
+      const r = await api.importCard(uuid, name, kind, sni)
+      await refresh()
+      return r
+    },
+    [refresh],
+  )
+
   const revokeCard = useCallback(
     async (uuid: string) => {
       const r = await api.revokeCard(uuid)
@@ -341,6 +351,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     updateState,
     refresh,
     generateCard,
+    importCard,
     revokeCard,
     copyCard,
     copyLog,

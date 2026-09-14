@@ -18,6 +18,8 @@ export type RunOpts = {
   onTick?: (mbps: number) => void
   onPing?: (ms: number) => void
   signal?: AbortSignal
+  /** What the ping should measure against, on top of the server host itself. */
+  target?: string
 }
 
 const sim = () => typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window)
@@ -32,11 +34,18 @@ export async function measurePing(host: string, count = 8, opts: RunOpts = {}): 
     return { ping: Math.round(ping), jitter: 2 + Math.random() * 2 }
   }
   const samples: number[] = []
+  // Pinging the server itself goes through its own tiny endpoint. Any other
+  // target is an opaque cross-origin probe: the reply is unreadable but the
+  // round trip is real, and it travels the same route as everything else.
+  const bare = opts.target && opts.target !== host && opts.target !== ""
   for (let i = 0; i < count; i++) {
     if (opts.signal?.aborted) break
+    const url = bare
+      ? `https://${opts.target}/?qc=${Math.random()}`
+      : `${base(host)}/speed/down?bytes=1&r=${Math.random()}`
     const t0 = performance.now()
     try {
-      await fetch(`${base(host)}/speed/down?bytes=1&r=${Math.random()}`, { cache: "no-store", signal: opts.signal })
+      await fetch(url, { cache: "no-store", signal: opts.signal, mode: bare ? "no-cors" : "cors" })
       const dt = performance.now() - t0
       samples.push(dt)
       opts.onPing?.(dt)

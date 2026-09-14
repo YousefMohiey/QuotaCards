@@ -1,7 +1,21 @@
 // Ported from the 0.2.4 vanilla UI so no copy is lost in the move.
 // Regenerate with C:/Tools/qc-tools/extract-i18n.mjs + convert-i18n.py.
 export const en = {
+  "add": "Add",
   "addCard": "+ New",
+  "addCardLink": "Add from link",
+  "badCard": "That is not a card link or a card id.",
+  "cardAdded": "Card added.",
+  "copied": "Copied.",
+  "copyResult": "Copy result",
+  "pasteHint": "Paste a QuotaCards link or a card id from another device.",
+  "pastePlaceholder": "vless://… or card id",
+  "pasteTitle": "Add a card",
+  "searchTargets": "Search targets…",
+  "startTest": "Start test",
+  "target": "Target",
+  "targetCustom": "Custom domain…",
+  "targetServer": "Server",
   "appsAll": "All apps",
   "appsEmpty": "No applications found.",
   "appsExcept": "All except these",

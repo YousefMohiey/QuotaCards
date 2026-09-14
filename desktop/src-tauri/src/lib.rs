@@ -186,6 +186,55 @@ async fn generate_card(
 }
 
 #[tauri::command]
+async fn import_card(
+    state: tauri::State<'_, State>,
+    uuid: String,
+    name: String,
+    kind: String,
+    sni: String,
+) -> Result<CmdResult, String> {
+    let uuid = uuid.trim().to_string();
+    if uuid.is_empty() {
+        return Ok(CmdResult { ok: false, msg: "That card link has no id.".into() });
+    }
+    let sni = if sni.trim().is_empty() {
+        (if kind == "Gamerz" { "ea.com" } else { "youtube.com" }).to_string()
+    } else {
+        sni.trim().to_string()
+    };
+    let name = if name.trim().is_empty() { "Card".to_string() } else { name.trim().to_string() };
+    {
+        let mut cfg = state.0.lock().unwrap();
+        if let Some(c) = cfg.cards.iter_mut().find(|c| c.uuid == uuid) {
+            // Same card arriving from another device: refresh it, never duplicate.
+            c.name = name;
+            c.card_type = kind;
+            c.sni = sni;
+            cfg.save();
+            return Ok(CmdResult { ok: true, msg: "Card updated.".into() });
+        }
+        cfg.cards.push(Card {
+            name,
+            uuid: uuid.clone(),
+            card_type: kind,
+            sni,
+            wg_private: String::new(),
+            wg_addr: String::new(),
+        });
+        cfg.save();
+    }
+    // Best effort: the server may already know this client, and add is idempotent.
+    let (host, user, port, key) = {
+        let cfg = state.0.lock().unwrap();
+        (cfg.server_ip.clone(), cfg.ssh_user.clone(), cfg.ssh_port, cfg.private_key.clone())
+    };
+    if !host.is_empty() {
+        let _ = server::add_client(&host, port, &user, &key, &uuid).await;
+    }
+    Ok(CmdResult { ok: true, msg: "Card added.".into() })
+}
+
+#[tauri::command]
 async fn revoke_card(state: tauri::State<'_, State>, uuid: String) -> Result<CmdResult, String> {
     let (host, user, port, key) = {
         let mut cfg = state.0.lock().unwrap();
@@ -701,6 +750,7 @@ pub fn run() {
             get_state,
             probe_server,
             generate_card,
+            import_card,
             revoke_card,
             copy_card,
             tunnel_start,

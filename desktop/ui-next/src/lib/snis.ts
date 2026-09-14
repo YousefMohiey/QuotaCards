@@ -33,6 +33,8 @@ export const DEFAULT_SNI: Record<"Gamerz" | "Streamerz", string> = {
 
 export const CUSTOM_SNI = "__custom"
 
+export type SniKind = "Gamerz" | "Streamerz"
+
 export const labelForSni = (sni: string): string => {
   for (const list of Object.values(SNIS)) {
     const hit = list.find(([, d]) => d === sni)

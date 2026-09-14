@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Check, Copy, Plus, Trash2 } from "lucide-react"
+import { Check, Copy, Link as LinkIcon, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,32 +11,33 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { PickerDialog, type PickerItem } from "@/components/PickerDialog"
 import { Segmented } from "@/components/Segmented"
 import { Panel } from "@/components/Row"
 import { useApp } from "@/state/app"
 import { useI18n } from "@/lib/i18n"
-import { CUSTOM_SNI, DEFAULT_SNI, SNIS } from "@/lib/snis"
+import { CUSTOM_SNI, DEFAULT_SNI, SNIS, labelForSni } from "@/lib/snis"
+import { parseCardLink } from "@/lib/cardlink"
 import { cn } from "@/lib/utils"
 
 type Kind = "Gamerz" | "Streamerz"
 
 export function Cards() {
   const { t } = useI18n()
-  const { cards, cardUuid, pickCard, generateCard, revokeCard, copyCard } = useApp()
+  const { cards, cardUuid, pickCard, generateCard, importCard, revokeCard, copyCard } = useApp()
+
   const [open, setOpen] = useState(false)
   const [kind, setKind] = useState<Kind>("Gamerz")
   const [name, setName] = useState("")
   const [sni, setSni] = useState<string>(DEFAULT_SNI.Gamerz)
   const [custom, setCustom] = useState("")
+  const [domainOpen, setDomainOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState("")
+
+  const [pasteOpen, setPasteOpen] = useState(false)
+  const [pasted, setPasted] = useState("")
+  const [pasteNote, setPasteNote] = useState("")
 
   const effectiveSni = sni === CUSTOM_SNI ? custom.trim() : sni
 
@@ -63,24 +64,63 @@ export function Cards() {
     }
   }
 
+  const submitPaste = async () => {
+    const parsed = parseCardLink(pasted)
+    if (!parsed) {
+      setPasteNote(t("badCard"))
+      return
+    }
+    setBusy(true)
+    const r = await importCard(parsed.uuid, parsed.name, parsed.kind, parsed.sni)
+    setBusy(false)
+    setPasteNote(r.msg || t("cardAdded"))
+    if (r.ok) {
+      setTimeout(() => {
+        setPasteOpen(false)
+        setPasted("")
+        setPasteNote("")
+      }, 700)
+    }
+  }
+
+  const domainItems: PickerItem[] = [
+    ...SNIS[kind].map(([label, domain]) => ({ value: domain, label, sub: domain })),
+    { value: CUSTOM_SNI, label: t("customDomainOpt") },
+  ]
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between px-1">
+      <div className="flex items-center justify-between gap-3 px-1">
         <h2 className="text-[15px] font-semibold text-txt">
           {t("myCards")}
-          <span className="ml-2 text-[12.5px] font-normal text-txt3">{cards.length}</span>
+          <span className="ms-2 text-[12.5px] font-normal text-txt3">{cards.length}</span>
         </h2>
-        <Button
-          size="sm"
-          className="h-8 gap-1.5 rounded-[10px] px-3 text-[12.5px]"
-          onClick={() => {
-            reset()
-            setOpen(true)
-          }}
-        >
-          <Plus className="size-3.5" aria-hidden />
-          {t("newCard")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            className="h-8 gap-1.5 rounded-[10px] px-3 text-[12.5px]"
+            onClick={() => {
+              setPasteNote("")
+              setPasted("")
+              setPasteOpen(true)
+            }}
+          >
+            <LinkIcon className="size-3.5" aria-hidden />
+            {t("addCardLink")}
+          </Button>
+          <Button
+            size="sm"
+            className="h-8 gap-1.5 rounded-[10px] px-3 text-[12.5px]"
+            onClick={() => {
+              reset()
+              setOpen(true)
+            }}
+          >
+            <Plus className="size-3.5" aria-hidden />
+            {t("newCard")}
+          </Button>
+        </div>
       </div>
 
       {cards.length === 0 ? (
@@ -151,6 +191,7 @@ export function Cards() {
         </div>
       )}
 
+      {/* new card: name, kind, then the domain through the list picker */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-[420px] gap-5 rounded-[16px] border-line bg-[var(--popover)]">
           <DialogHeader>
@@ -165,6 +206,7 @@ export function Cards() {
               onChange={(k) => {
                 setKind(k)
                 setSni(DEFAULT_SNI[k])
+                setCustom("")
               }}
               options={[
                 { value: "Gamerz", label: t("kindGamerz") },
@@ -186,20 +228,19 @@ export function Cards() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label className="text-[12.5px] text-txt2">{t("ptDomain")}</Label>
-              <Select value={sni} onValueChange={setSni}>
-                <SelectTrigger className="h-9 w-full rounded-[10px] border-line bg-white/[0.02] text-[13px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SNIS[kind].map(([label, domain]) => (
-                    <SelectItem key={domain} value={domain}>
-                      {label} · {domain}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value={CUSTOM_SNI}>{t("customDomain")}</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="text-[12.5px] text-txt2">{t("domainSni")}</Label>
+              <button
+                type="button"
+                onClick={() => setDomainOpen(true)}
+                className="flex h-9 w-full items-center justify-between gap-2 rounded-[10px] border border-line bg-white/[0.02] px-3 text-[13px] text-txt transition-colors hover:border-[var(--brand-line)]"
+              >
+                <span className="truncate">
+                  {sni === CUSTOM_SNI
+                    ? custom.trim() || t("customDomainOpt")
+                    : `${labelForSni(sni)} · ${sni}`}
+                </span>
+                <span className="text-[11.5px] text-txt3">{t("domainSni")}</span>
+              </button>
               {sni === CUSTOM_SNI && (
                 <Input
                   value={custom}
@@ -214,11 +255,7 @@ export function Cards() {
           </div>
 
           <DialogFooter className="gap-2">
-            <Button
-              variant="ghost"
-              className="h-9 rounded-[10px] text-[13px]"
-              onClick={() => setOpen(false)}
-            >
+            <Button variant="ghost" className="h-9 rounded-[10px] text-[13px]" onClick={() => setOpen(false)}>
               {t("cancel")}
             </Button>
             <Button className="h-9 rounded-[10px] text-[13px]" disabled={busy} onClick={() => void submit()}>
@@ -227,6 +264,52 @@ export function Cards() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* add a card that came from somewhere else */}
+      <Dialog open={pasteOpen} onOpenChange={setPasteOpen}>
+        <DialogContent className="max-w-[440px] gap-5 rounded-[16px] border-line bg-[var(--popover)]">
+          <DialogHeader>
+            <DialogTitle className="text-[15px]">{t("pasteTitle")}</DialogTitle>
+            <DialogDescription className="text-[12.5px] text-txt3">{t("pasteHint")}</DialogDescription>
+          </DialogHeader>
+
+          <Input
+            autoFocus
+            value={pasted}
+            onChange={(e) => setPasted(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void submitPaste()
+            }}
+            placeholder={t("pastePlaceholder")}
+            aria-label={t("pasteTitle")}
+            className="h-9 rounded-[10px] border-line bg-white/[0.02] font-mono text-[12px]"
+          />
+
+          {pasteNote && <p className="text-[12px] text-txt3">{pasteNote}</p>}
+
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" className="h-9 rounded-[10px] text-[13px]" onClick={() => setPasteOpen(false)}>
+              {t("cancel")}
+            </Button>
+            <Button className="h-9 rounded-[10px] text-[13px]" disabled={busy || !pasted.trim()} onClick={() => void submitPaste()}>
+              {t("add")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <PickerDialog
+        open={domainOpen}
+        onOpenChange={setDomainOpen}
+        title={t("domainSni")}
+        search={t("sheetSearch")}
+        items={domainItems}
+        value={sni}
+        onPick={(v) => {
+          setSni(v)
+          if (v !== CUSTOM_SNI) setCustom("")
+        }}
+      />
     </div>
   )
 }

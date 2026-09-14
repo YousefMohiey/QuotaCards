@@ -44,6 +44,8 @@ export const api = {
   probeServer: () => call<CmdResult>("probe_server"),
   generateCard: (name: string, kind: string, sni: string) =>
     call<CmdResult>("generate_card", { name, kind, sni }),
+  importCard: (uuid: string, name: string, kind: string, sni: string) =>
+    call<CmdResult>("import_card", { uuid, name, kind, sni }),
   revokeCard: (uuid: string) => call<CmdResult>("revoke_card", { uuid }),
   copyCard: (uuid: string) => call<CmdResult>("copy_card", { uuid }),
   start: (uuid: string, appsMode: string, apps: string[], transport: string) =>

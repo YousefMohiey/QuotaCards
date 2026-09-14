@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, Search } from "lucide-react"
+import { ArrowLeft, Check, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
 import { Panel } from "@/components/Row"
 import { Segmented } from "@/components/Segmented"
 import { useApp, type AppsMode } from "@/state/app"
 import { useI18n } from "@/lib/i18n"
+import { cn } from "@/lib/utils"
 
 type Row = { pkg: string; label: string }
 
@@ -29,13 +29,26 @@ export function Apps({ onBack }: { onBack: () => void }) {
     }
   }, [loadApps])
 
+  // The 0.2.x list was alphabetical and stayed that way.
+  const sorted = useMemo(
+    () => [...list].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" })),
+    [list],
+  )
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return q ? list.filter((r) => r.label.toLowerCase().includes(q)) : list
-  }, [list, query])
+    if (!q) return sorted
+    return sorted.filter((r) => r.label.toLowerCase().includes(q) || r.pkg.toLowerCase().includes(q))
+  }, [sorted, query])
 
   const toggle = (pkg: string) => {
-    if (appsMode === "all") return
+    // Picking anything while "all apps" is on means the user wants a subset,
+    // so flip the mode instead of ignoring the tap.
+    if (appsMode === "all") {
+      setAppsMode("allow")
+      setApps([pkg])
+      return
+    }
     setApps(apps.includes(pkg) ? apps.filter((n) => n !== pkg) : [...apps, pkg])
   }
 
@@ -79,28 +92,30 @@ export function Apps({ onBack }: { onBack: () => void }) {
       </p>
 
       <Panel>
-        <div className="max-h-[520px] overflow-y-auto">
+        <div role="listbox" aria-multiselectable="true" className="max-h-[520px] overflow-y-auto">
           {filtered.length === 0 ? (
             <p className="px-4 py-6 text-[12.5px] text-txt3">{loading ? t("appsLoading") : t("appsEmpty")}</p>
           ) : (
             filtered.map((row) => {
               const on = apps.includes(row.pkg)
               return (
-                <div
+                <button
                   key={row.pkg}
-                  className="flex items-center justify-between gap-4 border-b border-line px-4 py-2.5 last:border-b-0"
+                  type="button"
+                  role="checkbox"
+                  aria-checked={on}
+                  onClick={() => toggle(row.pkg)}
+                  className={cn(
+                    "flex w-full items-center justify-between gap-4 border-b border-line px-4 py-2.5 text-start transition-colors last:border-b-0 hover:bg-white/[0.02]",
+                    appsMode === "all" && "opacity-70",
+                  )}
                 >
-                  <div className="min-w-0">
-                    <div className="truncate text-[13px] text-txt2">{row.label}</div>
-                    <div className="truncate text-[11px] text-txt3">{row.pkg}</div>
-                  </div>
-                  <Switch
-                    checked={on}
-                    disabled={appsMode === "all"}
-                    onCheckedChange={() => toggle(row.pkg)}
-                    aria-label={row.label}
-                  />
-                </div>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] text-txt2">{row.label}</span>
+                    <span className="block truncate text-[11px] text-txt3">{row.pkg}</span>
+                  </span>
+                  {on && <Check className="size-4 shrink-0 text-brand-strong" aria-hidden />}
+                </button>
               )
             })
           )}

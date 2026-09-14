@@ -1,7 +1,21 @@
 // Ported from the 0.2.4 vanilla UI so no copy is lost in the move.
 // Regenerate with C:/Tools/qc-tools/extract-i18n.mjs + convert-i18n.py.
 export const ar = {
+  "add": "إضافة",
   "addCard": "+ جديد",
+  "addCardLink": "إضافة برابط",
+  "badCard": "هذا ليس رابط بطاقة أو معرّفاً صالحاً.",
+  "cardAdded": "تمت إضافة البطاقة.",
+  "copied": "تم النسخ.",
+  "copyResult": "نسخ النتيجة",
+  "pasteHint": "الصق رابط QuotaCards أو معرّف بطاقة من جهاز آخر.",
+  "pastePlaceholder": "vless://… أو معرّف البطاقة",
+  "pasteTitle": "إضافة بطاقة",
+  "searchTargets": "ابحث في الأهداف…",
+  "startTest": "بدء الاختبار",
+  "target": "الهدف",
+  "targetCustom": "دومين مخصص…",
+  "targetServer": "السيرفر",
   "appsAll": "جميع التطبيقات",
   "appsEmpty": "لا توجد تطبيقات بهذا الاسم.",
   "appsExcept": "الجميع باستثناء",
