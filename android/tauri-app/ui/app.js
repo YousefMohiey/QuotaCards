@@ -75,6 +75,11 @@ const STR = {
     appsPending: " - reconnect to use it",
     ksHint: "Kill switch: turn on Always-on VPN in the system settings. If the VPN drops, internet stops instead of leaking.",
     openVpnSettings: "Open VPN settings",
+    updTitle: "Updates", updCheck: "Check for updates", updGet: "Download and install",
+    updIdle: "Not checked yet.", updChecking: "Checking…",
+    updOut: "{v} is out.", updLatest: "{v} is the latest.", updFail: "Could not reach GitHub.",
+    updDownloading: "Downloading the update…", updOpened: "Installer opened. Confirm to update.",
+    updAllow: "Allow installs from QuotaCards in the screen that opened, then tap again.",
     bgHint: "Some phones stop the VPN when you swipe the app away. Allow background running so it stays on.",
     bgHintOn: "Background running is allowed. The VPN stays on when you swipe the app away.",
     bgBtnAllow: "Allow background running",
@@ -117,6 +122,11 @@ const STR = {
     appsPending: " - أعد الاتصال لتفعيله",
     ksHint: "القفل الكامل: فعّل Always-on VPN من إعدادات النظام، وإذا توقف الـVPN سيتوقف الإنترنت بدلاً من تسرب البيانات.",
     openVpnSettings: "افتح إعدادات الـVPN",
+    updTitle: "التحديثات", updCheck: "التحقق من التحديثات", updGet: "تنزيل وتثبيت",
+    updIdle: "لم يتم التحقق بعد.", updChecking: "جارٍ التحقق…",
+    updOut: "الإصدار {v} متاح.", updLatest: "{v} هو الأحدث.", updFail: "تعذر الوصول إلى GitHub.",
+    updDownloading: "جارٍ تنزيل التحديث…", updOpened: "تم فتح المثبّت. أكّد التحديث.",
+    updAllow: "اسمح بتثبيت التطبيقات من QuotaCards من الشاشة المفتوحة ثم أعد المحاولة.",
     bgHint: "بعض الهواتف توقف الـVPN عند إغلاق التطبيق. اسمح بالعمل في الخلفية ليبقى يعمل.",
     bgHintOn: "تم السماح بالعمل في الخلفية. سيبقى الـVPN يعمل عند إغلاق التطبيق.",
     bgBtnAllow: "السماح بالعمل في الخلفية",
@@ -652,6 +662,60 @@ $("btn-bg").onclick = async () => {
 };
 document.addEventListener("visibilitychange", () => { if (!document.hidden) paintBg(); });
 paintBg();
+// Updates: check GitHub releases; install downloads the APK and opens the
+// system installer (Android always asks one confirmation tap).
+let updApk = "", updBusy = false;
+async function runUpdateCheck() {
+  if (updBusy) return;
+  updBusy = true;
+  const b = $("btn-check-upd");
+  if (b) b.disabled = true;
+  const st = $("upd-state");
+  st.textContent = t("updChecking");
+  try {
+    const r = await call("check_update");
+    if (r && r.available) {
+      updApk = r.apk_url || "";
+      st.textContent = t("updOut").replace("{v}", r.latest);
+      $("btn-get-upd").hidden = !updApk;
+    } else {
+      st.textContent = t("updLatest").replace("{v}", (r && r.latest) || "");
+    }
+  } catch (e) {
+    st.textContent = t("updFail");
+  } finally {
+    updBusy = false;
+    if (b) b.disabled = false;
+  }
+}
+$("btn-check-upd").onclick = runUpdateCheck;
+$("btn-get-upd").onclick = async () => {
+  if (!updApk) return;
+  const b = $("btn-get-upd");
+  const st = $("upd-state");
+  b.disabled = true;
+  st.textContent = t("updDownloading");
+  try {
+    await call("apply_update", { apkUrl: updApk });
+    st.textContent = t("updOpened");
+  } catch (e) {
+    const m = (e && e.message) || "";
+    st.textContent = /allow/i.test(m) ? t("updAllow") : (m || t("updFail"));
+  } finally {
+    setTimeout(() => { b.disabled = false; }, 1500);
+  }
+};
+// Quiet auto-check on open; the row shows when something is waiting.
+async function autoUpdateCheck() {
+  try {
+    const r = await call("check_update");
+    if (r && r.available) {
+      updApk = r.apk_url || "";
+      $("upd-state").textContent = t("updOut").replace("{v}", r.latest);
+      if (updApk) $("btn-get-upd").hidden = false;
+    }
+  } catch (e) { /* offline is fine; manual check stays */ }
+}
 function paintActiveCard() {
   const uuid = $("tunnel-card").value;
   document.querySelectorAll("#cards .cardrow").forEach((row) => {
@@ -943,6 +1007,7 @@ document.querySelectorAll("svg").forEach((s) => s.setAttribute("aria-hidden", "t
 (async () => {
   await refresh();
   loadApps();
+  autoUpdateCheck();
   // Auto-connect on open, like the desktop app. The server is built in,
   // so there is nothing to type - it just connects by itself.
   if (serverHost && !connected) await doProbe();

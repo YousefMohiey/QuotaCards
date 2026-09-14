@@ -477,6 +477,35 @@ async fn tunnel_bg_status(app: tauri::AppHandle) -> Result<bool, String> {
     app.tunnel().bg_status().map_err(|e| e.to_string())
 }
 
+/// Update check against GitHub releases (phone: APK asset).
+#[derive(serde::Serialize)]
+struct UpdateInfo {
+    current: String,
+    latest: String,
+    available: bool,
+    url: String,
+    apk_url: String,
+}
+
+#[tauri::command]
+async fn check_update(app: tauri::AppHandle) -> Result<UpdateInfo, String> {
+    let u = app.tunnel().check_update().map_err(|e| e.to_string())?;
+    Ok(UpdateInfo {
+        current: u.current,
+        latest: u.latest,
+        available: u.available,
+        url: u.url,
+        apk_url: u.apk_url,
+    })
+}
+
+/// Download the new APK and open the system installer (one tap to confirm).
+#[tauri::command]
+async fn apply_update(app: tauri::AppHandle, apk_url: String) -> Result<CmdResult, String> {
+    app.tunnel().install_update(apk_url).map_err(|e| e.to_string())?;
+    Ok(CmdResult { ok: true, msg: "Installer opened.".into() })
+}
+
 /// Resolve the server name to its numeric IP for display (the UI shows the
 /// real IP; the name stays for the tunnel itself). Prefers IPv4.
 #[tauri::command]
@@ -564,7 +593,9 @@ pub fn run() {
             tunnel_open_vpn_settings,
             tunnel_open_bg_settings,
             tunnel_bg_status,
-            resolve_host
+            resolve_host,
+            check_update,
+            apply_update
         ])
         .run(tauri::generate_context!())
         .expect("QuotaCards failed to start");

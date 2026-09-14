@@ -69,6 +69,28 @@ struct BgPayload {
     exempt: bool,
 }
 
+/// Latest-release info from GitHub, resolved by the Kotlin side.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatePayload {
+    #[serde(default)]
+    pub current: String,
+    #[serde(default)]
+    pub latest: String,
+    #[serde(default)]
+    pub available: bool,
+    #[serde(default)]
+    pub apk_url: String,
+    #[serde(default)]
+    pub url: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct InstallPayload {
+    apk_url: String,
+}
+
 impl<R: Runtime> Tunnel<R> {
     pub fn start(&self, config: String, apps: Option<String>, apps_mode: Option<String>) -> crate::Result<()> {
         self.0
@@ -135,5 +157,19 @@ impl<R: Runtime> Tunnel<R> {
             .run_mobile_plugin("bgStatus", ())
             .map_err(crate::Error::from)?;
         Ok(b.exempt)
+    }
+
+    /// Latest GitHub release for the phone build (APK asset + version check).
+    pub fn check_update(&self) -> crate::Result<UpdatePayload> {
+        self.0
+            .run_mobile_plugin("checkUpdate", ())
+            .map_err(crate::Error::from)
+    }
+
+    /// Download the new APK and open the system installer (one confirm tap).
+    pub fn install_update(&self, apk_url: String) -> crate::Result<()> {
+        self.0
+            .run_mobile_plugin("installUpdate", InstallPayload { apk_url })
+            .map_err(Into::into)
     }
 }

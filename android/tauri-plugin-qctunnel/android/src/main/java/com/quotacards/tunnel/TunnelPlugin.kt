@@ -25,6 +25,11 @@ class StartArgs {
     var appsMode: String? = null
 }
 
+@InvokeArg
+class InstallArgs {
+    lateinit var apkUrl: String
+}
+
 @TauriPlugin
 class TunnelPlugin(private val activity: Activity) : Plugin(activity) {
 
@@ -119,6 +124,106 @@ class TunnelPlugin(private val activity: Activity) : Plugin(activity) {
         } catch (e: Exception) {
             invoke.reject("apps failed: ${e.message}")
         }
+    }
+
+    @Command
+    fun checkUpdate(invoke: Invoke) {
+        // GitHub latest release for the phone build; versionName is the
+        // installed app version. Network runs off the main thread.
+        Thread {
+            try {
+                val current = activity.packageManager
+                    .getPackageInfo(activity.packageName, 0).versionName ?: "0"
+                val conn = java.net.URL(
+                    "https://api.github.com/repos/YousefMohiey/QuotaCards/releases/latest",
+                ).openConnection() as java.net.HttpURLConnection
+                conn.setRequestProperty("Accept", "application/vnd.github+json")
+                conn.setRequestProperty("User-Agent", "quotacards-updater")
+                conn.connectTimeout = 15000
+                conn.readTimeout = 15000
+                val body = conn.inputStream.bufferedReader().use { it.readText() }
+                val v = org.json.JSONObject(body)
+                val tag = v.optString("tag_name").trimStart('v', 'V')
+                var apk = ""
+                v.optJSONArray("assets")?.let { arr ->
+                    for (i in 0 until arr.length()) {
+                        val a = arr.getJSONObject(i)
+                        if (a.optString("name") == "QuotaCards-mobile-signed.apk") {
+                            apk = a.optString("browser_download_url")
+                        }
+                    }
+                }
+                val out = JSObject()
+                out.put("current", current)
+                out.put("latest", tag)
+                out.put("available", isNewer(tag, current))
+                out.put("apkUrl", apk)
+                out.put("url", v.optString("html_url"))
+                activity.runOnUiThread { invoke.resolve(out) }
+            } catch (e: Exception) {
+                activity.runOnUiThread { invoke.reject("check failed: ${e.message}") }
+            }
+        }.start()
+    }
+
+    private fun isNewer(latest: String, current: String): Boolean {
+        val a = latest.split('.').map { it.toIntOrNull() ?: 0 }
+        val b = current.split('.').map { it.toIntOrNull() ?: 0 }
+        for (i in 0 until maxOf(a.size, b.size)) {
+            val x = a.getOrElse(i) { 0 }
+            val y = b.getOrElse(i) { 0 }
+            if (x != y) return x > y
+        }
+        return false
+    }
+
+    @Command
+    fun installUpdate(invoke: Invoke) {
+        val args = try {
+            invoke.parseArgs(InstallArgs::class.java)
+        } catch (e: Exception) {
+            invoke.reject("bad args: ${e.message}")
+            return
+        }
+        if (Build.VERSION.SDK_INT >= 26 && !activity.packageManager.canRequestPackageInstalls()) {
+            // First time: Android requires allowing installs from this source.
+            runCatching {
+                activity.startActivity(
+                    Intent(
+                        android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        android.net.Uri.parse("package:" + activity.packageName),
+                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }
+            invoke.reject("allow install from this app, then tap again")
+            return
+        }
+        Thread {
+            try {
+                val f = java.io.File(activity.cacheDir, "quotacards-update.apk")
+                runCatching { if (f.exists()) f.delete() }
+                val conn = java.net.URL(args.apkUrl).openConnection() as java.net.HttpURLConnection
+                conn.instanceFollowRedirects = true
+                conn.connectTimeout = 20000
+                conn.readTimeout = 60000
+                conn.inputStream.use { input ->
+                    f.outputStream().use { out -> input.copyTo(out) }
+                }
+                if (f.length() < 1_000_000) throw IllegalStateException("download incomplete")
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    activity,
+                    activity.packageName + ".fileprovider",
+                    f,
+                )
+                val i = Intent(Intent.ACTION_VIEW)
+                    .setDataAndType(uri, "application/vnd.android.package-archive")
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                activity.startActivity(i)
+                activity.runOnUiThread { invoke.resolve() }
+            } catch (e: Exception) {
+                activity.runOnUiThread { invoke.reject("install failed: ${e.message}") }
+            }
+        }.start()
     }
 
     @Command
