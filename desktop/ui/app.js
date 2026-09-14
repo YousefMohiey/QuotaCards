@@ -517,6 +517,8 @@ function paintAppsSeg() {
   if (st) st.textContent = appsStatus();
   const rs = $("routing-sub");
   if (rs) rs.textContent = appsStatus();
+  const hs = $("home-routing-sub");
+  if (hs) hs.textContent = appsStatus();
 }
 // Live summary: which mode is active, how many apps picked, pending or not.
 function appsStatus() {
@@ -808,9 +810,12 @@ function closeNewCard() {
 $("btn-add-card").onclick = openNewCard;
 $("btn-cancel-card").onclick = closeNewCard;
 $("nc-back").onclick = closeNewCard;
-// Settings rows: routing opens the apps view, which is a full screen now.
-$("row-routing").onclick = () => goTab("apps");
-$("btn-apps-back").onclick = () => goTab("settings");
+// App routing opens from Home; Back returns to wherever it was opened from.
+let appsFrom = "connect";
+function openApps() { appsFrom = currentTab(); goTab("apps"); }
+const hrb = $("home-routing-btn");
+if (hrb) hrb.onclick = openApps;
+$("btn-apps-back").onclick = () => goTab(appsFrom || "connect");
 
 
 async function pollTunnel() {
@@ -882,7 +887,7 @@ $("btn-connect").onclick = async () => {
   }
   if (appsMode !== "all" && !appsPicked.length) {
     bar(false, t("appsNeedPick"));
-    goTab("apps");
+    openApps();
     return;
   }
   if (!connected) await doProbe();
