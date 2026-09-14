@@ -67,7 +67,7 @@ const STR = {
     appsLoading: "Loading apps…", appsEmpty: "No applications found.",
     appsNeedPick: "Pick at least one app first.", appsPicked: "Applies next time you connect.",
     transport: "Connection", trStandard: "Standard", trGame: "Game", trWg: "WireGuard",
-    trNoteVless: "Default traffic.",
+    trNoteVless: "Default traffic",
     trNoteHy2: "Game: fastest for play, counts from general quota.",
     trNoteWg: "WireGuard: fastest, needs the server prepared once.",
     wgWarnT: "WireGuard spends from main quota, not your packages",
