@@ -4,7 +4,7 @@
   "version": "0.2.4",
   "identifier": "com.quotacards.app",
   "build": {
-    "frontendDist": "../ui",
+    "frontendDist": "../ui-next/dist",
     "devUrl": "http://localhost:1420",
     "beforeDevCommand": "",
     "beforeBuildCommand": ""
