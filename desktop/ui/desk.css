@@ -237,9 +237,8 @@ main {
   display: flex; flex-direction: column; align-items: center; gap: 14px;
   transition: left 640ms var(--ease-out), transform 640ms var(--ease-out);
 }
-.hero.connected .hero-left { left: 0; transform: translate(0, -50%); }
-.hero.connecting .hero-left { animation: dialWait 1.6s ease-in-out infinite; }
-@keyframes dialWait { 50% { transform: translate(-50%, -50%) scale(1.02); } }
+.hero.connected .hero-left,
+.hero.connecting .hero-left { left: 0; transform: translate(0, -50%); }
 .hero-btn {
   width: 158px; height: 158px; border-radius: 50%;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
@@ -626,7 +625,12 @@ p.empty button {
 .ghost:active, .pick:active, .navlink:active, .seg button:active, .tabbar button:active, .opt:active, .cardrow button:active { transform: translateY(1px); }
 
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; animation: none !important; }
+  /* Windows reports this often just because animation effects are off in
+     the OS (a common performance tweak), so only the endless decorative
+     loops stand down here. Entrances, reveals, the dial slide and the
+     progress spinner all still play. */
+  #spark-dot,
+  .livedot { animation: none !important; }
 }
 @media (max-width: 940px) {
   .side { width: 200px; }

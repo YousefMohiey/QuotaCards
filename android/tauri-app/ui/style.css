@@ -623,5 +623,10 @@ button:disabled { opacity: 0.45; }
 .srvtools button:active { color: var(--txt); }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  /* Windows/Android report this for a plain OS preference too. Only the
+     endless pulse loops stand down; the screen transitions and reveals
+     still play. */
+  .hero.connecting .hero-state .livedot,
+  .hero.connecting .hero-btn .power,
+  .srvstate.idle .livedot { animation: none !important; }
 }
