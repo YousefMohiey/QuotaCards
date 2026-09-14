@@ -62,7 +62,7 @@ const STR = {
     host: "Address", language: "Language", reconnect: "Reconnect", testPort: "Check server", copyLog: "Copy log",
     secStatus: "Status", secConnection: "Connection", secGeneral: "General", secProtection: "Protection",
     tabHome: "Home", tabCards: "Cards", tabServer: "Server", tabSettings: "Settings", howTo: "How to use",
-    tabApps: "Apps", vpnFor: "VPN for", appsAll: "All apps", appsOnly: "Only these", appsExcept: "All but these",
+    tabApps: "Apps", vpnFor: "VPN for", appsAll: "All apps", appsOnly: "Only these", appsExcept: "All except these",
     appsHint: "Changes apply next time you connect.", appsSearch: "Search apps…",
     appsLoading: "Loading apps…", appsEmpty: "No applications found.",
     appsNeedPick: "Pick at least one app first.", appsPicked: "Applies next time you connect.",
@@ -74,7 +74,7 @@ const STR = {
     wgWarnB: "Usage on this mode will not count from your Gamerz/Streamerz quota. Use Standard mode for packages.",
     hyWarnT: "Game spends from main quota, not your Gamerz package",
     hyWarnB: "Usage on this mode counts from general quota. Use Standard mode for packages.",
-    appsStatusAll: "VPN covers all apps", appsStatusAllow: "VPN only for", appsStatusBlock: "VPN for all except",
+    appsStatusAll: "VPN covers all apps", appsStatusAllow: "VPN only for", appsStatusBlock: "VPN for all except these",
     appsPending: " - reconnect to use it",
     ksHint: "Kill switch: turn on Always-on VPN in the system settings. If the VPN drops, internet stops instead of leaking.",
     ksHintDesk: "Kill switch: strict routing is always on. If the VPN drops, the engine is stopped and routes are removed instead of leaking.",
@@ -508,8 +508,7 @@ document.querySelectorAll("#transport-seg button").forEach((b) => {
 });
 // Per-app VPN: mode + picked packages, persisted locally, sent on connect.
 let appsMode = localStorage.getItem("qc-apps-mode") || "all";
-// All-but-these is phone-only on the desktop engine.
-if (IS_DESKTOP && appsMode !== "allow") appsMode = "all";
+if (!["all", "allow", "block"].includes(appsMode)) appsMode = "all";
 let appsPicked = [];
 try { appsPicked = JSON.parse(localStorage.getItem("qc-apps") || "[]"); } catch (e) { appsPicked = []; }
 let appsCache = [];

@@ -282,20 +282,21 @@ async fn tunnel_start(
         return Ok(CmdResult { ok: false, msg: "Run QuotaCards as administrator, then connect.".into() });
     }
     let mode = apps_mode.unwrap_or_default();
-    if mode == "block" {
-        return Ok(CmdResult { ok: false, msg: "All-but-these is phone-only for now.".into() });
-    }
     let list = apps.unwrap_or_default();
-    let apps_only = mode == "allow" && !list.is_empty();
     vpn::ensure_engine().map_err(|e| e)?;
-    vpn::write_tun_config(&card.uuid, &host, &card.sni, apps_only, &list).map_err(|e| e)?;
+    vpn::write_tun_config(&card.uuid, &host, &card.sni, &mode, &list).map_err(|e| e)?;
     vpn::check_config().map_err(|e| e)?;
     stop_engine(&engine);
+    let mode_label = if mode == "allow" && !list.is_empty() {
+        "apps"
+    } else if mode == "block" && !list.is_empty() {
+        "except"
+    } else {
+        "all"
+    };
     vpn::app_log(&format!(
         "connect {} mode={} apps={}",
-        card.name,
-        if apps_only { "apps" } else { "all" },
-        list.len()
+        card.name, mode_label, list.len()
     ));
     let child = vpn::spawn_engine().map_err(|e| e)?;
     let pid = child.id();

@@ -34,13 +34,16 @@ fn main() {
         .filter(|s| !s.is_empty())
         .collect();
     let expect = std::env::var("EXPECT").unwrap_or_else(|_| "server".to_string());
-    let apps_mode = !apps.is_empty();
+    // MODE=allow|block picks the per-app direction; default keeps old behavior.
+    let mode = std::env::var("MODE").unwrap_or_else(|_| {
+        if apps.is_empty() { String::new() } else { "allow".to_string() }
+    });
     // expected egress = whatever the server domain resolves to right now
     let want: Vec<String> = vpn::resolve_server_ips(host).unwrap();
     println!("server resolves to: {want:?}");
-    println!("apps_mode={apps_mode} apps={apps:?} expect={expect}");
+    println!("mode={mode:?} apps={apps:?} expect={expect}");
     println!("engine: {}", vpn::ensure_engine().unwrap());
-    let p = vpn::write_tun_config(&uuid, host, "epicgames.com", apps_mode, &apps).unwrap();
+    let p = vpn::write_tun_config(&uuid, host, "epicgames.com", &mode, &apps).unwrap();
     println!("config: {p:?}");
     vpn::check_config().unwrap();
     println!("config check OK");

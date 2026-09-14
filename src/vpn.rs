@@ -194,13 +194,14 @@ pub fn resolve_server_ips(host: &str) -> Result<Vec<String>, String> {
 
 /// Full TUN client config for one card. Self-signed server cert → insecure
 /// (same trust as the share links); SNI stamp preserved.
-/// `apps_mode` with a non-empty list routes ONLY those process names through
-/// the tunnel (everything else goes direct); otherwise the whole PC does.
+/// `apps_mode` picks the per-app routing: "allow" sends ONLY the listed
+/// process names through the tunnel, "block" sends everything EXCEPT them,
+/// anything else routes the whole PC.
 pub fn write_tun_config(
     uuid: &str,
     host: &str,
     sni: &str,
-    apps_mode: bool,
+    apps_mode: &str,
     apps: &[String],
 ) -> Result<PathBuf, String> {
     let mut excludes = resolve_server_ips(host)?;
@@ -210,7 +211,9 @@ pub fn write_tun_config(
             excludes.push(cidr);
         }
     }
-    let apps_only = apps_mode && !apps.is_empty();
+    let apps_only = apps_mode == "allow" && !apps.is_empty();
+    let apps_except = apps_mode == "block" && !apps.is_empty();
+    let per_app = apps_only || apps_except;
     // unique adapter name per connect: a force-killed run can leave a ghost
     // adapter in the driver that would block a reused name.
     let nanos = std::time::SystemTime::now()
@@ -220,7 +223,7 @@ pub fn write_tun_config(
     let if_name = format!("QuotaCards{:04x}", nanos & 0xffff);
     // per-app routing matches by process, which needs the userspace stack
     // on Windows; whole-PC mode keeps the fast mixed stack.
-    let tun_stack = if apps_only { "gvisor" } else { "mixed" };
+    let tun_stack = if per_app { "gvisor" } else { "mixed" };
     let dns_final = if apps_only { "direct-dns" } else { "proxy-dns" };
     let route_final = if apps_only { "direct" } else { "proxy" };
     let mut route_rules = serde_json::json!([
@@ -230,16 +233,18 @@ pub fn write_tun_config(
         {"source_ip_cidr": ["224.0.0.0/3", "ff00::/8"], "action": "reject"},
         {"protocol": "dns", "action": "hijack-dns"}
     ]);
-    if apps_only {
+    if per_app {
         let rules = route_rules.as_array_mut().unwrap();
+        // allow: the listed apps ride the tunnel. block: the listed apps skip it.
+        let target = if apps_only { "proxy" } else { "direct" };
         let (paths, names): (Vec<&String>, Vec<&String>) =
             apps.iter().partition(|a| a.contains('\\') || a.contains('/'));
         // process rules first: a terminal early rule must not swallow them
         if !names.is_empty() {
-            rules.insert(0, serde_json::json!({"process_name": names, "outbound": "proxy"}));
+            rules.insert(0, serde_json::json!({"process_name": names, "outbound": target}));
         }
         if !paths.is_empty() {
-            rules.insert(0, serde_json::json!({"process_path": paths, "outbound": "proxy"}));
+            rules.insert(0, serde_json::json!({"process_path": paths, "outbound": target}));
         }
     }
     let cfg = serde_json::json!({
@@ -556,5 +561,63 @@ fn engine_orphan_sweep(keep: Option<u32>) {
             &["delete", "0.0.0.0", "mask", "0.0.0.0", TUN_IP],
         );
         std::thread::sleep(std::time::Duration::from_millis(250));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The three tests rewrite one engine config file; serialize them.
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn cfg(mode: &str, apps: &[&str]) -> serde_json::Value {
+        let list: Vec<String> = apps.iter().map(|s| s.to_string()).collect();
+        let p = write_tun_config(
+            "00000000-test",
+            crate::config::DEFAULT_HOST,
+            "example.com",
+            mode,
+            &list,
+        )
+        .expect("config");
+        serde_json::from_str(&std::fs::read_to_string(p).expect("read")).expect("json")
+    }
+
+    #[test]
+    fn allow_mode_sends_picked_apps_through_the_proxy() {
+        let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let v = cfg("allow", &["chrome.exe"]);
+        let rules = v["route"]["rules"].as_array().unwrap();
+        assert_eq!(rules[0]["process_name"][0], "chrome.exe");
+        assert_eq!(rules[0]["outbound"], "proxy");
+        assert_eq!(v["route"]["final"], "direct");
+        assert_eq!(v["inbounds"][0]["stack"], "gvisor");
+    }
+
+    #[test]
+    fn block_mode_sends_picked_apps_direct_and_the_rest_through_the_proxy() {
+        let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let v = cfg("block", &["chrome.exe", "C:\\Tools\\game.exe"]);
+        let rules = v["route"]["rules"].as_array().unwrap();
+        // path rule lands first, then the name rule: both target direct
+        assert_eq!(rules[0]["outbound"], "direct");
+        assert_eq!(rules[0]["process_path"][0], "C:\\Tools\\game.exe");
+        assert_eq!(rules[1]["outbound"], "direct");
+        assert_eq!(rules[1]["process_name"][0], "chrome.exe");
+        assert_eq!(v["route"]["final"], "proxy");
+        assert_eq!(v["inbounds"][0]["stack"], "gvisor");
+        // the real engine must accept it (no engine on disk → skip the check)
+        if ensure_engine().is_ok() {
+            check_config().expect("sing-box accepts the block config");
+        }
+    }
+
+    #[test]
+    fn whole_pc_mode_keeps_the_fast_mixed_stack() {
+        let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let v = cfg("", &[]);
+        assert_eq!(v["route"]["final"], "proxy");
+        assert_eq!(v["inbounds"][0]["stack"], "mixed");
     }
 }
