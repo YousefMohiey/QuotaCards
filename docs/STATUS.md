@@ -25,6 +25,14 @@
 - Phone app has its own update check (Settings, Updates): checks
   GitHub, downloads the APK, opens the system installer for one
   confirm tap. Same version number as the PC build.
+- Look and feel keyed to the app icon on both platforms: near-black
+  navy surfaces, royal blue accent, off-white text, muted semantics
+  (no neon anywhere). Desktop hero choreography: the dial starts
+  centred and slides left on connect while the status, profile, live
+  traffic and Session/IP/Server tiles reveal in sequence. Cards are
+  uniform, one colour, kind shown as a badge. Audited against the Web
+  Interface Guidelines (labels, aria-live, skip link, focus rings,
+  contrast, overscroll, list performance).
 - Server page in 4 sections (Status/Connection/General/Protection),
   centered pickers, no content trapped behind the tab bar, EN + AR RTL.
 - Honest labels: Game/WireGuard warn they count general.
