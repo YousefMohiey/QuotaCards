@@ -415,6 +415,7 @@ async function refresh() {
       } finally { setBusy(false); }
     };
     row.append(bCopy, bRev);
+    row.style.animationDelay = (list.children.length - 1) * 35 + "ms";
     list.append(row);
   }
   maybeCoach(true);
@@ -854,6 +855,12 @@ function drawSpark() {
   });
   pl.setAttribute("points", pts.join(" "));
   if (ar) ar.setAttribute("points", "0," + h + " " + pts.join(" ") + " " + w + "," + h);
+  const dot = $("spark-dot");
+  if (dot) {
+    const last = pts.length ? pts[pts.length - 1].split(",") : ["-10", "-10"];
+    dot.setAttribute("cx", last[0]);
+    dot.setAttribute("cy", last[1]);
+  }
 }
 function sampleSpark(rx, tx) {
   const now = Date.now();

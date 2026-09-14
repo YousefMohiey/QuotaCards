@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
       pingHint: "Best of 2 requests through the active path.",
       measuring: "Measuring…",
       upTitle: "Updates", upCheck: "Check for updates", upGet: "Download and install",
-      upHint: "New builds install by themselves.", upChecking: "Checking…",
+      updHint: "New builds install by themselves.", upChecking: "Checking…",
       upOut: "{v} is out.", upCur: "You run {v}.", upLatest: "{v} is the latest.",
       upFail: "Could not reach GitHub.",
       upIdle: "Not checked yet.",
@@ -60,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
       pingHint: "أفضل محاولتين عبر المسار الحالي.",
       measuring: "جارٍ القياس…",
       upTitle: "التحديثات", upCheck: "تحقق من التحديثات", upGet: "تحميل وتثبيت",
-      upHint: "الإصدارات الجديدة بتتثبت لوحدها.", upChecking: "جارٍ التحقق…",
+      updHint: "التحديثات تُثبَّت تلقائياً.", upChecking: "جارٍ التحقق…",
       upOut: "الإصدار {v} متاح.", upCur: "إصدارك {v}.", upLatest: "{v} هو الأحدث.",
       upFail: "تعذر الوصول إلى GitHub.",
       upIdle: "لم يتم التحقق بعد.",
@@ -126,7 +126,52 @@ document.addEventListener("DOMContentLoaded", () => {
     return { ms: -1, url: "" };
   }
   function busy(b) {
-    for (const id of ["btn-ping", "btn-down", "btn-up"]) $(id).disabled = b;
+    for (const id of ["btn-ping", "btn-down", "btn-up"]) {
+      $(id).disabled = b;
+      $(id).classList.toggle("measuring", b);
+    }
+  }
+  // Rolling bars: one bar per measurement, rescaled as history moves.
+  function pushBar(id, value, kind) {
+    const box = $(id);
+    if (!box) return;
+    box.hidden = false;
+    if (id === "thru-bars") {
+      const lg = $("thru-legend");
+      if (lg) lg.hidden = false;
+    }
+    const i = document.createElement("i");
+    if (kind === "ping") i.className = value <= 80 ? "ok" : value <= 160 ? "mid" : "bad";
+    else if (kind === "up") i.className = "up";
+    i.dataset.v = String(value);
+    box.append(i);
+    while (box.children.length > 14) box.firstChild.remove();
+    requestAnimationFrame(() => {
+      const max = Math.max(...[...box.children].map((el) => parseFloat(el.dataset.v || "0")), 1);
+      [...box.children].forEach((el) => {
+        const v = parseFloat(el.dataset.v || "0");
+        el.style.height = Math.max(8, Math.round((v / max) * 100)) + "%";
+      });
+    });
+  }
+  // Numbers count from their previous value so runs read as motion, not a swap.
+  function setNum(el, value, suffixKey, digits) {
+    const prev = parseFloat(el.dataset.v || "0") || 0;
+    el.dataset.v = String(value);
+    el.innerHTML = "";
+    const b = document.createElement("b");
+    const s = document.createElement("small");
+    s.textContent = " " + t(suffixKey);
+    el.append(b, s);
+    const t0 = performance.now();
+    const dur = 420;
+    (function step(now) {
+      const p = Math.min(1, (now - t0) / dur);
+      const e = 1 - Math.pow(1 - p, 3);
+      const v = prev + (value - prev) * e;
+      b.textContent = digits ? v.toFixed(digits) : String(Math.round(v));
+      if (p < 1) requestAnimationFrame(step);
+    })(t0);
   }
   $("btn-ping").onclick = async () => {
     busy(true);
@@ -142,9 +187,9 @@ document.addEventListener("DOMContentLoaded", () => {
         urls = ["https://" + sni + "/"];
       }
       const r = await bestOf(urls);
-      $("ping-out").innerHTML = "";
       if (r.ms < 0) { $("ping-out").textContent = t("noReply"); return; }
-      $("ping-out").append(document.createTextNode(String(Math.round(r.ms)) + " "), (() => { const s = document.createElement("small"); s.textContent = t("ms"); return s; })());
+      setNum($("ping-out"), Math.round(r.ms), "ms", 0);
+      pushBar("ping-bars", Math.round(r.ms), "ping");
     } finally { busy(false); }
   };
   function meter(p) {
@@ -174,8 +219,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (mbps > 25 && bytes < (40 << 20)) bytes = 40 << 20;
         else break;
       }
-      $("down-out").innerHTML = "";
-      $("down-out").append(document.createTextNode(mbps ? mbps.toFixed(1) + " " : "-"), (() => { const s = document.createElement("small"); s.textContent = t("mbps"); return s; })());
+      if (mbps) {
+        setNum($("down-out"), mbps, "mbps", 1);
+        pushBar("thru-bars", mbps, "down");
+      } else {
+        $("down-out").textContent = "-";
+      }
     } catch (e) { $("down-out").textContent = t("noReply"); }
     finally { $("thru-meter").hidden = true; busy(false); }
   };
@@ -194,8 +243,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const dt = (performance.now() - t0) / 1000;
       const mbps = dt > 0 ? (body.length * 8) / dt / 1e6 : 0;
       meter(1);
-      $("up-out").innerHTML = "";
-      $("up-out").append(document.createTextNode(mbps ? mbps.toFixed(1) + " " : "-"), (() => { const s = document.createElement("small"); s.textContent = t("mbps"); return s; })());
+      if (mbps) {
+        setNum($("up-out"), mbps, "mbps", 1);
+        pushBar("thru-bars", mbps, "up");
+      } else {
+        $("up-out").textContent = "-";
+      }
     } catch (e) { $("up-out").textContent = t("noReply"); }
     finally { $("thru-meter").hidden = true; busy(false); }
   };
@@ -323,6 +376,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <svg viewBox="0 0 600 64" preserveAspectRatio="none" focusable="false" aria-hidden="true">
               <polygon id="spark-area" points="" />
               <polyline id="spark-line" points="" />
+              <circle id="spark-dot" cx="-10" cy="-10" r="3.2" />
             </svg>
           </div>
         </div>
@@ -420,7 +474,7 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
       <div class="panel pad setgroup">
         <h2 data-speed-i18n="upTitle">Updates</h2>
-        <p class="hint" data-speed-i18n="upHint">New builds install by themselves.</p>
+        <p class="hint" data-speed-i18n="updHint">New builds install by themselves.</p>
         <p class="hint" id="upd-state" data-speed-i18n="upIdle">Not checked yet.</p>
         <div class="updrow">
           <button id="btn-check-upd" class="ghost" data-speed-i18n="upCheck">Check for updates</button>
@@ -444,6 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <button id="btn-ping" class="primary" data-speed-i18n="pingBtn">Ping</button>
           <div class="speedout" id="ping-out" aria-live="polite">-</div>
         </div>
+        <div class="bars" id="ping-bars" hidden></div>
         <p class="hint" id="ping-hint"></p>
       </div>
       <div class="panel pad">
@@ -458,6 +513,11 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="speedout" id="up-out" aria-live="polite">-</div>
         </div>
         <div class="meter" id="thru-meter" hidden><span></span></div>
+        <div class="barcap" id="thru-legend" hidden>
+          <span class="lg down" data-speed-i18n="downBtn">Download</span>
+          <span class="lg up" data-speed-i18n="upBtn">Upload</span>
+        </div>
+        <div class="bars" id="thru-bars" hidden></div>
         <p class="hint" id="thru-hint"></p>
       </div>
     </section>

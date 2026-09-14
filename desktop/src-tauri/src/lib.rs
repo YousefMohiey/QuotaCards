@@ -355,11 +355,48 @@ async fn tunnel_status(engine: tauri::State<'_, Engine>) -> Result<TunnelState, 
     }
 }
 
-/// Session traffic in bytes. Desktop has no per-app counters like the
-/// phone does, so the UI timer runs off its own clock and this stays zero.
+/// Session counts for the tunnel itself: the TUN adapter's own byte
+/// counters (InOctets = downloaded, OutOctets = uploaded). The adapter
+/// only exists while the engine runs, so zeros mean nothing to show.
+#[cfg(windows)]
+fn tun_octets() -> (u64, u64) {
+    use windows::Win32::Foundation::NO_ERROR;
+    use windows::Win32::NetworkManagement::IpHelper::{FreeMibTable, GetIfTable2, MIB_IF_TABLE2};
+    unsafe {
+        let mut table: *mut MIB_IF_TABLE2 = std::ptr::null_mut();
+        if GetIfTable2(&mut table) != NO_ERROR || table.is_null() {
+            return (0, 0);
+        }
+        let rows = std::slice::from_raw_parts(
+            (*table).Table.as_ptr(),
+            (*table).NumEntries as usize,
+        );
+        let mut found = (0, 0);
+        for row in rows {
+            let alias = String::from_utf16_lossy(&row.Alias);
+            let desc = String::from_utf16_lossy(&row.Description);
+            if alias.trim_end_matches('\0').starts_with("QuotaCards")
+                || desc.trim_end_matches('\0').contains("QuotaCards")
+            {
+                found = (row.InOctets, row.OutOctets);
+                break;
+            }
+        }
+        FreeMibTable(table as *const core::ffi::c_void);
+        found
+    }
+}
+
+#[cfg(not(windows))]
+fn tun_octets() -> (u64, u64) {
+    (0, 0)
+}
+
+/// Session traffic in bytes, live from the TUN adapter counters.
 #[tauri::command]
 async fn tunnel_traffic() -> Result<TrafficState, String> {
-    Ok(TrafficState { rx: 0, tx: 0 })
+    let (rx, tx) = tun_octets();
+    Ok(TrafficState { rx, tx })
 }
 
 #[tauri::command]
@@ -674,4 +711,40 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("QuotaCards failed to start");
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use windows::Win32::Foundation::NO_ERROR;
+    use windows::Win32::NetworkManagement::IpHelper::{FreeMibTable, GetIfTable2, MIB_IF_TABLE2};
+
+    /// The traffic chart leans on this API; prove the table reads here.
+    #[test]
+    fn if_table_is_readable() {
+        unsafe {
+            let mut table: *mut MIB_IF_TABLE2 = std::ptr::null_mut();
+            assert_eq!(GetIfTable2(&mut table), NO_ERROR);
+            let rows = std::slice::from_raw_parts(
+                (*table).Table.as_ptr(),
+                (*table).NumEntries as usize,
+            );
+            assert!(!rows.is_empty());
+            for row in rows.iter().take(8) {
+                let alias = String::from_utf16_lossy(&row.Alias);
+                println!(
+                    "{} in={} out={}",
+                    alias.trim_end_matches('\0'),
+                    row.InOctets,
+                    row.OutOctets
+                );
+            }
+            FreeMibTable(table as *const core::ffi::c_void);
+        }
+    }
+
+    #[test]
+    fn tun_octets_never_panics() {
+        let (rx, tx) = super::tun_octets();
+        println!("tun_octets -> {rx}/{tx}");
+    }
 }

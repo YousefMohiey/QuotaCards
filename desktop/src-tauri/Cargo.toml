@@ -29,6 +29,10 @@ rand_core = { version = "0.6", features = ["getrandom", "std"] }
 # Shared core: server setup + cards over SSH, Windows sing-box engine.
 quotacards = { path = "../.." }
 
+[target.'cfg(windows)'.dependencies]
+# TUN adapter byte counters for the live traffic chart.
+windows = { version = "0.62", features = ["Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_Foundation"] }
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

@@ -31,17 +31,18 @@
 
 :root {
   color-scheme: dark;
-  /* Surfaces: base window, sidebar, card, control fill. */
-  --bg: #070a11;
-  --side: #0a0e17;
-  --card: #101624;
-  --card-hover: #141c2b;
-  --field: #161d2b;
-  --line: rgb(255 255 255 / 0.09);
-  --line-strong: rgb(255 255 255 / 0.14);
-  --txt: #f4f6fa;
-  --txt2: #a0aabb;
-  --txt3: #7d8795;
+  /* Surfaces: soft Windows 11 graphite with the QuotaCards blue tint,
+     raised well off near-black. Fluent layer model: base, side, card. */
+  --bg: #171c27;
+  --side: #1b2130;
+  --card: #212838;
+  --card-hover: #273043;
+  --field: #2a3346;
+  --line: rgb(255 255 255 / 0.12);
+  --line-strong: rgb(255 255 255 / 0.20);
+  --txt: #f7f9fc;
+  --txt2: #c3cbd9;
+  --txt3: #a4aebe;
   --accent: #5b9cff;
   --accent-strong: #7aaeff;
   --accent-bg: rgb(91 156 255 / 0.12);
@@ -87,8 +88,8 @@ button { font: inherit; color: inherit; }
   content: "";
   position: absolute; inset: 0;
   background:
-    radial-gradient(900px 480px at 78% -10%, rgb(91 156 255 / 0.07), transparent 65%),
-    radial-gradient(700px 420px at -10% 110%, rgb(91 156 255 / 0.05), transparent 60%);
+    radial-gradient(900px 480px at 78% -10%, rgb(91 156 255 / 0.10), transparent 65%),
+    radial-gradient(700px 420px at -10% 110%, rgb(91 156 255 / 0.07), transparent 60%);
 }
 
 /* App frame: sidebar plus content. */
@@ -119,8 +120,8 @@ button { font: inherit; color: inherit; }
   transition: background 120ms var(--ease), color 120ms var(--ease);
 }
 .tabbar button svg { width: 18px; height: 18px; flex: none; opacity: 0.9; }
-.tabbar button:hover { background: rgb(255 255 255 / 0.05); color: var(--txt); }
-.tabbar button.on { background: rgb(255 255 255 / 0.07); color: var(--txt); font-weight: 600; }
+.tabbar button:hover { background: rgb(255 255 255 / 0.07); color: var(--txt); }
+.tabbar button.on { background: rgb(255 255 255 / 0.11); color: var(--txt); font-weight: 600; }
 .tabbar button.on::before {
   content: "";
   position: absolute; left: 3px; top: 50%; transform: translateY(-50%);
@@ -144,7 +145,7 @@ main { flex: 1; min-width: 0; overflow-y: auto; padding: 20px 24px 24px; display
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.30);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.28);
 }
 .pad { padding: 16px; }
 .panel h2 { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
@@ -163,17 +164,17 @@ main { flex: 1; min-width: 0; overflow-y: auto; padding: 20px 24px 24px; display
 .hero::before {
   content: "";
   position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(460px 300px at 220px 50%, rgb(91 156 255 / 0.07), transparent 70%);
+  background: radial-gradient(460px 300px at 220px 50%, rgb(91 156 255 / 0.10), transparent 70%);
   transition: background 300ms var(--ease);
 }
-.hero.connected::before { background: radial-gradient(460px 300px at 220px 50%, rgb(52 211 153 / 0.09), transparent 70%); }
+.hero.connected::before { background: radial-gradient(460px 300px at 220px 50%, rgb(52 211 153 / 0.13), transparent 70%); }
 .hero-left { position: relative; flex: none; display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .hero-btn {
   width: 128px; height: 128px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(circle at 50% 36%, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.02) 70%);
-  border: 2px solid rgb(255 255 255 / 0.14);
-  box-shadow: 0 0 0 10px rgb(255 255 255 / 0.025);
+  background: radial-gradient(circle at 50% 36%, rgb(255 255 255 / 0.10), rgb(255 255 255 / 0.03) 70%);
+  border: 2px solid rgb(255 255 255 / 0.18);
+  box-shadow: 0 0 0 10px rgb(255 255 255 / 0.04);
   color: var(--txt2); cursor: pointer; position: relative;
   transition: border-color 200ms var(--ease), color 200ms var(--ease), background 200ms var(--ease), box-shadow 200ms var(--ease);
 }
@@ -217,10 +218,10 @@ main { flex: 1; min-width: 0; overflow-y: auto; padding: 20px 24px 24px; display
 .spark-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 11.5px; color: var(--txt3); }
 .spark-head b { font-size: 12.5px; font-weight: 600; color: var(--txt2); font-variant-numeric: tabular-nums; }
 .spark svg { width: 100%; height: 56px; display: block; }
-#spark-line { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-#spark-area { fill: rgb(91 156 255 / 0.12); stroke: none; }
+#spark-line { fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+#spark-area { fill: rgb(91 156 255 / 0.16); stroke: none; }
 .hero.connected #spark-line { stroke: var(--green); }
-.hero.connected #spark-area { fill: rgb(52 211 153 / 0.10); }
+.hero.connected #spark-area { fill: rgb(52 211 153 / 0.16); }
 
 /* Connection facts: quiet cells, only while the tunnel is on. */
 .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
@@ -228,7 +229,7 @@ main { flex: 1; min-width: 0; overflow-y: auto; padding: 20px 24px 24px; display
   display: flex; flex-direction: column; gap: 3px;
   flex: 1 1 150px; min-width: 0;
   padding: 12px 14px;
-  background: rgb(255 255 255 / 0.03);
+  background: rgb(255 255 255 / 0.06);
   border: 1px solid var(--line); border-radius: var(--r-sm);
 }
 .stat .slabel { font-size: 11.5px; color: var(--txt3); }
@@ -268,17 +269,17 @@ button.setrow svg { width: 16px; height: 16px; color: var(--txt3); flex: none; }
   background: transparent; border: 1px solid transparent; border-radius: var(--r-sm);
   padding: 8px 10px; cursor: pointer; color: var(--txt); font-size: 13.5px;
 }
-.navlink:hover { background: rgb(255 255 255 / 0.05); }
+.navlink:hover { background: rgb(255 255 255 / 0.07); }
 .navlink span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .navlink svg { width: 16px; height: 16px; flex: none; color: var(--txt2); }
-.seg { display: inline-flex; gap: 2px; background: rgb(255 255 255 / 0.04); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 2px; }
+.seg { display: inline-flex; gap: 2px; background: rgb(255 255 255 / 0.06); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 2px; }
 .seg button {
   border: 0; border-radius: 3px; background: transparent; cursor: pointer;
   padding: 6px 12px; font-size: 12.5px; font-weight: 600; color: var(--txt2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .seg button:hover { color: var(--txt); }
-.seg button.on { background: rgb(255 255 255 / 0.10); color: var(--txt); box-shadow: 0 1px 2px rgb(0 0 0 / 0.3); }
+.seg button.on { background: rgb(255 255 255 / 0.13); color: var(--txt); box-shadow: 0 1px 2px rgb(0 0 0 / 0.3); }
 input[type="text"], input:not([type]), input {
   width: 100%; background: var(--field); border: 1px solid var(--line-strong); border-radius: var(--r-sm);
   padding: 9px 12px; font: inherit; font-size: 13.5px; color: var(--txt);
@@ -354,7 +355,7 @@ p.empty button {
   padding: 9px 12px; cursor: pointer; font-size: 13.5px;
   transition: background 100ms var(--ease);
 }
-.opt:hover { background: rgb(255 255 255 / 0.05); }
+.opt:hover { background: rgb(255 255 255 / 0.07); }
 .opt .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .opt .sub { font-size: 11.5px; color: var(--txt3); }
 .opt .check { width: 16px; height: 16px; flex: none; color: transparent; }
@@ -382,9 +383,9 @@ p.empty button {
   transform: translate(-50%, -50%) scale(0.98); opacity: 0;
   width: 440px; max-width: calc(100vw - 60px); max-height: calc(100vh - 80px);
   display: flex; flex-direction: column; padding: 20px;
-  background: #141a27;
+  background: #2b3346;
   border: 1px solid var(--line-strong); border-radius: var(--r-lg);
-  box-shadow: 0 18px 48px rgb(0 0 0 / 0.5), 0 2px 8px rgb(0 0 0 / 0.4);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.45), 0 2px 8px rgb(0 0 0 / 0.35);
   transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out);
 }
 .sheet.open { opacity: 1; transform: translate(-50%, -50%) scale(1); }
@@ -400,24 +401,62 @@ p.empty button {
 
 /* Coach modal. */
 .coach { position: fixed; inset: 0; z-index: 22; display: flex; align-items: center; justify-content: center; background: rgb(0 0 0 / 0.6); }
-.coach-card { width: 440px; max-width: calc(100vw - 60px); background: #141a27; }
+.coach-card { width: 440px; max-width: calc(100vw - 60px); background: #2b3346; }
 .coach-card ol { margin: 0 0 16px; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; color: var(--txt2); }
 
 /* Mouse-first scrollbars. */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.14); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.18); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* Speed view. */
 .speedrow { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
 .speedrow .primary { min-width: 130px; }
 .speedout { font-family: var(--font-display); font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.speedout b { font-weight: inherit; }
 .speedout small { font-size: 13px; font-weight: 500; color: var(--txt2); }
 .meter { height: 4px; border-radius: var(--r-pill); background: rgb(255 255 255 / 0.08); margin-top: 14px; overflow: hidden; }
 .meter span { display: block; height: 100%; width: 30%; border-radius: inherit; background: var(--accent); transition: width 200ms var(--ease); }
 
 /* Updates group. */
 .updrow { display: flex; align-items: center; justify-content: flex-start; gap: 10px; margin-top: 12px; }
+
+/* Mini charts: one bar per recent measurement, grows on every run. */
+.barcap { display: flex; align-items: center; gap: 14px; margin-top: 14px; font-size: 11.5px; color: var(--txt3); }
+.barcap[hidden] { display: none; }
+.barcap .lg { display: inline-flex; align-items: center; gap: 6px; }
+.barcap .lg::before { content: ""; width: 9px; height: 9px; border-radius: 2px; background: var(--accent); }
+.barcap .lg.up::before { background: var(--green); }
+.bars { display: flex; align-items: flex-end; justify-content: center; gap: 4px; height: 64px; margin-top: 14px; padding: 8px 12px; background: rgb(255 255 255 / 0.05); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.bars[hidden] { display: none; }
+.bars i { flex: 1 1 0; min-width: 5px; max-width: 44px; height: 0; border-radius: 2px 2px 0 0; background: var(--accent); transition: height 320ms var(--ease-out); }
+.bars i.ok { background: var(--green); }
+.bars i.mid { background: var(--amber); }
+.bars i.bad { background: var(--red); }
+.bars i.up { background: var(--green); }
+
+/* Motion: Fluent timings, each one carrying feedback or a state change. */
+@keyframes viewIn { from { opacity: 0; transform: translateY(6px); } }
+@keyframes rowIn { from { opacity: 0; transform: translateY(5px); } }
+@keyframes barIn { from { opacity: 0; transform: translateY(-6px); } }
+@keyframes pillIn { from { opacity: 0; transform: translateY(-50%) scaleY(0.4); } }
+@keyframes softPulse { 50% { opacity: 0.5; } }
+@keyframes ringOut { from { transform: scale(1); opacity: 0.85; } to { transform: scale(1.34); opacity: 0; } }
+@keyframes dotPulse { 50% { transform: scale(1.7); opacity: 0.5; } }
+.view.on { animation: viewIn 220ms var(--ease-out); }
+.bar { animation: barIn 200ms var(--ease-out); }
+.tabbar button.on::before { animation: pillIn 160ms var(--ease-out); }
+.hero.connecting .livedot { animation: dotPulse 1.1s ease-in-out infinite; }
+.hero.connected .hero-btn::before {
+  content: ""; position: absolute; inset: -2px; border-radius: 50%;
+  border: 2px solid var(--green); pointer-events: none;
+  animation: ringOut 650ms var(--ease-out) forwards;
+}
+.primary.measuring { animation: softPulse 900ms ease-in-out infinite; }
+.cardrow { animation: rowIn 260ms var(--ease-out) both; }
+.sheet-list > .opt { animation: rowIn 200ms var(--ease-out) both; }
+#spark-dot { fill: var(--green); transform-box: fill-box; transform-origin: center; animation: dotPulse 1.6s ease-in-out infinite; }
+.ghost:active, .pick:active, .navlink:active, .seg button:active, .tabbar button:active { transform: translateY(1px); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
