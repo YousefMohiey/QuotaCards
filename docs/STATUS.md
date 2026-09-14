@@ -17,6 +17,9 @@
 - Windows ships as an NSIS installer; closing the window hides to the
   tray (Show / Check for updates / Quit), and updates install from
   GitHub by themselves (signed feed, auto-restart).
+- Phone app has its own update check (Settings, Updates): checks
+  GitHub, downloads the APK, opens the system installer for one
+  confirm tap. Same version number as the PC build.
 - Server page in 4 sections (Status/Connection/General/Protection),
   centered pickers, no content trapped behind the tab bar, EN + AR RTL.
 - Honest labels: Game/WireGuard warn they count general.

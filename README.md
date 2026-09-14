@@ -45,6 +45,7 @@ Native desktop layout with sidebar, same dark glass theme as the phone:
 - Whole-device tunnel (VpnService + sing-box engine), quick-settings tile
 - Per-app routing, Always-on compatible, swipe-away safe
 - Same cards, same quota logic, Arabic RTL
+- Built-in updates: Settings, Updates checks GitHub, downloads the new APK and opens the installer (one confirmation tap)
 
 ## Server setup
 
