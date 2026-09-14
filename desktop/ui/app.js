@@ -56,7 +56,7 @@ const DEFAULT_SNI = { Gamerz: "ea.com", Streamerz: "youtube.com" };
 const STR = {
   en: {
     cardForVpn: "Profile", route: "Gateway", protected: "Protected", wholeDevice: "Whole device",
-    yourIp: "Your IP", newCard: "New card", cardName: "Card name", exName: "e.g. Yousef, PC, phone",
+    yourIp: "Your IP", sessLabel: "Session", serverLabel: "Server", newCard: "New card", cardName: "Card name", exName: "e.g. Yousef, PC, phone",
     domainSni: "Domain", customDomain: "custom domain…", customDomainOpt: "Custom domain…",
     generateCard: "Generate card", myCards: "My cards", serverHint: "Automatic configuration.",
     host: "Address", language: "Language", reconnect: "Reconnect", testPort: "Check server", copyLog: "Copy log",
@@ -67,7 +67,7 @@ const STR = {
     appsLoading: "Loading apps…", appsEmpty: "No applications found.",
     appsNeedPick: "Pick at least one app first.", appsPicked: "Applies next time you connect.",
     transport: "Connection", trStandard: "Standard", trGame: "Game", trWg: "WireGuard",
-    trNoteVless: "Standard (Default traffic).",
+    trNoteVless: "Default traffic.",
     trNoteHy2: "Game: fastest for play, counts from general quota.",
     trNoteWg: "WireGuard: fastest, needs the server prepared once.",
     wgWarnT: "WireGuard spends from main quota, not your packages",
@@ -96,10 +96,12 @@ const STR = {
     sheetSearch: "Search domains…",
     obTitle: "How QuotaCards works", ob1: "Create a card - pick Gamerz or Streamerz.",
     ob2: "Pick that card on Home.", ob3: "Hit Connect - back out anytime, the VPN stays on.", obGot: "Got it",
+    ksFoot: "Kill switch on. If the VPN drops, traffic stops instead of leaking.",
+    liveLabel: "Live traffic", spPer: "/s",
   },
   ar: {
     cardForVpn: "البروفايل", route: "البوابة", protected: "الحماية", wholeDevice: "الجهاز بالكامل",
-    yourIp: "عنوان الـIP", newCard: "بطاقة جديدة", cardName: "اسم البطاقة", exName: "مثال: يوسف، الموبايل، اللابتوب",
+    yourIp: "عنوان الـIP", sessLabel: "المدة", serverLabel: "السيرفر", newCard: "بطاقة جديدة", cardName: "اسم البطاقة", exName: "مثال: يوسف، الموبايل، اللابتوب",
     domainSni: "الدومين", customDomain: "دومين مخصص…", customDomainOpt: "دومين مخصص…",
     generateCard: "إنشاء بطاقة", myCards: "بطاقاتي", serverHint: "إعداد تلقائي",
     host: "العنوان", language: "اللغة", reconnect: "إعادة الاتصال", testPort: "فحص السيرفر", copyLog: "نسخ السجل",
@@ -110,7 +112,7 @@ const STR = {
     appsLoading: "جارٍ تحميل التطبيقات…", appsEmpty: "لا توجد تطبيقات بهذا الاسم.",
     appsNeedPick: "اختر تطبيقاً واحداً على الأقل أولاً.", appsPicked: "سيتم التطبيق عند الاتصال التالي.",
     transport: "الاتصال", trStandard: "عادي", trGame: "ألعاب", trWg: "WireGuard",
-    trNoteVless: "العادي (الترافيك الافتراضي)",
+    trNoteVless: "الترافيك الافتراضي",
     trNoteHy2: "الألعاب: أسرع للعب، ويُحتسب من الباقة العامة",
     trNoteWg: "WireGuard: الأسرع، ويحتاج تجهيز السيرفر مرة واحدة",
     wgWarnT: "الواير جارد يسحب من الباقة الأساسية وليس من الباقات",
@@ -139,6 +141,8 @@ const STR = {
     sheetSearch: "ابحث عن دومين…",
     obTitle: "كيف يعمل QuotaCards", ob1: "أنشئ بطاقة - اختر جيمرز أو ستريمرز.",
     ob2: "اختر البطاقة من الرئيسية.", ob3: "اضغط اتصال - يمكنك الخروج من التطبيق، وسيبقى الـVPN يعمل.", obGot: "فهمت",
+    ksFoot: "القفل الكامل مفعّل: إذا انقطع الاتصال يتوقف الإنترنت بدل تسرب البيانات.",
+    liveLabel: "الترافيك الآن", spPer: "/ث",
   },
 };
 let lang = localStorage.getItem("qc-lang") || "en";
@@ -256,11 +260,18 @@ function paintHero() {
   const hero = $("hero");
   hero.classList.toggle("idle", !vpnOn && !connected);
   hero.classList.toggle("connecting", busy);
+  // Hero headline: the active card's name, big and calm. Empty hides it.
+  const hn = $("hero-name");
+  if (hn) hn.textContent = vpnCardName ? vpnCardName.split(" (")[0] : "";
   // The IP lives only in the home net rows.
   // Home net row: the IP lives inside the hero, only while connected.
   $("home-ip").textContent = maskHost(serverIp || serverHost);
   $("home-ipbox").hidden = !vpnOn;
   $("session-line").hidden = !vpnOn;
+  const ss = $("stat-server");
+  if (ss) { ss.hidden = !vpnOn; $("hero-host").textContent = maskHost(serverHost); }
+  const sp = $("hero-spark");
+  if (sp) sp.hidden = !vpnOn;
   if (busy) {
     $("hero-state").textContent = t("working");
     $("hero-sub").textContent = t("talking");
@@ -270,14 +281,10 @@ function paintHero() {
     hero.classList.remove("ready");
     hero.classList.add("connected");
     $("hero-state").textContent = t("vpnConnected");
-    // bdi isolates the Latin card name so nothing jumps sides. Arabic takes
-    // no trailing period; English keeps its full stop.
-    $("hero-sub").innerHTML = "";
-    $("hero-sub").append(
-      document.createTextNode(t("trafficThru")),
-      (() => { const b = document.createElement("bdi"); b.textContent = vpnCardName || "your card"; return b; })(),
-    );
-    if (lang === "en") $("hero-sub").append(document.createTextNode("."));
+    // Second line: the domain the tunnel rides on. Plain data, no sentence.
+    const sel = $("tunnel-card");
+    const opt = sel && sel.selectedOptions && sel.selectedOptions[0];
+    $("hero-sub").textContent = (opt && opt.dataset.sni) || "";
     $("btn-label").textContent = t("disconnect");
     tickSession();
   } else if (connected) {
@@ -375,7 +382,7 @@ async function refresh() {
     const rawSni = c.sni || c.card_type;
     const sniEl = row.querySelector(".sni");
     sniEl.dataset.raw = rawSni;
-    sniEl.textContent = c.sni || kindName(c.card_type);
+    sniEl.textContent = c.sni ? kindName(c.card_type) + " · " + c.sni : kindName(c.card_type);
     const bCopy = document.createElement("button");
     bCopy.className = "btn-copy";
     bCopy.textContent = t("copy");
@@ -825,9 +832,48 @@ async function pollTunnel() {
     vpnOn = !!st.running;
     vpnError = st.error || "";
     if (!vpnOn) connectEpoch = 0;
+    if (was && !vpnOn) resetSpark();
     if (was && !vpnOn && vpnError) bar(false, "VPN stopped: " + vpnError);
     if (was !== vpnOn) paintHero();
   } catch (e) { /* bridge hiccup, try next round */ }
+}
+
+// Hero sparkline: throughput of the last minute, one point per 2s sample.
+let sparkHist = [0, 0, 0];
+let sparkRx = 0, sparkTx = 0, sparkAt = 0;
+function drawSpark() {
+  const pl = $("spark-line");
+  const ar = $("spark-area");
+  if (!pl) return;
+  const w = 600, h = 64;
+  const max = Math.max(4096, ...sparkHist);
+  const n = sparkHist.length;
+  const pts = sparkHist.map((v, i) => {
+    const x = n > 1 ? (i / (n - 1)) * w : 0;
+    const y = h - 3 - (v / max) * (h - 8);
+    return x.toFixed(1) + "," + y.toFixed(1);
+  });
+  pl.setAttribute("points", pts.join(" "));
+  if (ar) ar.setAttribute("points", "0," + h + " " + pts.join(" ") + " " + w + "," + h);
+}
+function sampleSpark(rx, tx) {
+  const now = Date.now();
+  if (!sparkAt) { sparkAt = now; sparkRx = rx; sparkTx = tx; return; }
+  if (now - sparkAt < 1800) return;
+  const drx = Math.max(0, rx - sparkRx);
+  const dtx = Math.max(0, tx - sparkTx);
+  sparkAt = now; sparkRx = rx; sparkTx = tx;
+  sparkHist.push(drx + dtx);
+  if (sparkHist.length > 30) sparkHist.shift();
+  const rate = $("spark-rate");
+  if (rate) rate.textContent = fmtBytes((drx + dtx) / 2) + t("spPer");
+  drawSpark();
+}
+function resetSpark() {
+  sparkHist = [0, 0, 0]; sparkRx = 0; sparkTx = 0; sparkAt = 0;
+  const rate = $("spark-rate");
+  if (rate) rate.textContent = "-";
+  drawSpark();
 }
 
 // Live session: duration from the moment the tunnel reports up, plus
@@ -857,6 +903,7 @@ async function tickSession() {
     if (t && typeof t.rx === "number") {
       $("sess-rx").textContent = fmtBytes(t.rx);
       $("sess-tx").textContent = fmtBytes(t.tx);
+      sampleSpark(t.rx, t.tx);
     }
   } catch (e) { /* counters best-effort */ }
 }

@@ -266,12 +266,12 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 </head>
 <body data-platform="desktop">
-<div class="bg" aria-hidden="true"><span class="orb orb-a"></span><span class="orb orb-b"></span><span class="orb orb-c"></span><span class="orb orb-d"></span></div>
+<div class="bg" aria-hidden="true"></div>
 
 <div class="shell">
   <aside class="side">
     <div class="brand">
-      <img src="icon.png" alt="" width="30" height="30" />
+      <img src="icon.png" alt="" width="28" height="28" />
       <div class="brand-tx"><b>QuotaCards</b><span id="side-state">Idle</span></div>
     </div>
     <nav class="tabbar" aria-label="Primary">
@@ -295,10 +295,6 @@ document.addEventListener("DOMContentLoaded", () => {
           <span data-i18n="tabSettings">Settings</span>
         </button>
       </nav>
-      <div class="side-foot">
-      <div class="seg langseg" id="lang-seg"><button data-lang="en" class="on">EN</button><button data-lang="ar">عربي</button></div>
-      <button id="btn-how" class="ghostbtn" data-i18n="howTo">How to use</button>
-      </div>
     </div>
   </aside>
 
@@ -310,65 +306,87 @@ document.addEventListener("DOMContentLoaded", () => {
     </section>
 
     <section class="view on" id="view-connect">
-      <div class="cols">
-        <div class="hero panel" id="hero">
-          <div class="hero-state"><span class="livedot"></span><span id="hero-state">Not Connected</span></div>
+      <div class="hero panel" id="hero">
+        <div class="hero-cols">
+        <div class="hero-left">
           <button class="hero-btn" id="btn-connect" aria-label="Toggle VPN">
             <svg class="power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.34 6.34a8 8 0 1 0 11.32 0"/></svg>
           </button>
           <div class="btn-action" id="btn-label">Connect</div>
-          <div class="session" id="session-line" hidden>
-            <span id="sess-time">00:00</span>
-            <span class="sep"></span>
-            <span>↓ <span id="sess-rx">0 B</span></span>
-            <span class="sep"></span>
-            <span>↑ <span id="sess-tx">0 B</span></span>
-          </div>
-          <div class="hero-sub" id="hero-sub">Pick a card and connect.</div>
         </div>
-        <div class="stack">
-          <div class="panel pad">
-            <label data-i18n="cardForVpn" id="tunnel-card-label">Profile</label>
+        <div class="hero-info">
+          <div class="hero-state"><span class="livedot"></span><span id="hero-state">Not connected</span></div>
+          <h1 class="hero-name" id="hero-name"></h1>
+          <p class="hero-sub" id="hero-sub"></p>
+          <div class="spark" id="hero-spark" hidden>
+            <div class="spark-head"><span data-i18n="liveLabel">Live traffic</span><b id="spark-rate">-</b></div>
+            <svg viewBox="0 0 600 64" preserveAspectRatio="none" focusable="false" aria-hidden="true">
+              <polygon id="spark-area" points="" />
+              <polyline id="spark-line" points="" />
+            </svg>
+          </div>
+        </div>
+        </div>
+        <div class="stats">
+          <div class="stat" id="session-line" hidden>
+            <span class="slabel" data-i18n="sessLabel">Session</span>
+            <span class="sflow"><b class="sval" id="sess-time">00:00</b><span class="sio">↓ <b id="sess-rx">0 B</b></span><span class="sio">↑ <b id="sess-tx">0 B</b></span></span>
+          </div>
+          <div class="stat" id="home-ipbox" hidden>
+            <span class="slabel" data-i18n="yourIp">Your IP</span>
+            <b class="sval" id="home-ip" dir="ltr">-</b>
+          </div>
+          <div class="stat" id="stat-server" hidden>
+            <span class="slabel" data-i18n="serverLabel">Server</span>
+            <b class="sval" id="hero-host" dir="ltr">-</b>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel pad setgroup">
+        <div class="setrow">
+          <span class="setlabel" data-i18n="cardForVpn">Profile</span>
+          <div class="setctl">
             <button class="pick" id="tunnel-card-btn" aria-haspopup="listbox" aria-expanded="false">
               <span id="tunnel-card-name">-</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
             </button>
             <select id="tunnel-card" hidden></select>
-            <div class="homenet" id="home-ipbox" hidden>
-              <div class="homenet-row" id="ip-row"><span class="homenet-label" data-i18n="yourIp">Your IP</span><b id="home-ip" dir="ltr">-</b></div>
-            </div>
           </div>
-          <div class="panel pad">
-            <label data-i18n="transport">Connection</label>
-            <div class="seg" id="transport-seg"><button data-transport="vless" class="on" data-i18n="trStandard">Standard</button></div>
-            <p class="hint" id="transport-note"></p>
-          </div>
-          <div class="panel pad">
-            <label data-i18n="routing">App routing</label>
-            <button class="pick" id="home-routing-btn">
+        </div>
+        <div class="setrow">
+          <span class="setlabel" data-i18n="routing">App routing</span>
+          <div class="setctl">
+            <button class="navlink" id="home-routing-btn">
               <span id="home-routing-sub">-</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
             </button>
           </div>
         </div>
+        <div class="setrow">
+          <span class="setlabel" data-i18n="transport">Connection</span>
+          <div class="setctl col">
+            <div class="seg" id="transport-seg"><button data-transport="vless" class="on" data-i18n="trStandard">Standard</button></div>
+            <p class="hint" id="transport-note"></p>
+          </div>
+        </div>
       </div>
-      <div class="panel pad footpanel">
-        <p class="hint" data-i18n="ksHintDesk">Kill switch: strict routing is always on. If the VPN drops, the engine is stopped and routes are removed instead of leaking.</p>
-      </div>
+      <p class="hero-foot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-2.9 8.1-7 10-4.1-1.9-7-5.4-7-10V6l7-3z"/></svg><span data-i18n="ksFoot">Kill switch on. If the VPN drops, traffic stops instead of leaking.</span></p>
     </section>
 
     <section class="view" id="view-cards">
-      <div class="cards-head panel">
-        <h2><span data-i18n="myCards">My cards</span> <span class="count" id="cards-count"></span></h2>
+      <div class="pagehead">
+        <h1><span data-i18n="myCards">My cards</span><span class="count" id="cards-count"></span></h1>
+        <span class="spacer"></span>
         <button id="btn-add-card" class="primary" data-i18n="addCard">+ New</button>
       </div>
       <div id="cards" class="cards-grid"></div>
     </section>
 
     <section class="view" id="view-apps">
-      <div class="apps-head panel">
+      <div class="apps-head">
         <button class="backrow" id="btn-apps-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg><span data-i18n="back">Back</span></button>
-        <h2 data-i18n="vpnFor">VPN for</h2>
+        <h1 data-i18n="vpnFor">VPN for</h1>
         <div class="seg" id="apps-seg">
           <button data-appsmode="all" class="on" data-i18n="appsAll">All apps</button>
           <button data-appsmode="allow" data-i18n="appsOnly">Only these</button>
@@ -381,6 +399,20 @@ document.addEventListener("DOMContentLoaded", () => {
     </section>
 
     <section class="view" id="view-settings">
+      <div class="pagehead"><h1 data-i18n="tabSettings">Settings</h1></div>
+      <div class="panel pad setgroup">
+        <h2 data-i18n="secGeneral">General</h2>
+        <div class="setrow">
+          <span class="setlabel" data-i18n="language">Language</span>
+          <div class="setctl">
+            <div class="seg" id="lang-seg"><button data-lang="en" class="on">EN</button><button data-lang="ar">عربي</button></div>
+          </div>
+        </div>
+        <button class="setrow" id="btn-how">
+          <span data-i18n="howTo">How to use</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      </div>
       <div class="panel pad setgroup">
         <h2 data-i18n="secProtection">Protection</h2>
         <p class="hint" data-i18n="ksHintDesk">Kill switch: strict routing is always on. If the VPN drops, the engine is stopped and routes are removed instead of leaking.</p>
@@ -398,6 +430,7 @@ document.addEventListener("DOMContentLoaded", () => {
     </section>
 
     <section class="view" id="view-speed">
+      <div class="pagehead"><h1 data-speed-i18n="tabSpeed">Speed</h1></div>
       <div class="panel pad">
         <h2 data-speed-i18n="pingTitle">Ping</h2>
         <div class="seg" id="ping-seg">
@@ -450,7 +483,7 @@ document.addEventListener("DOMContentLoaded", () => {
 </div>
 
 <div class="sheet-back" id="nc-back" hidden></div>
-<div class="sheet form panel" id="newcard-sheet" role="dialog" aria-modal="true" hidden>
+<div class="sheet panel" id="newcard-sheet" role="dialog" aria-modal="true" hidden>
   <div class="sheet-title" data-i18n="newCard">New card</div>
   <div class="sheet-form">
     <div class="seg" id="kind-seg">
