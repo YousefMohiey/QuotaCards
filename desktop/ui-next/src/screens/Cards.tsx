@@ -93,7 +93,7 @@ export function Cards() {
               <div
                 key={c.uuid}
                 className={cn(
-                  "rounded-[16px] border bg-card p-4 transition-colors",
+                  "rounded-[12px] border p-4 transition-colors",
                   inUse ? "border-[var(--brand-line)]" : "border-line hover:bg-white/[0.015]",
                 )}
               >

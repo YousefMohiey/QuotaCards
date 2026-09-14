@@ -32,7 +32,7 @@ export function Hero() {
   useTick(1000, connected)
 
   return (
-    <section className="rounded-[16px] border bg-card p-6">
+    <section className="rounded-[12px] border border-line p-6">
       <div className="flex min-h-[214px] items-center">
         <motion.div
           layout

@@ -19,7 +19,7 @@ export function Sidebar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   const state = busy ? "working" : connected ? "connected" : vpnOn ? "connecting" : "ready"
 
   return (
-    <aside className="flex w-[228px] shrink-0 flex-col border-e border-line bg-[var(--side)]">
+    <aside className="flex w-[216px] shrink-0 flex-col border-e border-line">
       <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
         <img src="/icon.png" alt="" aria-hidden className="size-7 rounded-[8px]" />
         <div className="min-w-0">

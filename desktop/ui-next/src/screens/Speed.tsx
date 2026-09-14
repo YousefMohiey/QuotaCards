@@ -1,25 +1,42 @@
-import { useRef, useState } from "react"
-import { ArrowDown, ArrowUp, Activity } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { SpeedGauge, type GaugePhase } from "@/components/SpeedGauge"
-import { Panel, PageTitle } from "@/components/Row"
+import { useRef, useState, type ReactNode } from "react"
+import { Gamepad2, Globe, MonitorPlay, Users } from "lucide-react"
+import { SpeedGauge, Stars, type GaugePhase } from "@/components/SpeedGauge"
 import { useApp } from "@/state/app"
 import { useI18n } from "@/lib/i18n"
 import { measureDownload, measurePing, measureUpload } from "@/lib/speedtest"
 import { cn } from "@/lib/utils"
 
-const fmt = (v: number | null, digits = 1) => (v === null ? "—" : v.toFixed(digits))
+/** Higher is better. 0 means "not measured yet". */
+const up = (v: number | null, bands: [number, number, number, number]): number => {
+  if (v === null) return 0
+  if (v >= bands[0]) return 5
+  if (v >= bands[1]) return 4
+  if (v >= bands[2]) return 3
+  if (v >= bands[3]) return 2
+  return 1
+}
+/** Lower is better. */
+const down = (v: number | null, bands: [number, number, number, number]): number => {
+  if (v === null) return 0
+  if (v <= bands[0]) return 5
+  if (v <= bands[1]) return 4
+  if (v <= bands[2]) return 3
+  if (v <= bands[3]) return 2
+  return 1
+}
 
 export function Speed() {
   const { t } = useI18n()
   const { serverIp, card } = useApp()
   const [phase, setPhase] = useState<GaugePhase>("idle")
+  const [label, setLabel] = useState(() => t("idle"))
   const [value, setValue] = useState(0)
   const [unit, setUnit] = useState<"Mbps" | "ms">("Mbps")
+  const [pings, setPings] = useState<number[]>([])
   const [ping, setPing] = useState<number | null>(null)
   const [jitter, setJitter] = useState<number | null>(null)
-  const [down, setDown] = useState<number | null>(null)
-  const [up, setUp] = useState<number | null>(null)
+  const [downMbps, setDownMbps] = useState<number | null>(null)
+  const [upMbps, setUpMbps] = useState<number | null>(null)
   const [hint, setHint] = useState("")
   const abort = useRef<AbortController | null>(null)
 
@@ -49,18 +66,23 @@ export function Speed() {
     const host = guard()
     if (!host || running) return
     const signal = start("ping")
+    setLabel(t("pingTitle"))
     setUnit("ms")
     setValue(0)
+    setPings([])
     setHint(t("pingHint"))
     try {
       const r = await measurePing(host, 8, {
         signal,
-        onPing: (ms) => setValue(ms),
+        onPing: (ms) => {
+          setValue(ms)
+          setPings((prev) => [...prev.slice(-2), ms])
+        },
       })
       setPing(r.ping)
       setJitter(r.jitter)
       setValue(r.ping)
-      setHint(t("pingHint"))
+      setLabel(t("pingTitle"))
     } catch {
       setHint(t("noReply"))
     } finally {
@@ -72,14 +94,15 @@ export function Speed() {
     const host = guard()
     if (!host || running) return
     const signal = start(kind === "down" ? "download" : "upload")
+    setLabel(kind === "down" ? t("chDown") : t("chUp"))
     setUnit("Mbps")
     setValue(0)
     setHint(kind === "down" ? t("downHint") : t("upHint"))
     try {
       const fn = kind === "down" ? measureDownload : measureUpload
       const mbps = await fn(host, { seconds: 9, signal, onTick: (v) => setValue(v) })
-      if (kind === "down") setDown(mbps)
-      else setUp(mbps)
+      if (kind === "down") setDownMbps(mbps)
+      else setUpMbps(mbps)
       setValue(mbps)
     } catch {
       setHint(t("noReply"))
@@ -88,81 +111,110 @@ export function Speed() {
     }
   }
 
-  const caption =
-    phase === "ping"
-      ? t("pingTitle")
-      : phase === "download"
-        ? t("chDown")
-        : phase === "upload"
-          ? t("chUp")
-          : phase === "done"
-            ? t("ready")
-            : t("idle")
+  const badge = ["var(--amber)", "var(--green)", "#63a8bb"]
 
   return (
-    <div className="flex flex-col gap-4">
-      <PageTitle>{t("tabSpeed")}</PageTitle>
-
-      <Panel className="flex flex-col items-center px-6 py-7">
-        <SpeedGauge value={value} unit={unit} phase={phase} caption={caption} />
-
-        <div className="mt-6 grid w-full max-w-[520px] grid-cols-4 gap-2">
-          <Metric label={t("pingTitle")} value={fmt(ping, 0)} unit={t("ms")} />
-          <Metric label={t("jitter")} value={fmt(jitter, 1)} unit={t("ms")} />
-          <Metric label={t("chDown")} value={fmt(down, 1)} unit={t("mbps")} />
-          <Metric label={t("chUp")} value={fmt(up, 1)} unit={t("mbps")} />
-        </div>
-
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-          <Button
-            variant="secondary"
-            className="h-9 gap-2 rounded-[10px] px-3.5 text-[13px]"
-            disabled={running && phase !== "ping"}
-            onClick={() => void runPing()}
+    <div className="mx-auto flex w-full max-w-[560px] flex-col items-center gap-7 pt-2">
+      {/* Ping headline with the last three probes */}
+      <div className="flex items-center gap-2">
+        <span className="text-[14px] font-medium text-txt">
+          {t("pingTitle")} <span className="font-normal text-txt3">{t("ms")}</span>
+        </span>
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className={cn(
+              "grid size-[26px] place-items-center rounded-full text-[12px] font-semibold",
+              pings[i] === undefined ? "bg-white/[0.06] text-txt3" : "text-[#0b0f18]",
+            )}
+            style={pings[i] !== undefined ? { background: badge[i % 3] } : undefined}
           >
-            <Activity className="size-4" aria-hidden />
-            {phase === "ping" ? t("measuring") : t("pingBtn")}
-          </Button>
-          <Button
-            variant="secondary"
-            className="h-9 gap-2 rounded-[10px] px-3.5 text-[13px]"
-            disabled={running && phase !== "download"}
-            onClick={() => void run("down")}
-          >
-            <ArrowDown className="size-4" aria-hidden />
-            {phase === "download" ? t("measuring") : t("downBtn")}
-          </Button>
-          <Button
-            variant="secondary"
-            className="h-9 gap-2 rounded-[10px] px-3.5 text-[13px]"
-            disabled={running && phase !== "upload"}
-            onClick={() => void run("up")}
-          >
-            <ArrowUp className="size-4" aria-hidden />
-            {phase === "upload" ? t("measuring") : t("upBtn")}
-          </Button>
-        </div>
+            {pings[i] !== undefined ? Math.round(pings[i]!) : "—"}
+          </span>
+        ))}
+      </div>
 
-        <p aria-live="polite" className="mt-4 min-h-[18px] text-center text-[12px] text-txt3">
-          {hint || t("speedIdle")}
-        </p>
-      </Panel>
+      {/* What the numbers are good for */}
+      <div className="flex w-full items-start justify-between px-8">
+        <Activity icon={Globe} label="Web" score={Math.min(down(ping, [20, 40, 80, 150]), down(jitter, [5, 12, 25, 50]))} />
+        <Activity icon={Gamepad2} label="Gaming" score={down(ping, [20, 40, 80, 150])} />
+        <Activity icon={MonitorPlay} label="Streaming" score={up(downMbps, [200, 100, 50, 20])} />
+        <Activity icon={Users} label="Social" score={up(upMbps, [50, 25, 10, 5])} />
+      </div>
 
-      <p className="px-1 text-[11.5px] text-txt3">
-        {t("serverLabel")}: {card?.sni || "—"}
+      <SpeedGauge value={value} unit={unit} phase={phase} caption={label} />
+
+      <div className="flex items-center gap-2">
+        <ThinButton onClick={() => void runPing()} active={phase === "ping"} disabled={running && phase !== "ping"}>
+          {phase === "ping" ? t("measuring") : t("pingBtn")}
+        </ThinButton>
+        <ThinButton onClick={() => void run("down")} active={phase === "download"} disabled={running && phase !== "download"}>
+          {phase === "download" ? t("measuring") : t("downBtn")}
+        </ThinButton>
+        <ThinButton onClick={() => void run("up")} active={phase === "upload"} disabled={running && phase !== "upload"}>
+          {phase === "upload" ? t("measuring") : t("upBtn")}
+        </ThinButton>
+      </div>
+
+      <p aria-live="polite" className="min-h-[18px] text-center text-[12px] text-txt3">
+        {hint || t("speedIdle")}
       </p>
+
+      {/* Server and profile footer */}
+      <div className="flex w-full items-start justify-between px-4 pb-3">
+        <div>
+          <div className="text-[15px] font-medium text-txt">{serverIp || "—"}</div>
+          <div className="mt-1 text-[12px] text-txt3">
+            {ping !== null ? `${ping} ${t("ms")}` : "—"} · {jitter !== null ? `${jitter} ${t("ms")}` : "—"}
+          </div>
+        </div>
+        <div className="flex flex-col items-end">
+          <div className="flex items-center gap-2 text-txt2">
+            <Globe className="size-5" strokeWidth={1.5} aria-hidden />
+            <Users className="size-5" strokeWidth={1.5} aria-hidden />
+          </div>
+          <div className="mt-1 text-[13px] font-medium text-txt">{card?.name.split(" (")[0] ?? "—"}</div>
+          <div className="text-[12px] text-txt3">{card?.sni ?? "—"}</div>
+        </div>
+      </div>
     </div>
   )
 }
 
-function Metric({ label, value, unit }: { label: string; value: string; unit: string }) {
+function Activity({ icon: Icon, label, score }: { icon: typeof Globe; label: string; score: number }) {
   return (
-    <div className={cn("rounded-[12px] border border-line bg-white/[0.02] px-3 py-2.5 text-center")}>
-      <div className="text-[11px] text-txt3">{label}</div>
-      <div className="mt-1 text-[15px] font-medium text-txt">
-        {value}
-        <span className="ml-1 text-[11px] font-normal text-txt3">{unit}</span>
-      </div>
+    <div className="flex flex-col items-center gap-2">
+      <Icon className="size-8 text-txt" strokeWidth={1.4} aria-hidden />
+      <Stars score={score} />
+      <span className="text-[11.5px] text-txt3">{label}</span>
     </div>
+  )
+}
+
+function ThinButton({
+  children,
+  onClick,
+  active,
+  disabled,
+}: {
+  children: ReactNode
+  onClick: () => void
+  active?: boolean
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "h-[30px] rounded-full border px-4 text-[12.5px] transition-colors disabled:opacity-45",
+        active
+          ? "border-[var(--brand-line)] text-brand-strong"
+          : "border-line text-txt2 hover:border-[var(--brand-line)] hover:text-txt",
+      )}
+    >
+      {children}
+    </button>
   )
 }

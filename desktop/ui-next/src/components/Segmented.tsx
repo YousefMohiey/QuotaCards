@@ -16,7 +16,7 @@ export function Segmented<T extends string>({
   className?: string
 }) {
   return (
-    <div className={cn("inline-flex rounded-[10px] border border-line bg-white/[0.02] p-0.5", className)}>
+    <div className={cn("inline-flex rounded-[10px] border border-line p-0.5", className)}>
       {options.map((o) => {
         const on = o.value === value
         return (
