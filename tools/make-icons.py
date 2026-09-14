@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+"""Regenerate every QuotaCards app icon from the single master art.
+
+Source of truth: res/app-icon-src.png (1254x1254).
+Outputs:
+  res/app-icon.ico                      (embedded into the exe by build.rs / windres)
+  desktop/src-tauri/icons/{icon.ico,32x32.png,128x128.png,128x128@2x.png,icon.png}
+  android/tauri-app/src-tauri/icons/{icon.ico,icon.png}
+  res/icon16.png res/icon32.png res/icon48.png res/icon256.png
+  desktop/ui/icon.png
+
+Why a script: small frames are NOT plain downscales. Sizes <=48px get a tuned
+unsharp mask (RGB only, alpha stays clean) so the ring stays crisp at the
+sizes Windows actually shows (installer header 24px, explorer 16/32/48px).
+Frame set is the VS-classic 10 sizes so every DPI bucket finds its own frame.
+"""
+import io
+import struct
+import sys
+from pathlib import Path
+
+from PIL import Image, ImageFilter
+
+ROOT = Path(__file__).resolve().parents[1]
+MASTER = ROOT / "res" / "app-icon-src.png"
+
+SIZES = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256]
+# size -> unsharp (radius, percent); None = no sharpening
+SHARPEN = {
+    16: (0.6, 120), 20: (0.6, 110), 24: (0.6, 100), 32: (0.6, 85),
+    40: (0.6, 75), 48: (0.6, 65), 64: (0.5, 45), 96: (0.5, 25),
+    128: None, 256: None,
+}
+
+
+def render(master: Image.Image, size: int) -> Image.Image:
+    im = master.resize((size, size), Image.LANCZOS)
+    spec = SHARPEN.get(size)
+    if spec:
+        radius, percent = spec
+        rgb = im.convert("RGB").filter(
+            ImageFilter.UnsharpMask(radius=radius, percent=percent, threshold=2)
+        ).convert("RGBA")
+        rgb.putalpha(im.getchannel("A"))
+        im = rgb
+    return im
+
+
+def dib_frame(im: Image.Image) -> bytes:
+    """32bpp BGRA bottom-up DIB + AND mask (classic .ico frame format)."""
+    w, h = im.size
+    px = im.convert("RGBA").load()
+    rows = []
+    for y in range(h - 1, -1, -1):
+        row = bytearray()
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            row += bytes((b, g, r, a))
+        rows.append(bytes(row))
+    xor = b"".join(rows)
+    and_row = ((w + 31) // 32) * 4
+    and_mask = b"\x00" * (and_row * h)
+    hdr = struct.pack("<IiiHHIIiiII", 40, w, h * 2, 1, 32, 0, 0, 0, 0, 0, 0)
+    return hdr + xor + and_mask
+
+
+def png_frame(im: Image.Image) -> bytes:
+    buf = io.BytesIO()
+    im.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
+
+def write_ico(path: Path, entries):
+    """entries: list of (PIL image, use_png)."""
+    blobs = [png_frame(im) if use_png else dib_frame(im) for im, use_png in entries]
+    n = len(blobs)
+    header = struct.pack("<HHH", 0, 1, n)
+    offset = 6 + 16 * n
+    dirs = b""
+    data = b""
+    for (im, _), blob in zip(entries, blobs):
+        w, h = im.size
+        dirs += struct.pack(
+            "<BBBBHHII",
+            w if w < 256 else 0,
+            h if h < 256 else 0,
+            0, 0, 1, 32, len(blob), offset,
+        )
+        data += blob
+        offset += len(blob)
+    path.write_bytes(header + dirs + data)
+    return path
+
+
+def build():
+    master = Image.open(MASTER).convert("RGBA")
+    frames = {s: render(master, s) for s in SIZES}
+
+    # multi-size .ico: DIB frames for <=128 (max compatibility incl. windres),
+    # PNG frame for 256 (standard, keeps the file small).
+    entries = [(frames[s], s == 256) for s in SIZES]
+    for p in [
+        ROOT / "res" / "app-icon.ico",
+        ROOT / "desktop" / "src-tauri" / "icons" / "icon.ico",
+        ROOT / "android" / "tauri-app" / "src-tauri" / "icons" / "icon.ico",
+    ]:
+        write_ico(p, entries)
+        print("wrote", p)
+
+    # plain PNGs
+    pngs = {
+        ROOT / "desktop" / "src-tauri" / "icons" / "32x32.png": frames[32],
+        ROOT / "desktop" / "src-tauri" / "icons" / "128x128.png": frames[128],
+        ROOT / "desktop" / "src-tauri" / "icons" / "128x128@2x.png": frames[256],
+        ROOT / "desktop" / "src-tauri" / "icons" / "icon.png": render(master, 512),
+        ROOT / "android" / "tauri-app" / "src-tauri" / "icons" / "icon.png": render(master, 512),
+        ROOT / "desktop" / "ui" / "icon.png": frames[128],
+        ROOT / "res" / "icon16.png": frames[16],
+        ROOT / "res" / "icon32.png": frames[32],
+        ROOT / "res" / "icon48.png": frames[48],
+        ROOT / "res" / "icon256.png": frames[256],
+    }
+    for p, im in pngs.items():
+        im.save(p, optimize=True)
+        print("wrote", p)
+
+    # verify: reopen the icos, compare every frame to the tuned render
+    from PIL import ImageChops, ImageStat
+    ok = True
+    for p in [
+        ROOT / "res" / "app-icon.ico",
+        ROOT / "desktop" / "src-tauri" / "icons" / "icon.ico",
+        ROOT / "android" / "tauri-app" / "src-tauri" / "icons" / "icon.ico",
+    ]:
+        im = Image.open(p)
+        got = sorted(im.ico.sizes())
+        want = sorted((s, s) for s in SIZES)
+        if got != want:
+            print("FRAME SET MISMATCH", p, got)
+            ok = False
+            continue
+        for s in SIZES:
+            fr = im.ico.getimage((s, s)).convert("RGBA")
+            diff = ImageChops.difference(fr.convert("RGB"), frames[s].convert("RGB"))
+            rms = ImageStat.Stat(diff).rms
+            if max(rms) > 0.5:
+                print(f"FRAME CONTENT MISMATCH {p} {s}px rms={rms}")
+                ok = False
+    print("ALL_VERIFIED" if ok else "VERIFY_FAILED")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(build())
