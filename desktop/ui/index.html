@@ -415,9 +415,11 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="hero-cols">
         <div class="hero-left">
           <button class="hero-btn" id="btn-connect" aria-label="Toggle VPN">
+            <span class="dial-arc" aria-hidden="true"></span>
             <svg class="power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.34 6.34a8 8 0 1 0 11.32 0"/></svg>
+            <span class="btn-action" id="btn-label">Connect</span>
           </button>
-          <div class="btn-action" id="btn-label">Connect</div>
+          <p class="hero-idle" id="hero-idle" hidden></p>
         </div>
         <div class="hero-info">
           <div class="hero-state"><span class="livedot"></span><span id="hero-state">Not connected</span><span class="kindbadge" id="hero-kind" hidden></span></div>
@@ -473,10 +475,10 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="setrow">
             <span class="setlabel" data-i18n="transport">Connection</span>
             <div class="setctl">
+              <p class="hint" id="transport-note"></p>
               <div class="seg" id="transport-seg"><button data-transport="vless" class="on" data-i18n="trStandard">Standard</button></div>
             </div>
           </div>
-          <p class="hint" id="transport-note"></p>
         </div>
       </div>
       <p class="hero-foot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-2.9 8.1-7 10-4.1-1.9-7-5.4-7-10V6l7-3z"/></svg><span data-i18n="ksFoot">Kill switch on. If the VPN drops, traffic stops instead of leaking.</span></p>

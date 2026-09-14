@@ -307,13 +307,23 @@ function paintHero() {
     $("hero-state").textContent = t("ready");
     $("hero-sub").textContent = "";
     $("btn-label").textContent = t("connect");
+    idleCaption();
   } else {
     hero.classList.add("ready");
     hero.classList.remove("connected");
     $("hero-state").textContent = t("notConnected");
     $("hero-sub").textContent = "";
     $("btn-label").textContent = t("connect");
+    idleCaption();
   }
+}
+// While the dial sits alone in the middle, it still says which card it will use.
+function idleCaption() {
+  const el = $("hero-idle");
+  if (!el) return;
+  const nm = vpnCardName ? vpnCardName.split(" (")[0] : "";
+  el.hidden = !!vpnOn || !!busy || !nm;
+  el.textContent = nm;
 }
 
 function setBusy(b) {

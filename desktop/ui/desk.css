@@ -35,28 +35,29 @@
 :root {
   color-scheme: dark;
 
-  /* Surfaces: soft graphite with the QuotaCards blue tint. */
-  --bg: #161b25;
-  --side: #1a212c;
-  --card: #212936;
-  --card-hover: #26303f;
-  --field: #1c2330;
-  --overlay: #252e3d;
+  /* Surfaces: the icon's own darks - a near-black navy, not graphite.
+     One shade step per layer, the way the phone app stacks its surfaces. */
+  --bg: #0b0f18;
+  --side: #090c14;
+  --card: #121a2a;
+  --card-hover: #172033;
+  --field: #1a2336;
+  --overlay: #16203340;
 
   /* Lines: one hairline weight, two strengths. */
   --line: rgb(255 255 255 / 0.08);
   --line-strong: rgb(255 255 255 / 0.14);
 
   /* Text: three steps, all readable on --card. */
-  --txt: #f2f5fa;
-  --txt2: #b6c0cf;
+  --txt: #eef1f6;
+  --txt2: #a7b0bf;
   --txt3: #8b95a6;
 
   /* Accent + semantics: deliberately muted. Saturated hues read as generated. */
-  --accent: #6a9ee8;
-  --accent-strong: #86b2ee;
-  --accent-bg: rgb(106 158 232 / 0.13);
-  --accent-line: rgb(106 158 232 / 0.38);
+  --accent: #4a86e8;
+  --accent-strong: #6b9df0;
+  --accent-bg: rgb(74 134 232 / 0.14);
+  --accent-line: rgb(74 134 232 / 0.40);
   --green: #5cb28e;
   --green-bg: rgb(92 178 142 / 0.12);
   --green-line: rgb(92 178 142 / 0.36);
@@ -69,8 +70,8 @@
   --cyan: #63a8bb;
 
   /* Shape. */
-  --r-ctl: 8px;
-  --r-card: 12px;
+  --r-ctl: 10px;
+  --r-card: 16px;
   --r-pill: 999px;
 
   /* Elevation: overlays only. */
@@ -116,8 +117,8 @@ b, strong { font-weight: 600; }
   content: "";
   position: absolute; inset: 0;
   background:
-    radial-gradient(900px 460px at 80% -12%, rgb(106 158 232 / 0.08), transparent 65%),
-    radial-gradient(680px 420px at -12% 112%, rgb(106 158 232 / 0.05), transparent 60%);
+    radial-gradient(900px 460px at 80% -12%, rgb(74 134 232 / 0.08), transparent 65%),
+    radial-gradient(680px 420px at -12% 112%, rgb(74 134 232 / 0.05), transparent 60%);
 }
 
 /* ---------- Frame ---------- */
@@ -206,14 +207,14 @@ main {
 .hero {
   position: relative; overflow: hidden;
   display: flex; flex-direction: column;
-  padding: 28px 32px 20px;
+  padding: 24px 32px 24px;
   flex: 1 1 auto; min-height: 0;
 }
-.hero-cols { display: flex; align-items: center; gap: 36px; flex: 1 1 auto; min-height: 0; }
+.hero-cols { position: relative; display: flex; align-items: center; gap: 36px; flex: 1 1 auto; min-height: 254px; }
 .hero::before {
   content: "";
   position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(560px 340px at 210px 50%, rgb(106 158 232 / 0.13), transparent 72%);
+  background: radial-gradient(560px 340px at 210px 50%, rgb(74 134 232 / 0.13), transparent 72%);
   transition: background 300ms var(--ease);
 }
 .hero[data-kind="Streamerz"]::before { background: radial-gradient(560px 340px at 210px 50%, rgb(196 154 88 / 0.13), transparent 72%); }
@@ -222,17 +223,36 @@ main {
     radial-gradient(560px 340px at 210px 50%, rgb(92 178 142 / 0.14), transparent 72%),
     radial-gradient(760px 420px at 85% -10%, rgb(92 178 142 / 0.05), transparent 70%);
 }
-.hero-left { position: relative; flex: none; display: flex; flex-direction: column; align-items: center; gap: 14px; }
-.hero-btn {
-  width: 124px; height: 124px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(circle at 50% 36%, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.02) 72%);
-  border: 1.5px solid var(--line-strong);
-  box-shadow: 0 0 0 10px rgb(255 255 255 / 0.02);
-  color: var(--txt2); cursor: pointer; position: relative;
-  transition: border-color 200ms var(--ease), color 200ms var(--ease), background 200ms var(--ease), box-shadow 200ms var(--ease);
+/* The dial opens centred and parks left when the tunnel comes up, so the
+   right side has room for the numbers that only exist while connected. */
+.hero-left {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  transition: left 640ms var(--ease-out), transform 640ms var(--ease-out);
 }
-.hero-btn .power { width: 46px; height: 46px; }
+.hero.connected .hero-left { left: 0; transform: translate(0, -50%); }
+.hero.connecting .hero-left { animation: dialWait 1.6s ease-in-out infinite; }
+@keyframes dialWait { 50% { transform: translate(-50%, -50%) scale(1.02); } }
+.hero-btn {
+  width: 158px; height: 158px; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: radial-gradient(circle at 50% 34%, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.02) 74%);
+  border: 1.5px solid var(--line-strong);
+  box-shadow: 0 0 0 12px rgb(255 255 255 / 0.02);
+  color: var(--txt2); cursor: pointer; position: relative;
+  transition: border-color 200ms var(--ease), color 200ms var(--ease), background 200ms var(--ease), box-shadow 200ms var(--ease), transform 140ms var(--ease);
+}
+.hero-btn:hover { transform: scale(1.015); }
+.hero-btn .power { width: 44px; height: 44px; }
+.dial-arc {
+  position: absolute; inset: -3px; border-radius: 50%;
+  opacity: 0; transition: opacity 320ms var(--ease);
+  background: conic-gradient(from 0deg, var(--accent) 0 0deg, transparent 0deg);
+  -webkit-mask: radial-gradient(closest-side, transparent 94%, #000 95%);
+  mask: radial-gradient(closest-side, transparent 94%, #000 95%);
+  pointer-events: none;
+}
 .hero-btn:hover { border-color: var(--accent-line); color: var(--txt); }
 .hero-btn:active { transform: scale(0.98); }
 .hero-btn:disabled { opacity: 0.6; cursor: default; }
@@ -248,12 +268,39 @@ main {
   background: radial-gradient(circle at 50% 36%, rgb(92 178 142 / 0.14), rgb(92 178 142 / 0.03) 72%);
   box-shadow: 0 0 0 12px rgb(92 178 142 / 0.05);
 }
+.hero.ready .dial-arc {
+  opacity: 1;
+  background: conic-gradient(from -120deg, rgb(74 134 232 / 0.30) 0 240deg, transparent 240deg);
+}
+.hero.connecting .hero-info, .hero.ready .hero-info { transition-delay: 0ms; }
+.hero.ready .hero-btn { border-color: var(--accent-line); color: var(--accent-strong); }
+.hero.connected .dial-arc {
+  opacity: 1;
+  background: conic-gradient(from -120deg, var(--green) 0 240deg, transparent 240deg);
+  animation: arcSettle 640ms var(--ease-out) 320ms both;
+}
+@keyframes arcSettle { from { transform: rotate(-40deg); opacity: 0.2; } }
+.hero.connecting .dial-arc {
+  opacity: 1;
+  background: conic-gradient(from 0deg, var(--accent) 0 110deg, transparent 110deg);
+  animation: spin 1.1s linear infinite;
+}
 @keyframes spin { to { transform: rotate(360deg); } }
-.btn-action { font-size: 14px; font-weight: 600; }
+.btn-action { font-size: 13px; font-weight: 600; letter-spacing: 0.01em; }
+.hero-idle { margin: 0; font-size: 12.5px; color: var(--txt3); animation: fadeIn 320ms var(--ease-out) both; }
 .hero.connected .btn-action { color: var(--green); }
 .hero.connecting .btn-action { color: var(--accent); }
 
-.hero-info { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+/* Info block: reserved while idle so the dial stays optically centred,
+   revealed with a small rise once the tunnel is up. */
+.hero-info {
+  flex: 1; min-width: 0; margin-inline-start: 168px;
+  display: flex; flex-direction: column; gap: 8px;
+  opacity: 0; transform: translateX(16px);
+  transition: opacity 300ms var(--ease), transform 380ms var(--ease-out);
+}
+.hero.connected .hero-info { opacity: 1; transform: none; transition-delay: 260ms; }
+.hero.connecting .hero-info { opacity: 1; transform: none; transition-delay: 0ms; }
 .hero-state { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--txt2); }
 .livedot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 3px var(--amber-bg); flex: none; }
 .hero.ready .livedot { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
@@ -277,7 +324,7 @@ main {
 .spark-head b { font-size: 13px; font-weight: 600; color: var(--txt); font-variant-numeric: tabular-nums; }
 .spark svg { width: 100%; height: 52px; display: block; }
 #spark-line { fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-#spark-area { fill: rgb(106 158 232 / 0.14); stroke: none; }
+#spark-area { fill: rgb(74 134 232 / 0.14); stroke: none; }
 .hero.connected #spark-line { stroke: var(--green); }
 .hero.connected #spark-area { fill: rgb(92 178 142 / 0.14); }
 
@@ -307,7 +354,8 @@ main {
 .setrow { display: flex; align-items: center; gap: 16px; min-height: 52px; padding: 8px 0; border-top: 1px solid var(--line); }
 .setrow:first-child { border-top: 0; }
 .setlabel { flex: none; width: 136px; font-size: 13px; color: var(--txt2); }
-.setctl { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-end; }
+.setctl { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
+.setctl .hint { margin: 0; }
 .setctl.col { flex-direction: column; align-items: flex-end; gap: 6px; }
 .setctl.col #transport-note { margin: 0; font-size: 12px; }
 button.setrow { width: 100%; background: none; border: 0; border-top: 1px solid var(--line); cursor: pointer; color: var(--txt); text-align: start; font-size: 13.5px; justify-content: space-between; }
@@ -357,7 +405,7 @@ button.setrow svg { width: 16px; height: 16px; color: var(--txt3); flex: none; }
   transition: background 140ms var(--ease), color 140ms var(--ease);
 }
 .seg button:hover { color: var(--txt); }
-.seg button.on { background: rgb(106 158 232 / 0.16); color: var(--txt); box-shadow: inset 0 0 0 1px rgb(106 158 232 / 0.22); }
+.seg button.on { background: rgb(74 134 232 / 0.16); color: var(--txt); box-shadow: inset 0 0 0 1px rgb(74 134 232 / 0.22); }
 
 input[type="text"], input:not([type]), input {
   width: 100%; min-height: 36px;
@@ -405,7 +453,7 @@ input:focus { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0
   transition: border-color 140ms var(--ease), background 140ms var(--ease), transform 140ms var(--ease);
 }
 .cardrow::before { content: ""; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 3px; background: var(--txt3); }
-.cardrow[data-kind="gamerz"] { border-color: rgb(106 158 232 / 0.22); }
+.cardrow[data-kind="gamerz"] { border-color: rgb(74 134 232 / 0.22); }
 .cardrow[data-kind="gamerz"]::before { background: var(--accent); }
 .cardrow[data-kind="streamerz"] { border-color: rgb(196 154 88 / 0.22); }
 .cardrow[data-kind="streamerz"]::before { background: var(--amber); }
@@ -481,7 +529,7 @@ p.empty button {
   transition: border-color 140ms var(--ease), background 140ms var(--ease), color 140ms var(--ease);
 }
 #kind-seg button:hover { color: var(--txt); border-color: var(--line-strong); }
-#kind-seg button.gamerz.on { border-color: var(--accent-line); background: linear-gradient(180deg, rgb(106 158 232 / 0.18), rgb(106 158 232 / 0.05)); color: var(--txt); }
+#kind-seg button.gamerz.on { border-color: var(--accent-line); background: linear-gradient(180deg, rgb(74 134 232 / 0.18), rgb(74 134 232 / 0.05)); color: var(--txt); }
 #kind-seg button.streamerz.on { border-color: var(--amber-line); background: linear-gradient(180deg, rgb(196 154 88 / 0.18), rgb(196 154 88 / 0.05)); color: var(--txt); }
 
 /* ---------- Overlays: dialogs and sheets ---------- */
@@ -567,14 +615,28 @@ p.empty button {
 
 /* ---------- Motion: feedback and state only ---------- */
 
-@keyframes viewIn { from { opacity: 0; transform: translateY(4px); } }
+@keyframes viewIn { from { opacity: 0; transform: translateY(6px); } }
+@keyframes statIn { from { opacity: 0; transform: translateY(10px) scale(0.99); } }
+@keyframes fadeIn { from { opacity: 0; } }
 @keyframes rowIn { from { opacity: 0; transform: translateY(4px); } }
 @keyframes barIn { from { opacity: 0; transform: translateY(-6px); } }
 @keyframes pillIn { from { opacity: 0; transform: translateY(-50%) scaleY(0.4); } }
 @keyframes softPulse { 50% { opacity: 0.55; } }
 @keyframes ringOut { from { transform: scale(1); opacity: 0.85; } to { transform: scale(1.34); opacity: 0; } }
 @keyframes dotPulse { 50% { transform: scale(1.7); opacity: 0.5; } }
-.view.on { animation: viewIn 200ms var(--ease-out); }
+.view.on { animation: viewIn 240ms var(--ease-out); }
+/* Panels of whatever view is on stage file in one after another. */
+.view.on > * { animation: viewIn 300ms var(--ease-out) both; }
+.view.on > *:nth-child(2) { animation-delay: 50ms; }
+.view.on > *:nth-child(3) { animation-delay: 100ms; }
+.view.on > *:nth-child(4) { animation-delay: 150ms; }
+.stats .stat { animation: statIn 420ms var(--ease-out) both; }
+.stats .stat:nth-child(2) { animation-delay: 110ms; }
+.stats .stat:nth-child(3) { animation-delay: 210ms; }
+.spark { animation: fadeIn 420ms var(--ease-out) 180ms both; }
+.hero.connected .hero-btn .power { animation: dialSettle 520ms var(--ease-out) 240ms; }
+@keyframes dialSettle { 50% { transform: scale(1.08); } }
+.hint, .updstate { animation: fadeIn 300ms var(--ease-out) both; }
 .bar { animation: barIn 200ms var(--ease-out); }
 .tabbar button.on::before { animation: pillIn 160ms var(--ease-out); }
 .hero.connecting .livedot { animation: dotPulse 1.1s ease-in-out infinite; }
