@@ -35,11 +35,12 @@ document.addEventListener("DOMContentLoaded", () => {
       tabSpeed: "Speed", pingTitle: "Ping", ptDomain: "Card domain", pingBtn: "Ping",
       thruTitle: "Throughput", downBtn: "Download", upBtn: "Upload",
       ms: "ms", mbps: "Mbps", noReply: "No reply.",
+      jitter: "Jitter", chDown: "Down", chUp: "Up",
       needDomain: "Pick a card on Home first, then ping its domain.",
       needServer: "Connect first, then measure throughput.",
       downHint: "Download from your server through the active path.",
       upHint: "Upload to your server through the active path.",
-      pingHint: "Best of 2 requests through the active path.",
+      pingHint: "Best of 4 samples through the active path.",
       measuring: "Measuring…",
       upTitle: "Updates", upCheck: "Check for updates", upGet: "Download and install",
       updHint: "New builds install by themselves.", upChecking: "Checking…",
@@ -50,18 +51,19 @@ document.addEventListener("DOMContentLoaded", () => {
       upPct: "Installing {p}%…",
     },
     ar: {
-      tabSpeed: "السرعة", pingTitle: "البينج", ptDomain: "دومين البطاقة", pingBtn: "قيس",
+      tabSpeed: "السرعة", pingTitle: "زمن الاستجابة", ptDomain: "نطاق البطاقة", pingBtn: "قياس",
       thruTitle: "السرعة الفعلية", downBtn: "تحميل", upBtn: "رفع",
       ms: "مللي ثانية", mbps: "ميجابت", noReply: "لا يوجد رد.",
-      needDomain: "اختار بطاقة من الرئيسية الأول ثم قيس الدومين.",
-      needServer: "اتصل الأول ثم قيس السرعة.",
-      downHint: "تحميل من السيرفر عبر المسار الحالي.",
-      upHint: "رفع إلى السيرفر عبر المسار الحالي.",
-      pingHint: "أفضل محاولتين عبر المسار الحالي.",
+      jitter: "التذبذب", chDown: "تنزيل", chUp: "رفع",
+      needDomain: "اختر بطاقة من الرئيسية أولاً ثم قِس النطاق.",
+      needServer: "اتصل أولاً ثم قِس السرعة.",
+      downHint: "قياس التحميل من الخادم عبر المسار الحالي.",
+      upHint: "قياس الرفع إلى الخادم عبر المسار الحالي.",
+      pingHint: "أفضل أربع محاولات عبر المسار الحالي.",
       measuring: "جارٍ القياس…",
-      upTitle: "التحديثات", upCheck: "تحقق من التحديثات", upGet: "تحميل وتثبيت",
+      upTitle: "التحديثات", upCheck: "التحقق من التحديثات", upGet: "تحميل وتثبيت",
       updHint: "التحديثات تُثبَّت تلقائياً.", upChecking: "جارٍ التحقق…",
-      upOut: "الإصدار {v} متاح.", upCur: "إصدارك {v}.", upLatest: "{v} هو الأحدث.",
+      upOut: "الإصدار {v} متاح.", upCur: "إصدارك الحالي {v}.", upLatest: "الإصدار {v} هو الأحدث.",
       upFail: "تعذر الوصول إلى GitHub.",
       upIdle: "لم يتم التحقق بعد.",
       upInstalling: "جارٍ التثبيت، سيعيد التطبيق التشغيل…",
@@ -72,10 +74,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const t = (k) => (S[lang()] && S[lang()][k]) || S.en[k] || k;
   function paint() {
     document.querySelectorAll("[data-speed-i18n]").forEach((el) => { el.textContent = t(el.dataset.speedI18n); });
-    $("ping-hint").textContent = t("pingHint");
+    $("speed-hint").textContent = t("pingHint");
     $("upd-state").textContent = t("upIdle");
-    $("thru-hint").textContent = "";
-    $("thru-server").textContent = "";
   }
   new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
 
@@ -84,7 +84,8 @@ document.addEventListener("DOMContentLoaded", () => {
     b.onclick = () => {
       ptarget = b.dataset.ptarget;
       document.querySelectorAll("#ping-seg button").forEach((x) => x.classList.toggle("on", x === b));
-      $("ping-out").textContent = "-";
+      setChip("chip-ping", "-");
+      setChip("chip-jitter", "-");
     };
   });
 
@@ -144,6 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (kind === "ping") i.className = value <= 80 ? "ok" : value <= 160 ? "mid" : "bad";
     else if (kind === "up") i.className = "up";
     i.dataset.v = String(value);
+    i.title = (kind === "ping" ? Math.round(value) + " " + t("ms") : value.toFixed(1) + " " + t("mbps"));
     box.append(i);
     while (box.children.length > 14) box.firstChild.remove();
     requestAnimationFrame(() => {
@@ -154,28 +156,69 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
   }
-  // Numbers count from their previous value so runs read as motion, not a swap.
-  function setNum(el, value, suffixKey, digits) {
+  function setChip(id, text) { const el = $(id); if (el) el.textContent = text; }
+  // The last metric that ran keeps a ring, so the gauge always has an owner.
+  function markRan(id) {
+    for (const b of ["btn-ping", "btn-down", "btn-up"]) $(b).classList.toggle("ran", b === id);
+    for (const c of [["chip-ping", "btn-ping"], ["chip-down", "btn-down"], ["chip-up", "btn-up"]]) {
+      const el = $(c[0]);
+      if (el) el.parentElement.classList.toggle("on", c[1] === id);
+    }
+  }
+  // The needle sweeps and the number counts, both on the same Fluent timing.
+  function countTo(el, value, digits) {
     const prev = parseFloat(el.dataset.v || "0") || 0;
     el.dataset.v = String(value);
-    el.innerHTML = "";
-    const b = document.createElement("b");
-    const s = document.createElement("small");
-    s.textContent = " " + t(suffixKey);
-    el.append(b, s);
     const t0 = performance.now();
-    const dur = 420;
+    const dur = 520;
     (function step(now) {
       const p = Math.min(1, (now - t0) / dur);
       const e = 1 - Math.pow(1 - p, 3);
-      const v = prev + (value - prev) * e;
-      b.textContent = digits ? v.toFixed(digits) : String(Math.round(v));
+      el.textContent = (prev + (value - prev) * e).toFixed(digits);
       if (p < 1) requestAnimationFrame(step);
     })(t0);
   }
+  const gscale = (v) => Math.log10(1 + Math.max(0, v)) / Math.log10(1001);
+  function setGauge(value, unitKey, dir, digits) {
+    countTo($("gauge-num"), value, digits);
+    $("gauge-dir").textContent = dir || "";
+    const unit = document.querySelector(".gauge-unit [data-speed-i18n]");
+    if (unit) { unit.dataset.speedI18n = unitKey; unit.textContent = t(unitKey); }
+    if (unitKey === "mbps") {
+      const f = gscale(value);
+      const fill = $("gauge-fill");
+      if (fill) fill.style.strokeDashoffset = String(100 - f * 100);
+      const nd = $("gauge-needle");
+      if (nd) nd.style.transform = "rotate(" + (-120 + f * 240).toFixed(1) + "deg)";
+    }
+  }
+  // Ticks sit on the same log scale as the needle, drawn once at startup.
+  (function gaugeTicks() {
+    const g = $("gauge-ticks");
+    if (!g) return;
+    const NS = "http://www.w3.org/2000/svg";
+    const at = (v, r) => {
+      const a = (150 + gscale(v) * 240) * Math.PI / 180;
+      return [160 + r * Math.cos(a), 160 + r * Math.sin(a)];
+    };
+    for (const v of [0, 5, 10, 25, 50, 100, 250, 500, 1000]) {
+      const [x1, y1] = at(v, 118);
+      const [x2, y2] = at(v, 107);
+      const l = document.createElementNS(NS, "line");
+      l.setAttribute("x1", x1.toFixed(1)); l.setAttribute("y1", y1.toFixed(1));
+      l.setAttribute("x2", x2.toFixed(1)); l.setAttribute("y2", y2.toFixed(1));
+      g.append(l);
+      const [tx, ty] = at(v, 134);
+      const s = document.createElementNS(NS, "text");
+      s.setAttribute("x", tx.toFixed(1)); s.setAttribute("y", ty.toFixed(1));
+      s.setAttribute("dominant-baseline", "middle");
+      s.textContent = v >= 1000 ? "1k" : String(v);
+      g.append(s);
+    }
+  })();
   $("btn-ping").onclick = async () => {
     busy(true);
-    $("ping-out").textContent = t("measuring");
+    $("speed-hint").textContent = t("measuring");
     try {
       let urls;
       if (ptarget === "google") urls = ["https://www.google.com/generate_204", "https://connectivitycheck.gstatic.com/generate_204"];
@@ -183,13 +226,27 @@ document.addEventListener("DOMContentLoaded", () => {
       else if (ptarget === "cloudflare") urls = ["https://1.1.1.1/", "https://one.one.one.one/"];
       else {
         const sni = await cardSni();
-        if (!sni) { $("ping-out").textContent = "-"; $("ping-hint").textContent = t("needDomain"); return; }
+        if (!sni) { $("speed-hint").textContent = t("needDomain"); return; }
         urls = ["https://" + sni + "/"];
       }
-      const r = await bestOf(urls);
-      if (r.ms < 0) { $("ping-out").textContent = t("noReply"); return; }
-      setNum($("ping-out"), Math.round(r.ms), "ms", 0);
-      pushBar("ping-bars", Math.round(r.ms), "ping");
+      // Four samples: the best one is the ping, the drift between them is the jitter.
+      const samples = [];
+      for (let i = 0; i < 4; i++) {
+        let r = await once(urls[0]);
+        if (r < 0 && urls[1]) r = await once(urls[1]);
+        if (r >= 0) samples.push(r);
+      }
+      if (!samples.length) { $("speed-hint").textContent = t("noReply"); return; }
+      const best = Math.round(Math.min(...samples));
+      const jit = samples.length > 1
+        ? samples.slice(1).reduce((a, v, i) => a + Math.abs(v - samples[i]), 0) / (samples.length - 1)
+        : 0;
+      setGauge(best, "ms", "", 0);
+      setChip("chip-ping", String(best));
+      setChip("chip-jitter", jit >= 10 ? String(Math.round(jit)) : jit.toFixed(1));
+      markRan("btn-ping");
+      pushBar("ping-bars", best, "ping");
+      $("speed-hint").textContent = t("pingHint");
     } finally { busy(false); }
   };
   function meter(p) {
@@ -200,9 +257,9 @@ document.addEventListener("DOMContentLoaded", () => {
   $("btn-down").onclick = async () => {
     const st = await state();
     const host = st && st.server_ip;
-    if (!host) { $("thru-hint").textContent = t("needServer"); return; }
+    if (!host) { $("speed-hint").textContent = t("needServer"); return; }
     busy(true);
-    $("thru-hint").textContent = t("downHint");
+    $("speed-hint").textContent = t("downHint");
     try {
       let bytes = 4 << 20;
       let mbps = 0;
@@ -220,20 +277,23 @@ document.addEventListener("DOMContentLoaded", () => {
         else break;
       }
       if (mbps) {
-        setNum($("down-out"), mbps, "mbps", 1);
+        setGauge(mbps, "mbps", "↓", 1);
+        setChip("chip-down", mbps.toFixed(1));
+        markRan("btn-down");
         pushBar("thru-bars", mbps, "down");
+        $("speed-hint").textContent = t("downHint");
       } else {
-        $("down-out").textContent = "-";
+        $("speed-hint").textContent = t("noReply");
       }
-    } catch (e) { $("down-out").textContent = t("noReply"); }
+    } catch (e) { $("speed-hint").textContent = t("noReply"); }
     finally { $("thru-meter").hidden = true; busy(false); }
   };
   $("btn-up").onclick = async () => {
     const st = await state();
     const host = st && st.server_ip;
-    if (!host) { $("thru-hint").textContent = t("needServer"); return; }
+    if (!host) { $("speed-hint").textContent = t("needServer"); return; }
     busy(true);
-    $("thru-hint").textContent = t("upHint");
+    $("speed-hint").textContent = t("measuring");
     try {
       const body = new Uint8Array(6 << 20).fill(7);
       meter(0.1);
@@ -244,12 +304,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const mbps = dt > 0 ? (body.length * 8) / dt / 1e6 : 0;
       meter(1);
       if (mbps) {
-        setNum($("up-out"), mbps, "mbps", 1);
+        setGauge(mbps, "mbps", "↑", 1);
+        setChip("chip-up", mbps.toFixed(1));
+        markRan("btn-up");
         pushBar("thru-bars", mbps, "up");
+        $("speed-hint").textContent = t("upHint");
       } else {
-        $("up-out").textContent = "-";
+        $("speed-hint").textContent = t("noReply");
       }
-    } catch (e) { $("up-out").textContent = t("noReply"); }
+    } catch (e) { $("speed-hint").textContent = t("noReply"); }
     finally { $("thru-meter").hidden = true; busy(false); }
   };
   let updBusy = false;
@@ -486,31 +549,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
     <section class="view" id="view-speed">
       <div class="pagehead"><h1 data-speed-i18n="tabSpeed">Speed</h1></div>
-      <div class="panel pad">
-        <h2 data-speed-i18n="pingTitle">Ping</h2>
+      <div class="panel pad speedtest">
+        <div class="chips">
+          <div class="chip"><i class="cdot ping"></i><span data-speed-i18n="pingTitle">Ping</span><b id="chip-ping">-</b><span class="cu" data-speed-i18n="ms">ms</span></div>
+          <div class="chip"><i class="cdot jitter"></i><span data-speed-i18n="jitter">Jitter</span><b id="chip-jitter">-</b><span class="cu" data-speed-i18n="ms">ms</span></div>
+          <div class="chip"><i class="cdot down"></i><span data-speed-i18n="chDown">Down</span><b id="chip-down">-</b><span class="cu" data-speed-i18n="mbps">Mbps</span></div>
+          <div class="chip"><i class="cdot up"></i><span data-speed-i18n="chUp">Up</span><b id="chip-up">-</b><span class="cu" data-speed-i18n="mbps">Mbps</span></div>
+        </div>
+        <div class="gauge">
+          <svg viewBox="0 0 320 320" aria-hidden="true">
+            <defs>
+              <linearGradient id="gaugeGrad" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0%" stop-color="#34d399" />
+                <stop offset="55%" stop-color="#5b9cff" />
+                <stop offset="100%" stop-color="#8b6cff" />
+              </linearGradient>
+            </defs>
+            <path class="gauge-track" d="M 58 219 A 118 118 0 1 1 262 219" />
+            <path class="gauge-fill" id="gauge-fill" pathLength="100" d="M 58 219 A 118 118 0 1 1 262 219" />
+            <g id="gauge-ticks"></g>
+            <g id="gauge-needle"><line x1="160" y1="116" x2="160" y2="60" /></g>
+          </svg>
+          <div class="gauge-center">
+            <div class="gauge-num" id="gauge-num" aria-live="polite">-</div>
+            <div class="gauge-unit"><span id="gauge-dir"></span><span data-speed-i18n="mbps">Mbps</span></div>
+          </div>
+        </div>
+        <div class="speedrow">
+          <button id="btn-ping" class="ghost" data-speed-i18n="pingBtn">Ping</button>
+          <button id="btn-down" class="ghost" data-speed-i18n="downBtn">Download</button>
+          <button id="btn-up" class="ghost" data-speed-i18n="upBtn">Upload</button>
+        </div>
         <div class="seg" id="ping-seg">
           <button data-ptarget="google" class="on">Google</button>
           <button data-ptarget="domain" data-speed-i18n="ptDomain">Card domain</button>
           <button data-ptarget="quad9">Quad9</button>
           <button data-ptarget="cloudflare">1.1.1.1</button>
-        </div>
-        <div class="speedrow">
-          <button id="btn-ping" class="primary" data-speed-i18n="pingBtn">Ping</button>
-          <div class="speedout" id="ping-out" aria-live="polite">-</div>
-        </div>
-        <div class="bars" id="ping-bars" hidden></div>
-        <p class="hint" id="ping-hint"></p>
-      </div>
-      <div class="panel pad">
-        <h2 data-speed-i18n="thruTitle">Throughput</h2>
-        <p class="hint" id="thru-server"></p>
-        <div class="speedrow">
-          <button id="btn-down" class="primary" data-speed-i18n="downBtn">Download</button>
-          <div class="speedout" id="down-out" aria-live="polite">-</div>
-        </div>
-        <div class="speedrow">
-          <button id="btn-up" class="primary" data-speed-i18n="upBtn">Upload</button>
-          <div class="speedout" id="up-out" aria-live="polite">-</div>
         </div>
         <div class="meter" id="thru-meter" hidden><span></span></div>
         <div class="barcap" id="thru-legend" hidden>
@@ -518,7 +592,8 @@ document.addEventListener("DOMContentLoaded", () => {
           <span class="lg up" data-speed-i18n="upBtn">Upload</span>
         </div>
         <div class="bars" id="thru-bars" hidden></div>
-        <p class="hint" id="thru-hint"></p>
+        <div class="bars" id="ping-bars" hidden></div>
+        <p class="hint" id="speed-hint"></p>
       </div>
     </section>
   </main>
