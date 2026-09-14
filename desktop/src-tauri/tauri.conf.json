@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../ui",
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "",
+    "beforeDevCommand": "npm --prefix ui-next run dev",
     "beforeBuildCommand": ""
   },
   "app": {
