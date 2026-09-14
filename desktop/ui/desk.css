@@ -52,21 +52,21 @@
   --txt2: #b6c0cf;
   --txt3: #8b95a6;
 
-  /* Accent + semantics. */
-  --accent: #5b9cff;
-  --accent-strong: #79aeff;
-  --accent-bg: rgb(91 156 255 / 0.12);
-  --accent-line: rgb(91 156 255 / 0.40);
-  --green: #3ddc97;
-  --green-bg: rgb(61 220 151 / 0.11);
-  --green-line: rgb(61 220 151 / 0.38);
-  --amber: #e5a53d;
-  --amber-bg: rgb(229 165 61 / 0.11);
-  --amber-line: rgb(229 165 61 / 0.38);
-  --red: #f0616b;
-  --red-bg: rgb(240 97 107 / 0.11);
-  --red-line: rgb(240 97 107 / 0.38);
-  --cyan: #35c8e8;
+  /* Accent + semantics: deliberately muted. Saturated hues read as generated. */
+  --accent: #6a9ee8;
+  --accent-strong: #86b2ee;
+  --accent-bg: rgb(106 158 232 / 0.13);
+  --accent-line: rgb(106 158 232 / 0.38);
+  --green: #5cb28e;
+  --green-bg: rgb(92 178 142 / 0.12);
+  --green-line: rgb(92 178 142 / 0.36);
+  --amber: #c49a58;
+  --amber-bg: rgb(196 154 88 / 0.12);
+  --amber-line: rgb(196 154 88 / 0.36);
+  --red: #cf7078;
+  --red-bg: rgb(207 112 120 / 0.12);
+  --red-line: rgb(207 112 120 / 0.36);
+  --cyan: #63a8bb;
 
   /* Shape. */
   --r-ctl: 8px;
@@ -116,8 +116,8 @@ b, strong { font-weight: 600; }
   content: "";
   position: absolute; inset: 0;
   background:
-    radial-gradient(900px 460px at 80% -12%, rgb(91 156 255 / 0.08), transparent 65%),
-    radial-gradient(680px 420px at -12% 112%, rgb(91 156 255 / 0.05), transparent 60%);
+    radial-gradient(900px 460px at 80% -12%, rgb(106 158 232 / 0.08), transparent 65%),
+    radial-gradient(680px 420px at -12% 112%, rgb(106 158 232 / 0.05), transparent 60%);
 }
 
 /* ---------- Frame ---------- */
@@ -133,9 +133,9 @@ b, strong { font-weight: 600; }
 }
 
 .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; }
-.brand img { width: 30px; height: 30px; border-radius: 8px; flex: none; }
+.brand img { width: 30px; height: 30px; border-radius: 8px; flex: none; box-shadow: 0 0 0 1px var(--line-strong); }
 .brand-tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.brand-tx b { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+.brand-tx b { font-size: 15px; font-weight: 650; letter-spacing: -0.02em; }
 #side-state { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--txt3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #side-state::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--txt3); flex: none; }
 #side-state[data-mood="on"] { color: var(--green); }
@@ -184,8 +184,7 @@ main {
 /* Group label sits above its card, like the app-UI sections in the good kits. */
 .grouplabel {
   margin: 0 0 8px; padding: 0 2px;
-  font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--txt3);
+  font-size: 13.5px; font-weight: 600; color: var(--txt);
 }
 .group + .group { margin-top: 8px; }
 
@@ -214,10 +213,15 @@ main {
 .hero::before {
   content: "";
   position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(520px 320px at 200px 50%, rgb(91 156 255 / 0.09), transparent 72%);
+  background: radial-gradient(560px 340px at 210px 50%, rgb(106 158 232 / 0.13), transparent 72%);
   transition: background 300ms var(--ease);
 }
-.hero.connected::before { background: radial-gradient(520px 320px at 200px 50%, rgb(61 220 151 / 0.10), transparent 72%); }
+.hero[data-kind="Streamerz"]::before { background: radial-gradient(560px 340px at 210px 50%, rgb(196 154 88 / 0.13), transparent 72%); }
+.hero.connected::before {
+  background:
+    radial-gradient(560px 340px at 210px 50%, rgb(92 178 142 / 0.14), transparent 72%),
+    radial-gradient(760px 420px at 85% -10%, rgb(92 178 142 / 0.05), transparent 70%);
+}
 .hero-left { position: relative; flex: none; display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .hero-btn {
   width: 124px; height: 124px; border-radius: 50%;
@@ -241,8 +245,8 @@ main {
 }
 .hero.connected .hero-btn {
   border-color: var(--green); color: var(--green);
-  background: radial-gradient(circle at 50% 36%, rgb(61 220 151 / 0.14), rgb(61 220 151 / 0.03) 72%);
-  box-shadow: 0 0 0 12px rgb(61 220 151 / 0.04);
+  background: radial-gradient(circle at 50% 36%, rgb(92 178 142 / 0.14), rgb(92 178 142 / 0.03) 72%);
+  box-shadow: 0 0 0 12px rgb(92 178 142 / 0.05);
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .btn-action { font-size: 14px; font-weight: 600; }
@@ -250,13 +254,13 @@ main {
 .hero.connecting .btn-action { color: var(--accent); }
 
 .hero-info { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.hero-state { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--txt3); }
+.hero-state { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--txt2); }
 .livedot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 3px var(--amber-bg); flex: none; }
 .hero.ready .livedot { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
 .hero.connecting .livedot { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
 .hero.connected .livedot { background: var(--green); box-shadow: 0 0 0 3px var(--green-bg); }
 .hero.connected .hero-state { color: var(--green); }
-.hero-name { margin: 0; font-family: var(--font-display); font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+.hero-name { margin: 0; font-family: var(--font-display); font-size: 28px; font-weight: 600; letter-spacing: -0.025em; }
 .hero-name:empty { display: none; }
 .hero-sub { margin: 0; font-size: 13px; color: var(--txt2); }
 .hero-sub:empty { display: none; }
@@ -273,9 +277,9 @@ main {
 .spark-head b { font-size: 13px; font-weight: 600; color: var(--txt); font-variant-numeric: tabular-nums; }
 .spark svg { width: 100%; height: 52px; display: block; }
 #spark-line { fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-#spark-area { fill: rgb(91 156 255 / 0.14); stroke: none; }
+#spark-area { fill: rgb(106 158 232 / 0.14); stroke: none; }
 .hero.connected #spark-line { stroke: var(--green); }
-.hero.connected #spark-area { fill: rgb(61 220 151 / 0.14); }
+.hero.connected #spark-area { fill: rgb(92 178 142 / 0.14); }
 
 .hero-foot { display: flex; align-items: center; gap: 6px; margin: 14px 2px 0; font-size: 12px; color: var(--txt3); }
 .hero-foot svg { width: 13px; height: 13px; flex: none; }
@@ -289,7 +293,7 @@ main {
   background: rgb(255 255 255 / 0.03);
   border-radius: var(--r-ctl);
 }
-.stat .slabel { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--txt3); }
+.stat .slabel { font-size: 12px; color: var(--txt3); }
 .stat .sval { font-size: 14.5px; font-weight: 600; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .stat .sflow { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .stat .sio { display: inline-flex; align-items: baseline; gap: 4px; font-size: 12.5px; color: var(--txt2); font-variant-numeric: tabular-nums; }
@@ -310,6 +314,16 @@ button.setrow { width: 100%; background: none; border: 0; border-top: 1px solid 
 button.setrow span { flex: 1; min-width: 0; }
 button.setrow:hover { color: var(--accent-strong); }
 button.setrow svg { width: 16px; height: 16px; color: var(--txt3); flex: none; }
+
+/* Kind badge: Gamerz and Streamerz are the product, so they get the colour. */
+.kindbadge {
+  display: inline-flex; align-items: center;
+  padding: 1px 8px; border-radius: var(--r-pill);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.01em;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.kindbadge.gamerz { color: var(--accent-strong); background: var(--accent-bg); border-color: var(--accent-line); }
+.kindbadge.streamerz { color: var(--amber); background: var(--amber-bg); border-color: var(--amber-line); }
 
 /* ---------- Controls ---------- */
 
@@ -343,7 +357,7 @@ button.setrow svg { width: 16px; height: 16px; color: var(--txt3); flex: none; }
   transition: background 140ms var(--ease), color 140ms var(--ease);
 }
 .seg button:hover { color: var(--txt); }
-.seg button.on { background: rgb(91 156 255 / 0.16); color: var(--txt); box-shadow: inset 0 0 0 1px rgb(91 156 255 / 0.22); }
+.seg button.on { background: rgb(106 158 232 / 0.16); color: var(--txt); box-shadow: inset 0 0 0 1px rgb(106 158 232 / 0.22); }
 
 input[type="text"], input:not([type]), input {
   width: 100%; min-height: 36px;
@@ -385,21 +399,28 @@ input:focus { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; align-content: start; }
 .cards-grid.is-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 56px 0; gap: 12px; }
 .cardrow {
-  display: flex; align-items: center; gap: 12px; padding: 16px;
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 12px; padding: 16px 16px 16px 20px;
   background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card);
-  transition: border-color 140ms var(--ease), background 140ms var(--ease);
+  transition: border-color 140ms var(--ease), background 140ms var(--ease), transform 140ms var(--ease);
 }
-.cardrow:hover { border-color: var(--line-strong); }
-.cardrow.active { border-color: var(--green-line); background: var(--green-bg); }
+.cardrow::before { content: ""; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 3px; background: var(--txt3); }
+.cardrow[data-kind="gamerz"] { border-color: rgb(106 158 232 / 0.22); }
+.cardrow[data-kind="gamerz"]::before { background: var(--accent); }
+.cardrow[data-kind="streamerz"] { border-color: rgb(196 154 88 / 0.22); }
+.cardrow[data-kind="streamerz"]::before { background: var(--amber); }
+.cardrow:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+.cardrow.active { border-color: rgb(92 178 142 / 0.30); box-shadow: inset 0 0 0 1px rgb(92 178 142 / 0.16); }
 .cardrow .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--txt3); }
 .cardrow .dot.gamerz { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
 .cardrow .dot.streamerz { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-bg); }
 .cardrow .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.cardrow .name { font-weight: 600; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cardrow .sni { font-size: 12px; color: var(--txt3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cardrow .name { font-family: var(--font-display); font-weight: 600; font-size: 16px; letter-spacing: -0.015em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cardrow .row2 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cardrow .sni { font-size: 12px; color: var(--txt3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .cardrow .use {
-  font-size: 11px; font-weight: 600; color: var(--green); background: var(--green-bg);
-  border: 1px solid var(--green-line); border-radius: var(--r-pill); padding: 1px 8px;
+  font-size: 11px; font-weight: 600; color: var(--txt2); background: rgb(255 255 255 / 0.05);
+  border: 1px solid var(--line); border-radius: var(--r-pill); padding: 1px 8px;
   width: fit-content; margin-top: 4px;
 }
 .cardrow .use:empty { display: none; }
@@ -451,6 +472,17 @@ p.empty button {
 .bar-text { flex: 1; }
 .bar-x { background: transparent; border: 0; cursor: pointer; color: var(--txt2); font-size: 16px; padding: 2px 6px; border-radius: 6px; }
 .bar-x:hover { background: rgb(255 255 255 / 0.06); color: var(--txt); }
+
+/* New card: choosing the type is the product moment, two tiles not a toggle. */
+#kind-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0; background: none; border: 0; width: 100%; }
+#kind-seg button {
+  min-height: 62px; border-radius: var(--r-card); border: 1px solid var(--line-strong);
+  background: rgb(255 255 255 / 0.02); font-size: 14px; font-weight: 600; color: var(--txt2);
+  transition: border-color 140ms var(--ease), background 140ms var(--ease), color 140ms var(--ease);
+}
+#kind-seg button:hover { color: var(--txt); border-color: var(--line-strong); }
+#kind-seg button.gamerz.on { border-color: var(--accent-line); background: linear-gradient(180deg, rgb(106 158 232 / 0.18), rgb(106 158 232 / 0.05)); color: var(--txt); }
+#kind-seg button.streamerz.on { border-color: var(--amber-line); background: linear-gradient(180deg, rgb(196 154 88 / 0.18), rgb(196 154 88 / 0.05)); color: var(--txt); }
 
 /* ---------- Overlays: dialogs and sheets ---------- */
 

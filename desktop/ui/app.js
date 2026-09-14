@@ -183,8 +183,10 @@ function applyLang(l) {
     if (btns[0]) btns[0].textContent = t("copy");
     if (btns[1]) btns[1].textContent = t("revoke");
     const sniEl = row.querySelector(".sni");
-    const raw = sniEl.dataset.raw;
-    if (raw) sniEl.textContent = kindName(raw);
+    const raw = sniEl.dataset.raw || "";
+    if (raw) sniEl.textContent = raw.startsWith("Gamerz") || raw.startsWith("Streamerz") ? "" : raw;
+    const kb = row.querySelector(".kindbadge");
+    if (kb && kb.dataset.kind) kb.textContent = kindName(kb.dataset.kind === "streamerz" ? "Streamerz" : "Gamerz");
   });
   // Dynamic regions (empty state, profile picker) only rebuild in refresh.
   refresh();
@@ -258,6 +260,18 @@ try { history.replaceState({ tab: "connect" }, ""); } catch (e) {}
 
 function paintHero() {
   const hero = $("hero");
+  const tsel = $("tunnel-card");
+  const topt = tsel && tsel.selectedOptions && tsel.selectedOptions[0];
+  hero.dataset.kind = (topt && topt.dataset.kind) || "";
+  const hk = $("hero-kind");
+  if (hk) {
+    const k = hero.dataset.kind;
+    hk.hidden = !k || !vpnOn;
+    if (k) {
+      hk.className = "kindbadge " + (k === "Gamerz" ? "gamerz" : "streamerz");
+      hk.textContent = kindName(k);
+    }
+  }
   hero.classList.toggle("idle", !vpnOn && !connected);
   hero.classList.toggle("connecting", busy);
   // Hero headline: the active card's name, big and calm. Empty hides it.
@@ -376,13 +390,17 @@ async function refresh() {
     row.className = "cardrow";
     row.dataset.uuid = c.uuid;
     const dotCls = c.card_type.startsWith("Gamerz") ? "gamerz" : "streamerz";
+    row.dataset.kind = dotCls;
     row.innerHTML = `<span class="dot ${dotCls}"></span>
-      <div class="meta"><div class="name"></div><div class="sni"></div><div class="use"></div></div>`;
+      <div class="meta"><div class="name"></div><div class="row2"><span class="kindbadge ${dotCls}"></span><span class="sni"></span></div><div class="use"></div></div>`;
     row.querySelector(".name").textContent = c.name;
     const rawSni = c.sni || c.card_type;
     const sniEl = row.querySelector(".sni");
     sniEl.dataset.raw = rawSni;
-    sniEl.textContent = c.sni ? kindName(c.card_type) + " · " + c.sni : kindName(c.card_type);
+    sniEl.textContent = c.sni || "";
+    const kb = row.querySelector(".kindbadge");
+    kb.dataset.kind = dotCls;
+    kb.textContent = kindName(c.card_type);
     const bCopy = document.createElement("button");
     bCopy.className = "btn-copy";
     bCopy.textContent = t("copy");
@@ -471,6 +489,7 @@ function fillTunnelCards(cards) {
     const o = document.createElement("option");
     o.value = c.uuid;
     o.dataset.sni = c.sni || c.card_type;
+    o.dataset.kind = c.card_type.startsWith("Gamerz") ? "Gamerz" : "Streamerz";
     o.textContent = c.name + " (" + (c.sni || kindName(c.card_type)) + ")";
     sel.append(o);
   }
