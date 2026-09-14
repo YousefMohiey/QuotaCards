@@ -1,0 +1,194 @@
+/* QuotaCards desktop, React + Tailwind v4 + shadcn token model.
+   The palette is the design-system v3 set (synced to the app icon: near-black
+   navy surfaces, one royal-blue accent, muted semantics). shadcn components
+   consume the token bridge at the bottom, so nothing invents its own colour. */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@font-face {
+  font-family: "Cairo";
+  src: url("/fonts/cairo-ar.woff2") format("woff2");
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+FB50-FDFF, U+FE70-FEFC;
+}
+@font-face {
+  font-family: "Cairo";
+  src: url("/fonts/cairo-la.woff2") format("woff2");
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces: one shade step per layer, the way the phone app stacks them. */
+  --bg: #0b0f18;
+  --side: #090c14;
+  --panel: #121a2a;
+  --panel-hover: #172033;
+  --field: #1a2336;
+
+  /* Lines: one hairline weight, two strengths. */
+  --line: rgb(255 255 255 / 0.08);
+  --line-strong: rgb(255 255 255 / 0.14);
+
+  /* Text: three steps, all readable on --panel. */
+  --txt: #eef1f6;
+  --txt2: #a7b0bf;
+  --txt3: #8b95a6;
+
+  /* One accent + muted semantics. Saturated hues read as generated. */
+  --brand: #4a86e8;
+  --brand-strong: #6b9df0;
+  --brand-bg: rgb(74 134 232 / 0.14);
+  --brand-line: rgb(74 134 232 / 0.4);
+  --green: #5cb28e;
+  --green-bg: rgb(92 178 142 / 0.12);
+  --green-line: rgb(92 178 142 / 0.36);
+  --amber: #c49a58;
+  --amber-bg: rgb(196 154 88 / 0.12);
+  --amber-line: rgb(196 154 88 / 0.36);
+  --red: #cf7078;
+  --red-bg: rgb(207 112 120 / 0.12);
+  --red-line: rgb(207 112 120 / 0.36);
+
+  /* Shape, elevation, motion. */
+  --r-ctl: 10px;
+  --r-card: 16px;
+  --r-pill: 999px;
+  --sh-1: 0 1px 2px rgb(0 0 0 / 0.24);
+  --sh-2: 0 16px 40px rgb(0 0 0 / 0.45), 0 2px 8px rgb(0 0 0 / 0.35);
+  --ease: cubic-bezier(0.33, 0, 0.67, 1);
+  --ease-out: cubic-bezier(0.1, 0.9, 0.2, 1);
+
+  /* shadcn token bridge */
+  --background: var(--bg);
+  --foreground: var(--txt);
+  --card: var(--panel);
+  --card-foreground: var(--txt);
+  --popover: #141c2b;
+  --popover-foreground: var(--txt);
+  --primary: var(--brand);
+  --primary-foreground: #08111f;
+  --secondary: var(--field);
+  --secondary-foreground: var(--txt);
+  --muted: var(--field);
+  --muted-foreground: var(--txt3);
+  --accent: #1b2437;
+  --accent-foreground: var(--txt);
+  --destructive: var(--red);
+  --destructive-foreground: #1b0e10;
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: rgb(74 134 232 / 0.5);
+  --radius: 0.625rem;
+}
+
+@theme inline {
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Cairo", sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-bg: var(--brand-bg);
+  --color-brand-line: var(--brand-line);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-txt: var(--txt);
+  --color-txt2: var(--txt2);
+  --color-txt3: var(--txt3);
+  --color-ok: var(--green);
+  --color-ok-bg: var(--green-bg);
+  --color-ok-line: var(--green-line);
+  --color-warn: var(--amber);
+  --color-warn-bg: var(--amber-bg);
+  --color-warn-line: var(--amber-line);
+  --color-bad: var(--red);
+  --color-bad-bg: var(--red-bg);
+  --color-bad-line: var(--red-line);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.45;
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+  }
+  /* Arabic: Cairo for both scripts so mixed lines never shift character.
+     Text right-aligns, the layout never mirrors. */
+  [lang="ar"] body,
+  [lang="ar"] button,
+  [lang="ar"] input,
+  [lang="ar"] select {
+    font-family: "Cairo", "Segoe UI", system-ui, sans-serif;
+  }
+  [lang="ar"] body {
+    text-align: right;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(255 255 255 / 0.1);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(255 255 255 / 0.18);
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    /* Windows reports this for a plain "animation effects off" preference,
+       so only endless decorative loops stand down; state motion still plays. */
+    .pulse-dot {
+      animation: none !important;
+    }
+  }
+}
