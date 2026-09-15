@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { ChevronDown, Copy, Gamepad2, Play, RotateCcw, Tv, Video } from "lucide-react"
+import { ChevronDown, Gamepad2, Play, RotateCcw, Tv, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PickerDialog, type PickerItem } from "@/components/PickerDialog"
@@ -12,13 +12,31 @@ import { cn } from "@/lib/utils"
 
 const PING_PROBES = 8
 const PHASE_SECONDS = 9
+const BARS_MEMORY = 96
 
 type Phase = "idle" | "ping" | "download" | "upload" | "done"
 type Result = { ping: number | null; jitter: number | null; down: number | null; up: number | null }
+type Run = { at: number; ping: number | null; jitter: number | null; down: number | null; up: number | null }
 
 const EMPTY: Result = { ping: null, jitter: null, down: null, up: null }
 
-type Verdict = { icon: typeof Gamepad2; label: string; tone: "ok" | "warn" | "bad"; text: string }
+/** Public resolvers, the same names every speed test uses as fixed anchors. */
+const PUBLIC: Array<[string, string]> = [
+  ["Cloudflare", "1.1.1.1"],
+  ["Google DNS", "dns.google"],
+  ["Quad9", "dns.quad9.net"],
+  ["OpenDNS", "opendns.com"],
+]
+
+function loadHistory(): Run[] {
+  try {
+    const raw = localStorage.getItem("qc-speed-history")
+    const arr = raw ? (JSON.parse(raw) as Run[]) : []
+    return Array.isArray(arr) ? arr.slice(0, 3) : []
+  } catch {
+    return []
+  }
+}
 
 export function Speed() {
   const { t } = useI18n()
@@ -31,6 +49,7 @@ export function Speed() {
   const [samples, setSamples] = useState<number[]>([])
   const [result, setResult] = useState<Result>(EMPTY)
   const [hint, setHint] = useState("")
+  const [history, setHistory] = useState<Run[]>(() => loadHistory())
   const [target, setTarget] = useState("")
   const [custom, setCustom] = useState("")
   const [customOpen, setCustomOpen] = useState(false)
@@ -86,8 +105,10 @@ export function Speed() {
       setResult((prev) => ({ ...prev, ping: r.ping, jitter: r.jitter }))
       push(r.ping)
       setValue(r.ping)
+      return r
     } catch {
       if (!signal.aborted) setHint(t("noReply"))
+      return null
     }
   }
 
@@ -103,8 +124,21 @@ export function Speed() {
       const mbps = await fn(host, { seconds: PHASE_SECONDS, signal, onTick: (v) => push(v) })
       setResult((prev) => (direction === "down" ? { ...prev, down: mbps } : { ...prev, up: mbps }))
       setValue(mbps)
+      return mbps
     } catch {
       if (!signal.aborted) setHint(t("noReply"))
+      return null
+    }
+  }
+
+  const remember = (r: Result) => {
+    if (r.ping === null && r.down === null && r.up === null) return
+    const next = [{ at: Date.now(), ...r }, ...history].slice(0, 3)
+    setHistory(next)
+    try {
+      localStorage.setItem("qc-speed-history", JSON.stringify(next))
+    } catch {
+      /* private mode: history just does not stick */
     }
   }
 
@@ -115,19 +149,29 @@ export function Speed() {
     const ctl = new AbortController()
     abort.current = ctl
     const s = ctl.signal
+    const acc: Result = { ...result }
+    // Each phase reports back here so the history line reflects the run that
+    // just happened, not whatever the tiles happened to hold before.
     if (which === "all" || which === "ping") {
-      await runPing(host, s)
+      const p = await runPing(host, s)
+      if (p) {
+        acc.ping = p.ping
+        acc.jitter = p.jitter
+      }
       if (s.aborted) return
     }
     if (which === "all" || which === "down") {
-      await runThroughput("down", host, s)
+      const d = await runThroughput("down", host, s)
+      if (d !== null) acc.down = d
       if (s.aborted) return
     }
     if (which === "all" || which === "up") {
-      await runThroughput("up", host, s)
+      const u = await runThroughput("up", host, s)
+      if (u !== null) acc.up = u
       if (s.aborted) return
     }
     setPhase("done")
+    remember(acc)
   }
 
   const reset = () => {
@@ -140,35 +184,20 @@ export function Speed() {
     setHint("")
   }
 
-  const copyResult = async () => {
-    const bits = [
-      `Ping ${result.ping ?? "-"} ms`,
-      `Jitter ${result.jitter ?? "-"} ms`,
-      `Down ${result.down !== null ? result.down.toFixed(1) : "-"} Mbps`,
-      `Up ${result.up !== null ? result.up.toFixed(1) : "-"} Mbps`,
-      targetHost ? `Target ${targetLabel}` : "",
-      card ? `Card ${card.name.split(" (")[0]} (${card.sni})` : "",
-    ].filter(Boolean)
-    try {
-      await navigator.clipboard.writeText(bits.join(" | "))
-      setHint(t("copied"))
-    } catch {
-      setHint(bits.join(" | "))
-    }
-  }
-
   const items: PickerItem[] = [
     { value: "", label: t("targetServer"), sub: serverIp },
     ...SNIS[kind].map(([name, domain]) => ({ value: domain, label: name, sub: domain })),
+    ...PUBLIC.map(([name, domain]) => ({ value: domain, label: name, sub: domain })),
     { value: CUSTOM_SNI, label: t("targetCustom") },
   ]
 
   const measured = result.ping !== null || result.down !== null || result.up !== null
   const verdicts = buildVerdicts(result, t)
+  const peak = samples.length ? Math.max(...samples) : 0
 
   return (
-    <div className="mx-auto flex w-full max-w-[620px] flex-col gap-5">
-      <section className="glass rounded-[24px] px-6 pb-5 pt-5">
+    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-3.5">
+      <section className="glass rounded-[24px] px-5 pb-4 pt-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="truncate text-[13px] font-semibold text-txt">{t("tabSpeed")}</div>
@@ -179,38 +208,39 @@ export function Speed() {
           <button
             type="button"
             onClick={() => setPickOpen(true)}
-            className="flex max-w-[58%] items-center gap-1.5 rounded-full border border-[rgb(255_255_255/0.12)] px-2.5 py-1 text-[12px] text-txt3 transition-colors hover:text-txt"
+            className="flex max-w-[60%] items-center gap-1.5 rounded-full border border-[rgb(255_255_255/0.12)] px-2.5 py-1 text-[12px] text-txt3 transition-colors hover:text-txt"
           >
             <span className="truncate">{targetLabel}</span>
             <ChevronDown className="size-3.5 shrink-0" aria-hidden />
           </button>
         </div>
 
-        {/* what the run reads right now, over the shape of the run itself */}
-        <div className="mt-5 flex items-end justify-between gap-6">
+        <div className="mt-3 flex items-end justify-between gap-6">
           <div className="min-w-0">
             <div className="flex items-baseline gap-2">
-              <span className="text-[52px] leading-none font-light tabular-nums text-txt" style={{ letterSpacing: "-0.02em" }}>
+              <span className="text-[46px] leading-none font-light tabular-nums text-txt" style={{ letterSpacing: "-0.02em" }}>
                 {unit === "ms" ? Math.round(value) : value >= 100 ? value.toFixed(0) : value.toFixed(1)}
               </span>
               <span className="text-[13px] text-txt3">{unit}</span>
             </div>
-            <div className="mt-2 text-[12.5px] text-txt3">{caption}</div>
+            <div className="mt-1.5 text-[12.5px] text-txt3">{caption}</div>
           </div>
+          {samples.length > 0 && (
+            <div className="text-[11px] text-txt3">
+              {t("peak")} {unit === "ms" ? Math.round(peak) : peak.toFixed(1)} {unit}
+            </div>
+          )}
         </div>
 
-        <div className="mt-4">
-          <div className="mb-1.5 flex items-center justify-end text-[11px] text-txt3">
-            {samples.length > 0 && (
-              <span>
-                {t("peak")} {unit === "ms" ? Math.round(Math.max(...samples)) : Math.max(...samples).toFixed(1)} {unit}
-              </span>
-            )}
-          </div>
-          <SpeedBars samples={samples} accent={phase === "upload" ? "var(--cyan)" : phase === "ping" ? "var(--amber)" : "var(--brand)"} active={running} />
+        <div className="mt-3">
+          <SpeedBars
+            samples={samples}
+            accent={phase === "upload" ? "var(--cyan)" : phase === "ping" ? "var(--amber)" : "var(--brand)"}
+            active={running}
+          />
         </div>
 
-        <div className="mt-4 grid grid-cols-4 divide-x divide-line">
+        <div className="mt-3 grid grid-cols-4 divide-x divide-line">
           <Reading title={t("pingTitle")} value={result.ping} unit={t("ms")} onClick={() => void run("ping")} disabled={running} />
           <Reading title={t("jitter")} value={result.jitter} unit={t("ms")} onClick={() => void run("ping")} disabled={running} />
           <Reading
@@ -228,52 +258,63 @@ export function Speed() {
             disabled={running}
           />
         </div>
-      </section>
 
-      {measured && (
-        <section className="glass rounded-[24px] px-6 py-4">
-          <div className="text-[12px] font-semibold text-txt2">{t("readyFor")}</div>
-          <div className="mt-3 flex flex-col gap-2.5">
+        {/* what the numbers mean, in one row, inside the same pane */}
+        {verdicts.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-line pt-3">
             {verdicts.map((v) => (
-              <div key={v.label} className="flex items-center gap-3">
-                <v.icon className="size-4 shrink-0 text-txt3" strokeWidth={1.6} aria-hidden />
-                <span className="w-[86px] shrink-0 text-[12.5px] text-txt2">{v.label}</span>
+              <span key={v.label} className="flex items-center gap-2 text-[12px]">
+                <v.icon className="size-3.5 shrink-0 text-txt3" strokeWidth={1.7} aria-hidden />
                 <span
                   aria-hidden
                   className={cn(
-                    "size-1.5 shrink-0 rounded-full",
+                    "size-1.5 rounded-full",
                     v.tone === "ok" && "bg-[var(--green)]",
                     v.tone === "warn" && "bg-[var(--amber)]",
                     v.tone === "bad" && "bg-[var(--red)]",
                   )}
                 />
-                <span className="truncate text-[12.5px] text-txt">{v.text}</span>
-              </div>
+                <span className="text-txt2">{v.text}</span>
+              </span>
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <Button className="h-11 flex-1 gap-2 rounded-[14px] text-[13.5px]" disabled={running} onClick={() => void run("all")}>
           <Play className="size-3.5" aria-hidden />
           {running ? t("measuring") : t("startTest")}
         </Button>
-        <Button variant="secondary" className="h-11 gap-2 rounded-[14px] px-4 text-[13px]" onClick={() => void copyResult()} disabled={!measured}>
-          <Copy className="size-3.5" aria-hidden />
-          {t("copyResult")}
-        </Button>
         {measured && (
-          <Button variant="ghost" className="h-11 gap-2 rounded-[14px] px-3 text-[13px]" onClick={reset}>
+          <Button variant="ghost" className="h-11 gap-2 rounded-[14px] px-3.5 text-[13px]" onClick={reset}>
             <RotateCcw className="size-3.5" aria-hidden />
             {t("clear")}
           </Button>
         )}
       </div>
 
-      <p aria-live="polite" className="min-h-[18px] px-1 text-[12px] text-txt3">
-        {hint || t("speedIdle")}
-      </p>
+      {/* last runs, one thin line, newest first */}
+      {history.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[11.5px] text-txt3">
+          <span>{t("history")}</span>
+          {history.map((h) => (
+            <span key={h.at} className="tabular-nums">
+              {new Date(h.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {" · "}
+              {h.down !== null ? `${h.down.toFixed(0)}↓` : "—"}
+              {" · "}
+              {h.ping !== null ? `${Math.round(h.ping)}ms` : "—"}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {(hint || !measured) && (
+        <p aria-live="polite" className="px-1 text-[12px] text-txt3">
+          {hint || t("speedIdle")}
+        </p>
+      )}
 
       {customOpen && (
         <Input
@@ -288,17 +329,6 @@ export function Speed() {
           className="h-9 rounded-[12px] border-line bg-white/[0.02] text-[13px]"
         />
       )}
-
-      <div className="mx-1 flex items-start justify-between border-t border-line px-1 pb-2 pt-3">
-        <div>
-          <div className="text-[14px] font-medium text-txt">{card?.name.split(" (")[0] ?? "—"}</div>
-          <div className="mt-1 text-[12px] text-txt3">{card?.sni ?? "—"}</div>
-        </div>
-        <div className="text-right">
-          <div className="text-[12px] text-txt3">{t("target")}</div>
-          <div className="text-[12.5px] text-txt2">{targetLabel}</div>
-        </div>
-      </div>
 
       <PickerDialog
         open={pickOpen}
@@ -323,7 +353,7 @@ export function Speed() {
   )
 }
 
-const BARS_MEMORY = 96
+type Verdict = { icon: typeof Gamepad2; label: string; tone: "ok" | "warn" | "bad"; text: string }
 
 /**
  * Plain language instead of raw numbers: what the line can actually do.
@@ -374,10 +404,10 @@ function Reading({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={cn("flex flex-col items-center gap-1 py-1.5 transition-colors", !disabled && "hover:bg-white/[0.03]")}
+      className={cn("flex flex-col items-center gap-0.5 py-1 transition-colors", !disabled && "hover:bg-white/[0.03]")}
     >
       <span className="text-[11.5px] text-txt3">{title}</span>
-      <span className={cn("text-[18px] font-medium tabular-nums", value === null ? "text-txt3" : "text-txt")}>
+      <span className={cn("text-[17px] font-medium tabular-nums", value === null ? "text-txt3" : "text-txt")}>
         {value === null ? "—" : unit === "ms" ? Math.round(value) : value.toFixed(1)}
       </span>
       <span className="text-[11px] text-txt3">{unit}</span>

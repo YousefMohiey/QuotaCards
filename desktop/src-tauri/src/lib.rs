@@ -708,7 +708,7 @@ pub fn run() {
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &check, &quit])?;
             let raw = image::load_from_memory_with_format(
-                include_bytes!("../icons/128x128.png"),
+                include_bytes!("../icons/32x32.png"),
                 image::ImageFormat::Png,
             )
             .map_err(|e| format!("tray icon: {e}"))?

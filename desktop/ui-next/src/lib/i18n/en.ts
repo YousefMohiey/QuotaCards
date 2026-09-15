@@ -145,6 +145,7 @@ export const en = {
   "upTitle": "Updates",
   "updHint": "New builds install by themselves.",
   "updRow": "Update check",
+  "history": "History",
   "peak": "Peak",
   "readyFor": "Ready for",
   "vGaming": "Gaming",

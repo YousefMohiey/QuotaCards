@@ -27,10 +27,37 @@ MASTER = ROOT / "res" / "app-icon-src.png"
 SIZES = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256]
 # size -> unsharp (radius, percent); None = no sharpening
 SHARPEN = {
-    16: (0.6, 120), 20: (0.6, 110), 24: (0.6, 100), 32: (0.6, 85),
-    40: (0.6, 75), 48: (0.6, 65), 64: (0.5, 45), 96: (0.5, 25),
+    16: (0.6, 120), 20: (0.6, 110), 24: (0.6, 100), 32: (0.6, 95),
+    40: (0.6, 80), 48: (0.6, 80), 64: (0.5, 55), 96: (0.5, 25),
     128: None, 256: None,
 }
+# The master carries ~14% empty margin around the tile. Trimmed to this much
+# margin so the tile fills the frame: Windows renders tray and shortcut icons
+# at 16-48px, and art that sits at 72% of the canvas reads as a smaller icon
+# than every neighbour in the tray.
+MARGIN = 0.02
+
+
+def source_master() -> Image.Image:
+    master = Image.open(MASTER).convert("RGBA")
+    # getbbox() counts ANY non-zero pixel, and the art carries a barely-there
+    # alpha haze (alpha 1-7) well outside the tile, which would defeat the
+    # trim. Threshold first so the box is the tile, not the haze.
+    solid = master.getchannel("A").point(lambda v: 255 if v > 64 else 0)
+    bbox = solid.getbbox()
+    if not bbox:
+        return master
+    x0, y0, x1, y1 = bbox
+    w, h = x1 - x0, y1 - y0
+    side = max(w, h)
+    pad = round(side * MARGIN)
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    half = side / 2 + pad
+    left, top = round(cx - half), round(cy - half)
+    right, bottom = round(cx + half), round(cy + half)
+    canvas = Image.new("RGBA", (right - left, bottom - top), (0, 0, 0, 0))
+    canvas.paste(master.crop((left, top, right, bottom)), (0, 0))
+    return canvas
 
 
 def render(master: Image.Image, size: int) -> Image.Image:
@@ -93,7 +120,7 @@ def write_ico(path: Path, entries):
 
 
 def build():
-    master = Image.open(MASTER).convert("RGBA")
+    master = source_master()
     frames = {s: render(master, s) for s in SIZES}
 
     # multi-size .ico: DIB frames for <=128 (max compatibility incl. windres),
@@ -115,6 +142,7 @@ def build():
         ROOT / "desktop" / "src-tauri" / "icons" / "icon.png": render(master, 512),
         ROOT / "android" / "tauri-app" / "src-tauri" / "icons" / "icon.png": render(master, 512),
         ROOT / "desktop" / "ui" / "icon.png": frames[128],
+        ROOT / "desktop" / "ui-next" / "public" / "icon.png": frames[128],
         ROOT / "res" / "icon16.png": frames[16],
         ROOT / "res" / "icon32.png": frames[32],
         ROOT / "res" / "icon48.png": frames[48],

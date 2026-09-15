@@ -16,54 +16,18 @@ const PRIMARY: Array<{ id: Tab; icon: typeof Home; key: StrKey }> = [
 
 export function Sidebar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   const { t } = useI18n()
-  const { phase, card, version, update, updateState } = useApp()
-
-  const state =
-    phase === "connecting"
-      ? "working"
-      : phase === "on"
-        ? "connected"
-        : phase === "stopping"
-          ? "connecting"
-          : "ready"
-
-  const stateLabel =
-    state === "connected"
-      ? t("vpnConnected")
-      : state === "working"
-        ? t("working")
-        : state === "connecting"
-          ? t("connecting")
-          : t("ready")
+  const { card, version, update, updateState } = useApp()
 
   return (
     <aside className="glass-side flex w-[236px] shrink-0 flex-col">
-      {/* identity: the mark, the build, and whatever the app is doing now */}
+      {/* identity: the mark, the build, then whatever the app is set to use */}
       <div className="px-3.5 pb-3 pt-4">
         <div className="flex items-center gap-3">
-          <img
-            src="/icon.png"
-            alt=""
-            aria-hidden
-            className="size-12 shrink-0 rounded-[14px] ring-1 ring-[rgb(255_255_255/0.12)] shadow-[0_10px_26px_rgb(0_0_0/0.5)]"
-          />
+          <img src="/icon.png" alt="" aria-hidden className="size-14 shrink-0" />
           <div className="min-w-0">
             <div className="flex items-baseline gap-2">
               <span className="truncate text-[15px] font-semibold text-txt">QuotaCards</span>
               {version && <span className="shrink-0 text-[10.5px] text-txt3">v{version}</span>}
-            </div>
-            <div className="mt-1 flex items-center gap-1.5 text-[11.5px] text-txt3">
-              <span
-                aria-hidden
-                className={cn(
-                  "size-1.5 rounded-full",
-                  state === "connected" && "bg-[var(--green)]",
-                  state === "working" && "pulse-dot bg-[var(--brand)]",
-                  state === "connecting" && "pulse-dot bg-[var(--amber)]",
-                  state === "ready" && "bg-txt3",
-                )}
-              />
-              <span className="truncate">{stateLabel}</span>
             </div>
           </div>
         </div>

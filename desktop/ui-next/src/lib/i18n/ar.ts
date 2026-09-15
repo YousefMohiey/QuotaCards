@@ -145,6 +145,7 @@ export const ar = {
   "upTitle": "التحديثات",
   "updHint": "التحديثات تُثبَّت تلقائياً.",
   "updRow": "حالة التحديث",
+  "history": "السجل",
   "peak": "الذروة",
   "readyFor": "جاهز لـ",
   "vGaming": "الألعاب",
