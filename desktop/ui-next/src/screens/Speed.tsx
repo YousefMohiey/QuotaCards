@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react"
-import { ChevronDown, Copy, Play, RotateCcw } from "lucide-react"
+import { ChevronDown, Copy, Gamepad2, Play, RotateCcw, Tv, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PickerDialog, type PickerItem } from "@/components/PickerDialog"
-import { SpeedRing, type RunPhase } from "@/components/SpeedRing"
+import { SpeedBars } from "@/components/SpeedBars"
 import { useApp } from "@/state/app"
-import { useI18n } from "@/lib/i18n"
+import { useI18n, type StrKey } from "@/lib/i18n"
 import { measureDownload, measurePing, measureUpload } from "@/lib/speedtest"
 import { CUSTOM_SNI, SNIS } from "@/lib/snis"
 import { cn } from "@/lib/utils"
@@ -13,19 +13,22 @@ import { cn } from "@/lib/utils"
 const PING_PROBES = 8
 const PHASE_SECONDS = 9
 
+type Phase = "idle" | "ping" | "download" | "upload" | "done"
 type Result = { ping: number | null; jitter: number | null; down: number | null; up: number | null }
 
 const EMPTY: Result = { ping: null, jitter: null, down: null, up: null }
+
+type Verdict = { icon: typeof Gamepad2; label: string; tone: "ok" | "warn" | "bad"; text: string }
 
 export function Speed() {
   const { t } = useI18n()
   const { serverIp, card } = useApp()
 
-  const [phase, setPhase] = useState<RunPhase>("idle")
+  const [phase, setPhase] = useState<Phase>("idle")
   const [caption, setCaption] = useState(() => t("idle"))
   const [value, setValue] = useState(0)
   const [unit, setUnit] = useState<"Mbps" | "ms">("Mbps")
-  const [progress, setProgress] = useState(0)
+  const [samples, setSamples] = useState<number[]>([])
   const [result, setResult] = useState<Result>(EMPTY)
   const [hint, setHint] = useState("")
   const [target, setTarget] = useState("")
@@ -35,33 +38,28 @@ export function Speed() {
 
   const abort = useRef<AbortController | null>(null)
   const gate = useRef(0)
-  const phaseStart = useRef(0)
 
   const running = phase === "ping" || phase === "download" || phase === "upload"
   const kind = card?.card_type === "Streamerz" ? "Streamerz" : "Gamerz"
   const targetHost = custom.trim() || (target || serverIp)
   const targetLabel = custom.trim() || target || serverIp || t("targetServer")
 
-  // A different card is a different path: the old numbers would be lies.
   useEffect(() => {
     setResult(EMPTY)
     setValue(0)
-    setProgress(0)
+    setSamples([])
     setCaption(t("idle"))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card?.uuid])
 
-  useEffect(() => {
-    // Leaving the screen mid-test must not leave sockets running.
-    return () => abort.current?.abort()
-  }, [])
+  useEffect(() => () => abort.current?.abort(), [])
 
-  const say = (v: number, isMs: boolean, force = false) => {
+  const push = (v: number) => {
     const now = performance.now()
-    if (!force && now - gate.current < 100) return
+    if (now - gate.current < 90) return
     gate.current = now
     setValue(v)
-    if (!isMs) setProgress(Math.min((now - phaseStart.current) / (PHASE_SECONDS * 1000), 1))
+    setSamples((prev) => [...prev.slice(-(BARS_MEMORY - 1)), v])
   }
 
   const guard = (): string | null => {
@@ -81,22 +79,13 @@ export function Speed() {
     setCaption(t("pingTitle"))
     setUnit("ms")
     setValue(0)
-    setProgress(0)
+    setSamples([])
     setHint(t("pingHint"))
-    let seen = 0
     try {
-      const r = await measurePing(host, PING_PROBES, {
-        signal,
-        target: targetHost,
-        onPing: (ms) => {
-          seen += 1
-          setProgress(Math.min(seen / PING_PROBES, 1))
-          say(ms, true, seen >= PING_PROBES)
-        },
-      })
+      const r = await measurePing(host, PING_PROBES, { signal, target: targetHost, onPing: (ms) => push(ms) })
       setResult((prev) => ({ ...prev, ping: r.ping, jitter: r.jitter }))
-      say(r.ping, true, true)
-      setProgress(1)
+      push(r.ping)
+      setValue(r.ping)
     } catch {
       if (!signal.aborted) setHint(t("noReply"))
     }
@@ -107,15 +96,13 @@ export function Speed() {
     setCaption(direction === "down" ? t("chDown") : t("chUp"))
     setUnit("Mbps")
     setValue(0)
-    setProgress(0)
-    phaseStart.current = performance.now()
+    setSamples([])
     setHint(direction === "down" ? t("downHint") : t("upHint"))
     try {
       const fn = direction === "down" ? measureDownload : measureUpload
-      const mbps = await fn(host, { seconds: PHASE_SECONDS, signal, onTick: (v) => say(v, false) })
+      const mbps = await fn(host, { seconds: PHASE_SECONDS, signal, onTick: (v) => push(v) })
       setResult((prev) => (direction === "down" ? { ...prev, down: mbps } : { ...prev, up: mbps }))
-      say(mbps, false, true)
-      setProgress(1)
+      setValue(mbps)
     } catch {
       if (!signal.aborted) setHint(t("noReply"))
     }
@@ -147,7 +134,7 @@ export function Speed() {
     abort.current?.abort()
     setResult(EMPTY)
     setValue(0)
-    setProgress(0)
+    setSamples([])
     setPhase("idle")
     setCaption(t("idle"))
     setHint("")
@@ -177,62 +164,102 @@ export function Speed() {
   ]
 
   const measured = result.ping !== null || result.down !== null || result.up !== null
+  const verdicts = buildVerdicts(result, t)
 
   return (
-    <div className="mx-auto flex w-full max-w-[600px] flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-[620px] flex-col gap-5">
       <section className="glass rounded-[24px] px-6 pb-5 pt-5">
         <div className="flex items-center justify-between gap-3">
-          <div className="text-[13px] font-semibold text-txt">{t("tabSpeed")}</div>
+          <div className="min-w-0">
+            <div className="truncate text-[13px] font-semibold text-txt">{t("tabSpeed")}</div>
+            <div className="mt-0.5 truncate text-[11.5px] text-txt3">
+              {card?.name.split(" (")[0] ?? "—"} · {kind}
+            </div>
+          </div>
           <button
             type="button"
             onClick={() => setPickOpen(true)}
-            className="flex max-w-[62%] items-center gap-1.5 rounded-full border border-[rgb(255_255_255/0.12)] px-2.5 py-1 text-[12px] text-txt3 transition-colors hover:text-txt"
+            className="flex max-w-[58%] items-center gap-1.5 rounded-full border border-[rgb(255_255_255/0.12)] px-2.5 py-1 text-[12px] text-txt3 transition-colors hover:text-txt"
           >
             <span className="truncate">{targetLabel}</span>
             <ChevronDown className="size-3.5 shrink-0" aria-hidden />
           </button>
         </div>
 
-        <div className="mt-2 flex justify-center">
-          <SpeedRing value={value} unit={unit} phase={phase} caption={caption} progress={progress} />
+        {/* what the run reads right now, over the shape of the run itself */}
+        <div className="mt-5 flex items-end justify-between gap-6">
+          <div className="min-w-0">
+            <div className="flex items-baseline gap-2">
+              <span className="text-[52px] leading-none font-light tabular-nums text-txt" style={{ letterSpacing: "-0.02em" }}>
+                {unit === "ms" ? Math.round(value) : value >= 100 ? value.toFixed(0) : value.toFixed(1)}
+              </span>
+              <span className="text-[13px] text-txt3">{unit}</span>
+            </div>
+            <div className="mt-2 text-[12.5px] text-txt3">{caption}</div>
+          </div>
         </div>
 
-        {/* the reading, as four plain numbers; each one restarts its own phase */}
+        <div className="mt-4">
+          <div className="mb-1.5 flex items-center justify-end text-[11px] text-txt3">
+            {samples.length > 0 && (
+              <span>
+                {t("peak")} {unit === "ms" ? Math.round(Math.max(...samples)) : Math.max(...samples).toFixed(1)} {unit}
+              </span>
+            )}
+          </div>
+          <SpeedBars samples={samples} accent={phase === "upload" ? "var(--cyan)" : phase === "ping" ? "var(--amber)" : "var(--brand)"} active={running} />
+        </div>
+
         <div className="mt-4 grid grid-cols-4 divide-x divide-line">
           <Reading title={t("pingTitle")} value={result.ping} unit={t("ms")} onClick={() => void run("ping")} disabled={running} />
-          <Reading
-            title={t("jitter")}
-            value={result.jitter}
-            unit={t("ms")}
-            onClick={() => void run("ping")}
-            disabled={running}
-          />
+          <Reading title={t("jitter")} value={result.jitter} unit={t("ms")} onClick={() => void run("ping")} disabled={running} />
           <Reading
             title={t("chDown")}
-            value={result.down}
+            value={phase === "download" ? value : result.down}
             unit={t("mbps")}
             onClick={() => void run("down")}
             disabled={running}
           />
-          <Reading title={t("chUp")} value={result.up} unit={t("mbps")} onClick={() => void run("up")} disabled={running} />
+          <Reading
+            title={t("chUp")}
+            value={phase === "upload" ? value : result.up}
+            unit={t("mbps")}
+            onClick={() => void run("up")}
+            disabled={running}
+          />
         </div>
       </section>
 
+      {measured && (
+        <section className="glass rounded-[24px] px-6 py-4">
+          <div className="text-[12px] font-semibold text-txt2">{t("readyFor")}</div>
+          <div className="mt-3 flex flex-col gap-2.5">
+            {verdicts.map((v) => (
+              <div key={v.label} className="flex items-center gap-3">
+                <v.icon className="size-4 shrink-0 text-txt3" strokeWidth={1.6} aria-hidden />
+                <span className="w-[86px] shrink-0 text-[12.5px] text-txt2">{v.label}</span>
+                <span
+                  aria-hidden
+                  className={cn(
+                    "size-1.5 shrink-0 rounded-full",
+                    v.tone === "ok" && "bg-[var(--green)]",
+                    v.tone === "warn" && "bg-[var(--amber)]",
+                    v.tone === "bad" && "bg-[var(--red)]",
+                  )}
+                />
+                <span className="truncate text-[12.5px] text-txt">{v.text}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="flex items-center gap-3">
-        <Button
-          className="h-11 flex-1 gap-2 rounded-[14px] text-[13.5px]"
-          disabled={running}
-          onClick={() => void run("all")}
-        >
+        <Button className="h-11 flex-1 gap-2 rounded-[14px] text-[13.5px]" disabled={running} onClick={() => void run("all")}>
           <Play className="size-3.5" aria-hidden />
           {running ? t("measuring") : t("startTest")}
         </Button>
-        <Button
-          variant="secondary"
-          className="h-11 gap-2 rounded-[14px] px-4 text-[13px]"
-          onClick={() => void copyResult()}
-          disabled={!measured}
-        >
+        <Button variant="secondary" className="h-11 gap-2 rounded-[14px] px-4 text-[13px]" onClick={() => void copyResult()} disabled={!measured}>
           <Copy className="size-3.5" aria-hidden />
           {t("copyResult")}
         </Button>
@@ -264,14 +291,12 @@ export function Speed() {
 
       <div className="mx-1 flex items-start justify-between border-t border-line px-1 pb-2 pt-3">
         <div>
-          <div className="text-[14px] font-medium text-txt">{serverIp || "—"}</div>
-          <div className="mt-1 text-[12px] text-txt3">
-            {measured ? `↓ ${result.down !== null ? result.down.toFixed(1) : "—"} · ↑ ${result.up !== null ? result.up.toFixed(1) : "—"} ${t("mbps")}` : "—"}
-          </div>
+          <div className="text-[14px] font-medium text-txt">{card?.name.split(" (")[0] ?? "—"}</div>
+          <div className="mt-1 text-[12px] text-txt3">{card?.sni ?? "—"}</div>
         </div>
-        <div className="flex flex-col items-end">
-          <div className="text-[13px] font-medium text-txt">{card?.name.split(" (")[0] ?? "—"}</div>
-          <div className="text-[12px] text-txt3">{card?.sni ?? "—"}</div>
+        <div className="text-right">
+          <div className="text-[12px] text-txt3">{t("target")}</div>
+          <div className="text-[12.5px] text-txt2">{targetLabel}</div>
         </div>
       </div>
 
@@ -298,6 +323,38 @@ export function Speed() {
   )
 }
 
+const BARS_MEMORY = 96
+
+/**
+ * Plain language instead of raw numbers: what the line can actually do.
+ * Thresholds are the published practical ones - competitive play needs jitter
+ * under ~10 ms, 1080p needs ~25 Mbps, 4K wants 50+.
+ */
+function buildVerdicts(r: Result, t: (k: StrKey) => string): Verdict[] {
+  const { ping, jitter, down } = r
+  const out: Verdict[] = []
+
+  if (ping !== null && jitter !== null) {
+    if (ping <= 45 && jitter <= 10) out.push({ icon: Gamepad2, label: t("vGaming"), tone: "ok", text: t("vCompReady") })
+    else if (ping <= 80 && jitter <= 20) out.push({ icon: Gamepad2, label: t("vGaming"), tone: "warn", text: t("vCasual") })
+    else out.push({ icon: Gamepad2, label: t("vGaming"), tone: "bad", text: t("vLag") })
+  }
+
+  if (down !== null) {
+    if (down >= 50) out.push({ icon: Tv, label: t("vStreaming"), tone: "ok", text: t("v4k") })
+    else if (down >= 25) out.push({ icon: Tv, label: t("vStreaming"), tone: "ok", text: t("v1080") })
+    else if (down >= 12) out.push({ icon: Tv, label: t("vStreaming"), tone: "warn", text: t("v720") })
+    else out.push({ icon: Tv, label: t("vStreaming"), tone: "bad", text: t("vSlow") })
+  }
+
+  if (ping !== null && jitter !== null) {
+    if (jitter <= 15 && ping <= 80) out.push({ icon: Video, label: t("vCalls"), tone: "ok", text: t("vCallsOk") })
+    else out.push({ icon: Video, label: t("vCalls"), tone: "warn", text: t("vCallsBad") })
+  }
+
+  return out
+}
+
 function Reading({
   title,
   value,
@@ -317,10 +374,7 @@ function Reading({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={cn(
-        "flex flex-col items-center gap-1 py-1.5 transition-colors",
-        !disabled && "hover:bg-white/[0.03]",
-      )}
+      className={cn("flex flex-col items-center gap-1 py-1.5 transition-colors", !disabled && "hover:bg-white/[0.03]")}
     >
       <span className="text-[11.5px] text-txt3">{title}</span>
       <span className={cn("text-[18px] font-medium tabular-nums", value === null ? "text-txt3" : "text-txt")}>

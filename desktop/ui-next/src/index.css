@@ -188,10 +188,30 @@
   @media (prefers-reduced-motion: reduce) {
     /* Windows reports this for a plain "animation effects off" preference,
        so only endless decorative loops stand down; state motion still plays. */
-    .pulse-dot {
+    .pulse-dot,
+    .soft-ping {
       animation: none !important;
     }
   }
+}
+
+/* A soft halo for the update reminder: slow, low contrast, easy to ignore. */
+@keyframes softPing {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.5;
+  }
+  70% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+.soft-ping {
+  animation: softPing 2.8s cubic-bezier(0.33, 0, 0.67, 1) infinite;
 }
 
 /* ---------------------------------------------------------------------------

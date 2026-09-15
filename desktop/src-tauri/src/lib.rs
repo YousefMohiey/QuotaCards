@@ -38,6 +38,7 @@ struct UiState {
     ssh_user: String,
     ssh_port: u16,
     cards: Vec<Card>,
+    version: String,
 }
 
 fn snapshot(cfg: &AppConfig) -> UiState {
@@ -46,6 +47,7 @@ fn snapshot(cfg: &AppConfig) -> UiState {
         ssh_user: cfg.ssh_user.clone(),
         ssh_port: cfg.ssh_port,
         cards: cfg.cards.clone(),
+        version: String::new(),
     }
 }
 
@@ -100,8 +102,12 @@ fn initial_config() -> AppConfig {
 }
 
 #[tauri::command]
-fn get_state(state: tauri::State<State>) -> UiState {
-    snapshot(&state.0.lock().unwrap())
+fn get_state(app: tauri::AppHandle, state: tauri::State<State>) -> UiState {
+    let mut st = snapshot(&state.0.lock().unwrap());
+    // The running build's own version: the sidebar shows it without waiting
+    // for a network round trip to GitHub.
+    st.version = app.package_info().version.to_string();
+    st
 }
 
 #[tauri::command]

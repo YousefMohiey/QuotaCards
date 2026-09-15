@@ -25,6 +25,7 @@ export type UiState = {
   ssh_user: string
   ssh_port: number
   cards: Card[]
+  version: string
 }
 
 export type TunnelState = { running: boolean; error: string }

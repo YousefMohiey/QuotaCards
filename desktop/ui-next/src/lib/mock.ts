@@ -27,7 +27,7 @@ export async function mockCall<T>(cmd: string, args?: Record<string, unknown>): 
   const ok = (msg = ""): CmdResult => ({ ok: true, msg })
   switch (cmd) {
     case "get_state":
-      return { server_ip: "qc-speed.example.com", ssh_user: "ubuntu", ssh_port: 22, cards } as T
+      return { server_ip: "qc-speed.example.com", ssh_user: "ubuntu", ssh_port: 22, cards, version: "0.2.5" } as T
     case "probe_server":
       return ok("Server reachable.") as T
     case "generate_card": {
@@ -71,7 +71,9 @@ export async function mockCall<T>(cmd: string, args?: Record<string, unknown>): 
     case "resolve_host":
       return "203.0.113.10" as T
     case "check_update":
-      return { current: "0.2.4", latest: "0.2.4", available: false, url: "" } as UpdateInfo as T
+      // Preview shows the "update ready" state so the reminder is visible;
+      // the real check only reports available when GitHub says so.
+      return { current: "0.2.5", latest: "0.2.6", available: true, url: "#" } as UpdateInfo as T
     case "apply_update":
       return "Up to date." as T
     default:

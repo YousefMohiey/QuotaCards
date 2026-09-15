@@ -34,6 +34,7 @@ type Value = {
   sessionStart: number | null
   update: UpdateInfo | null
   updateState: "idle" | "checking" | "latest" | "available" | "error"
+  version: string
   refresh: () => Promise<void>
   generateCard: (name: string, kind: string, sni: string) => Promise<CmdResult>
   importCard: (uuid: string, name: string, kind: string, sni: string) => Promise<CmdResult>
@@ -86,6 +87,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [sessionStart, setSessionStart] = useState<number | null>(null)
   const [update, setUpdate] = useState<UpdateInfo | null>(null)
   const [updateState, setUpdateState] = useState<Value["updateState"]>("idle")
+  const [version, setVersion] = useState("")
   const busyRef = useRef(false)
   const vpnRef = useRef(false)
 
@@ -101,6 +103,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         if (!alive) return
         setServerIp(st.server_ip)
         setCards(st.cards)
+        setVersion(st.version)
         setCardUuid((cur) => (st.cards.some((c) => c.uuid === cur) ? cur : st.cards[0]?.uuid ?? ""))
         // An engine can outlive the window (tray close, crash re-open):
         // pick the live state back up instead of showing "ready".
@@ -122,6 +125,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // ---- poll while the tunnel is up -------------------------------------
+  // A quiet check a few seconds after start. Nothing happens unless a new
+  // build really exists, so it can never nag for no reason.
+  useEffect(() => {
+    const id = window.setTimeout(() => void checkUpdates(), 4000)
+    return () => window.clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => {
     if (!vpnOn) return
     let alive = true
@@ -349,6 +360,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     sessionStart,
     update,
     updateState,
+    version,
     refresh,
     generateCard,
     importCard,

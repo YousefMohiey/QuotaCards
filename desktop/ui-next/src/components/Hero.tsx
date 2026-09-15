@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 import { useApp } from "@/state/app"
+import { api } from "@/lib/ipc"
 import { Dial, type DialState } from "./Dial"
 import { displayHost, fmtBytes, fmtDuration } from "@/lib/format"
 
@@ -22,6 +23,26 @@ function useTick(ms: number, on: boolean) {
 export function Hero() {
   const { t } = useI18n()
   const { phase, connected, busy, toggle, card, rx, tx, sessionStart, serverIp } = useApp()
+  const [serverAddr, setServerAddr] = useState("")
+
+  // While the tunnel is up the world sees the server's address, so resolve it
+  // once and show the IP the user actually appears as - never the hostname.
+  useEffect(() => {
+    if (!connected || !serverIp) {
+      setServerAddr("")
+      return
+    }
+    let alive = true
+    api
+      .resolveHost(serverIp)
+      .then((ip) => {
+        if (alive) setServerAddr(ip)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [connected, serverIp])
 
   // The dial parks left from the moment Connect is pressed, and starts its
   // way back the moment Disconnect is pressed, not when the engine answers.
@@ -86,14 +107,13 @@ export function Hero() {
                       transition={{ duration: 0.36, ease: EASE_OUT, delay: 0.12 }}
                     >
                       <Traffic rx={rx} tx={tx} />
-                      <div className="mt-3 grid grid-cols-3 gap-2">
+                      <div className="mt-3 grid grid-cols-2 gap-2">
                         <StatTile
                           label={t("sessLabel")}
                           value={sessionStart ? fmtDuration((Date.now() - sessionStart) / 1000) : "-"}
                           sub={"↓ " + fmtBytes(rx) + "   ↑ " + fmtBytes(tx)}
                         />
-                        <StatTile label={t("yourIp")} value={displayHost(serverIp)} />
-                        <StatTile label={t("serverLabel")} value={displayHost(card?.sni)} />
+                        <StatTile label={t("yourIp")} value={serverAddr || displayHost(serverIp)} />
                       </div>
                     </motion.div>
                   )}
