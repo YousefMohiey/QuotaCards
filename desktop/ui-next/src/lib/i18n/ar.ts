@@ -6,6 +6,7 @@ export const ar = {
   "addCardLink": "إضافة برابط",
   "badCard": "هذا ليس رابط بطاقة أو معرّفاً صالحاً.",
   "cardAdded": "تمت إضافة البطاقة.",
+  "clear": "مسح",
   "copied": "تم النسخ.",
   "copyResult": "نسخ النتيجة",
   "pasteHint": "الصق رابط QuotaCards أو معرّف بطاقة من جهاز آخر.",

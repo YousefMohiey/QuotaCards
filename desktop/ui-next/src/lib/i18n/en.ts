@@ -6,6 +6,7 @@ export const en = {
   "addCardLink": "Add from link",
   "badCard": "That is not a card link or a card id.",
   "cardAdded": "Card added.",
+  "clear": "Clear",
   "copied": "Copied.",
   "copyResult": "Copy result",
   "pasteHint": "Paste a QuotaCards link or a card id from another device.",
