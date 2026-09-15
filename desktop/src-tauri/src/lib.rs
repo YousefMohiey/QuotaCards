@@ -174,13 +174,19 @@ async fn generate_card(
         wg_private: String::new(),
         wg_addr: String::new(),
     };
-    if let Err(e) = server::add_client(&host, port, &user, &key, &uuid).await {
-        return Ok(CmdResult { ok: false, msg: format!("Failed: {e}") });
-    }
     {
         let mut cfg = state.0.lock().unwrap();
         cfg.cards.push(card);
         cfg.save();
+    }
+    // Registering on the server is an SSH round trip: run it detached so the
+    // card shows up at once. Connect re-adds any card the server is missing.
+    if !host.is_empty() {
+        let (h, u, k) = (host.clone(), user.clone(), key.clone());
+        let id = uuid.clone();
+        tauri::async_runtime::spawn(async move {
+            let _ = server::add_client(&h, port, &u, &k, &id).await;
+        });
     }
     Ok(CmdResult { ok: true, msg: "Card created.".into() })
 }
@@ -223,13 +229,18 @@ async fn import_card(
         });
         cfg.save();
     }
-    // Best effort: the server may already know this client, and add is idempotent.
+    // Best effort: the server may already know this client, and add is
+    // idempotent. Detached so adding a card never waits on SSH.
     let (host, user, port, key) = {
         let cfg = state.0.lock().unwrap();
         (cfg.server_ip.clone(), cfg.ssh_user.clone(), cfg.ssh_port, cfg.private_key.clone())
     };
     if !host.is_empty() {
-        let _ = server::add_client(&host, port, &user, &key, &uuid).await;
+        let (h, u, k) = (host.clone(), user.clone(), key.clone());
+        let id = uuid.clone();
+        tauri::async_runtime::spawn(async move {
+            let _ = server::add_client(&h, port, &u, &k, &id).await;
+        });
     }
     Ok(CmdResult { ok: true, msg: "Card added.".into() })
 }
@@ -242,12 +253,15 @@ async fn revoke_card(state: tauri::State<'_, State>, uuid: String) -> Result<Cmd
         cfg.save();
         (cfg.server_ip.clone(), cfg.ssh_user.clone(), cfg.ssh_port, cfg.private_key.clone())
     };
-    // WireGuard peers are per-card: drop this card's peer too (best effort).
-    server::wg_del(&host, port, &user, &key, &uuid).await;
-    match server::remove_client(&host, port, &user, &key, &uuid).await {
-        Ok(_) => Ok(CmdResult { ok: true, msg: "Card revoked.".into() }),
-        Err(e) => Ok(CmdResult { ok: false, msg: format!("Revoke failed: {e}") }),
-    }
+    // The server side is an SSH round trip: run it detached so the list reacts
+    // at once. WireGuard peers are per-card, so that peer goes too.
+    let (h, u, k) = (host.clone(), user.clone(), key.clone());
+    let id = uuid.clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = server::wg_del(&h, port, &u, &k, &id).await;
+        let _ = server::remove_client(&h, port, &u, &k, &id).await;
+    });
+    Ok(CmdResult { ok: true, msg: "Card revoked.".into() })
 }
 
 #[tauri::command]

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Check, Copy, Link as LinkIcon, Plus, Trash2 } from "lucide-react"
+import { Check, Copy, Link as LinkIcon, Plus, Trash2, TriangleAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -34,10 +34,12 @@ export function Cards() {
   const [domainOpen, setDomainOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState("")
+  const [noteBad, setNoteBad] = useState(false)
 
   const [pasteOpen, setPasteOpen] = useState(false)
   const [pasted, setPasted] = useState("")
   const [pasteNote, setPasteNote] = useState("")
+  const [pasteBad, setPasteBad] = useState(false)
 
   const effectiveSni = sni === CUSTOM_SNI ? custom.trim() : sni
 
@@ -50,14 +52,21 @@ export function Cards() {
   }
 
   const submit = async () => {
-    if (!name.trim() || !effectiveSni) {
-      setNote(!name.trim() ? t("cardName") : t("needDomain"))
+    if (!name.trim()) {
+      setNote(t("warnName"))
+      setNoteBad(true)
+      return
+    }
+    if (!effectiveSni) {
+      setNote(t("warnDomain"))
+      setNoteBad(true)
       return
     }
     setBusy(true)
     const r = await generateCard(name.trim(), kind, effectiveSni)
     setBusy(false)
     setNote(r.msg)
+    setNoteBad(!r.ok)
     if (r.ok) {
       setOpen(false)
       reset()
@@ -68,12 +77,14 @@ export function Cards() {
     const parsed = parseCardLink(pasted)
     if (!parsed) {
       setPasteNote(t("badCard"))
+      setPasteBad(true)
       return
     }
     setBusy(true)
     const r = await importCard(parsed.uuid, parsed.name, parsed.kind, parsed.sni)
     setBusy(false)
     setPasteNote(r.msg || t("cardAdded"))
+    setPasteBad(!r.ok)
     if (r.ok) {
       setTimeout(() => {
         setPasteOpen(false)
@@ -251,7 +262,7 @@ export function Cards() {
               )}
             </div>
 
-            {note && <p className="text-[12px] text-txt3">{note}</p>}
+            {note && <Note text={note} bad={noteBad} />}
           </div>
 
           <DialogFooter className="gap-2">
@@ -285,7 +296,7 @@ export function Cards() {
             className="h-9 rounded-[10px] border-line bg-white/[0.02] font-mono text-[12px]"
           />
 
-          {pasteNote && <p className="text-[12px] text-txt3">{pasteNote}</p>}
+          {pasteNote && <Note text={pasteNote} bad={pasteBad} />}
 
           <DialogFooter className="gap-2">
             <Button variant="ghost" className="h-9 rounded-[10px] text-[13px]" onClick={() => setPasteOpen(false)}>
@@ -311,5 +322,27 @@ export function Cards() {
         }}
       />
     </div>
+  )
+}
+
+/** One line that says whether the last action worked. */
+function Note({ text, bad }: { text: string; bad: boolean }) {
+  return (
+    <p
+      role={bad ? "alert" : "status"}
+      className={cn(
+        "flex items-center gap-2 rounded-[10px] px-3 py-2 text-[12px]",
+        bad
+          ? "border border-[var(--red-line)] bg-[var(--red-bg)] text-[var(--red)]"
+          : "border border-[var(--green-line)] bg-[var(--green-bg)] text-[var(--green)]",
+      )}
+    >
+      {bad ? (
+        <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+      ) : (
+        <Check className="size-3.5 shrink-0" aria-hidden />
+      )}
+      {text}
+    </p>
   )
 }

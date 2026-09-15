@@ -128,17 +128,16 @@ function uploadRound(
     // random data defeats any compression on the way up
     const body = new Uint8Array(size)
     for (let i = 0; i < size; i += 4096) body[i] = (Math.random() * 255) | 0
-    const t0 = performance.now()
-    let lastT = t0
-    let lastLoaded = 0
+    // Rolling ~1.2s window, exactly like the download side. An instantaneous
+    // per-event rate reports a burst from one TCP window and reads far above
+    // what the link actually sustains; the window cannot spike like that.
+    const win: Array<[number, number]> = []
     xhr.upload.onprogress = (e) => {
       const now = performance.now()
-      const dt = (now - lastT) / 1000
-      if (dt > 0.1) {
-        onProgress(((e.loaded - lastLoaded) * 8) / dt / 1e6)
-        lastT = now
-        lastLoaded = e.loaded
-      }
+      win.push([now, e.loaded])
+      while (win.length > 2 && now - win[0][0] > 1200) win.shift()
+      const span = (now - win[0][0]) / 1000
+      if (span >= 0.3) onProgress(((e.loaded - win[0][1]) * 8) / span / 1e6)
     }
     xhr.onload = () => resolve()
     xhr.onerror = () => reject(new Error("upload failed"))

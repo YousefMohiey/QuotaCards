@@ -27,7 +27,7 @@ export function Dial({
       whileTap={disabled ? undefined : { scale: 0.985 }}
       transition={{ type: "spring", stiffness: 460, damping: 32 }}
       className={cn(
-        "relative grid size-[150px] place-items-center rounded-full border bg-[radial-gradient(circle_at_50%_36%,rgb(255_255_255/0.07),rgb(255_255_255/0.02)_74%)] transition-colors disabled:opacity-70",
+        "relative grid size-[172px] place-items-center rounded-full border bg-[radial-gradient(circle_at_50%_36%,rgb(255_255_255/0.07),rgb(255_255_255/0.02)_74%)] transition-colors disabled:opacity-70",
         state === "on"
           ? "border-[var(--green-line)] text-[var(--green)]"
           : state === "connecting"
@@ -41,9 +41,9 @@ export function Dial({
           className="absolute -inset-px rounded-full border-2 border-transparent border-t-[var(--brand)] [animation:spin_1.15s_linear_infinite]"
         />
       )}
-      <span className="flex flex-col items-center gap-2">
-        <Power className="size-7" strokeWidth={1.75} aria-hidden />
-        <span className="text-[12px] font-medium tracking-[0.01em]">{label}</span>
+      <span className="flex flex-col items-center gap-2.5">
+        <Power className="size-8" strokeWidth={1.75} aria-hidden />
+        <span className="text-[12.5px] font-medium tracking-[0.01em]">{label}</span>
       </span>
     </motion.button>
   )

@@ -145,6 +145,8 @@ export const en = {
   "updHint": "New builds install by themselves.",
   "updRow": "Update check",
   "vpnConnected": "VPN Connected",
+  "warnDomain": "Pick a domain for the card.",
+  "warnName": "Give the card a name first.",
   "vpnFor": "VPN for",
   "vpnOn": "vpn on",
   "wgWarnB": "Usage on this mode will not count from your Gamerz/Streamerz quota. Use Standard mode for packages.",

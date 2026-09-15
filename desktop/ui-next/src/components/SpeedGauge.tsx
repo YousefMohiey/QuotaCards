@@ -7,8 +7,8 @@ const START = 135
 const SWEEP = 270
 const SIZE = 320
 const C = SIZE / 2
-const R = 132
-const STROKE = 9
+const R = 130
+const STROKE = 15
 
 function polar(r: number, deg: number): [number, number] {
   const a = (deg * Math.PI) / 180
@@ -65,7 +65,7 @@ export function SpeedGauge({
 
   const f = ceiling > 0 ? Math.min(Math.max(shown / ceiling, 0), 1) : 0
   const accent = phase === "upload" ? "#63a8bb" : phase === "ping" ? "var(--amber)" : "var(--brand)"
-  const [tipX, tipY] = polar(R - 22, START + f * SWEEP)
+  const [tipX, tipY] = polar(R - 26, START + f * SWEEP)
 
   // quarter labels + an unlabeled minor tick between each pair
   const ticks = [0, 1, 2, 3, 4].map((i) => (ceiling * i) / 4)
@@ -84,12 +84,12 @@ export function SpeedGauge({
       <path d={arcPath(R, 0, f)} stroke={accent} strokeWidth={STROKE} fill="none" strokeLinecap="round" />
 
       {minors.map((t) => {
-        const [x, y] = polar(R - 12, START + (t / ceiling) * SWEEP)
-        return <circle key={t} cx={x} cy={y} r="1.6" fill="rgb(255 255 255 / 0.22)" />
+        const [x, y] = polar(R - 19, START + (t / ceiling) * SWEEP)
+        return <circle key={t} cx={x} cy={y} r="1.7" fill="rgb(255 255 255 / 0.22)" />
       })}
 
       {ticks.map((t) => {
-        const [tx, ty] = polar(R - 34, START + (t / ceiling) * SWEEP)
+        const [tx, ty] = polar(R - 44, START + (t / ceiling) * SWEEP)
         const lit = shown >= t && shown > 0
         return (
           <text

@@ -63,10 +63,20 @@ export function Speed() {
     return serverIp
   }
 
-  const live = (v: number, isMs: boolean) => {
+  const lastLive = useRef(0)
+  const live = (v: number, isMs: boolean, force = false) => {
+    // Gauge updates are throttled: a progress event per chunk would re-render
+    // the whole pane dozens of times a second and read as jitter. The final
+    // value of a phase always lands, throttle or not.
+    const now = performance.now()
+    if (!force && now - lastLive.current < 110) return
+    lastLive.current = now
     setValue(v)
     setCeiling((c) => {
-      const want = pickCeil(Math.max(v, isMs ? 8 : 4) * 1.15, isMs ? CEILS_MS : CEILS_MB)
+      // Rescale only when the number is about to run off the dial; a rescale
+      // mid sweep moves every label at once and looks like a glitch.
+      if (v < c * 0.9) return c
+      const want = pickCeil(v * 1.15, isMs ? CEILS_MS : CEILS_MB)
       return want > c ? want : c
     })
   }
@@ -86,7 +96,7 @@ export function Speed() {
       })
       setPing(r.ping)
       setJitter(r.jitter)
-      live(r.ping, true)
+      live(r.ping, true, true)
       setCeiling(pickCeil(Math.max(r.ping, 8) * 1.15, CEILS_MS))
     } catch {
       if (!signal.aborted) setHint(t("noReply"))
@@ -105,7 +115,7 @@ export function Speed() {
       const mbps = await fn(host, { seconds: 9, signal, onTick: (v) => live(v, false) })
       if (direction === "down") setDown(mbps)
       else setUp(mbps)
-      live(mbps, false)
+      live(mbps, false, true)
     } catch {
       if (!signal.aborted) setHint(t("noReply"))
     }

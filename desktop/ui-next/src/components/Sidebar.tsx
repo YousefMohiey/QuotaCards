@@ -55,7 +55,7 @@ export function Sidebar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
         </div>
       </div>
 
-      <nav className="mt-1 flex flex-col gap-0.5 px-2" aria-label="Main">
+      <nav className="mt-1.5 flex flex-col gap-1 px-2.5" aria-label="Main">
         {PRIMARY.map(({ id, icon: Icon, key }) => {
           const active = tab === id || (id === "home" && tab === "apps")
           return (
@@ -64,45 +64,45 @@ export function Sidebar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
               onClick={() => onTab(id)}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "relative flex h-9 items-center gap-2.5 rounded-[10px] px-3 text-[13px] outline-none transition-colors",
+                "relative flex h-10 items-center gap-3 rounded-[12px] px-3.5 text-[13.5px] outline-none transition-colors",
                 active
-                  ? "bg-white/[0.05] font-medium text-txt"
-                  : "text-txt2 hover:bg-white/[0.035] hover:text-txt",
+                  ? "bg-white/[0.06] font-medium text-txt shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]"
+                  : "text-txt2 hover:bg-white/[0.04] hover:text-txt",
               )}
             >
               {active && (
                 <motion.span
                   layoutId="nav-accent"
-                  className="absolute inset-y-[7px] start-[-8px] w-[2px] rounded-full bg-brand"
+                  className="absolute inset-y-[9px] start-[-10px] w-[3px] rounded-full bg-brand"
                   transition={{ type: "spring", stiffness: 520, damping: 40 }}
                 />
               )}
-              <Icon className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
+              <Icon className="size-[18px] shrink-0" strokeWidth={1.75} aria-hidden />
               <span className="truncate">{t(key)}</span>
             </button>
           )
         })}
       </nav>
 
-      <div className="mt-auto flex flex-col gap-0.5 p-2">
+      <div className="mt-auto flex flex-col gap-1 p-2.5">
         <button
           onClick={() => onTab("settings")}
           aria-current={tab === "settings" ? "page" : undefined}
           className={cn(
-            "relative flex h-9 items-center gap-2.5 rounded-[10px] px-3 text-[13px] transition-colors",
+            "relative flex h-10 items-center gap-3 rounded-[12px] px-3.5 text-[13.5px] transition-colors",
             tab === "settings"
-              ? "bg-white/[0.05] font-medium text-txt"
-              : "text-txt2 hover:bg-white/[0.035] hover:text-txt",
+              ? "bg-white/[0.06] font-medium text-txt shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]"
+              : "text-txt2 hover:bg-white/[0.04] hover:text-txt",
           )}
         >
           {tab === "settings" && (
             <motion.span
               layoutId="nav-accent"
-              className="absolute inset-y-[7px] start-[-8px] w-[2px] rounded-full bg-brand"
+              className="absolute inset-y-[9px] start-[-10px] w-[3px] rounded-full bg-brand"
               transition={{ type: "spring", stiffness: 520, damping: 40 }}
             />
           )}
-          <SettingsIcon className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
+          <SettingsIcon className="size-[18px] shrink-0" strokeWidth={1.75} aria-hidden />
           <span>{t("tabSettings")}</span>
         </button>
       </div>

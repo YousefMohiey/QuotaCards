@@ -33,7 +33,7 @@ export function Hero() {
 
   return (
     <section className="glass rounded-[24px] p-6">
-      <div className="flex min-h-[214px] items-center">
+      <div className="flex min-h-[240px] items-center">
         <motion.div
           layout
           transition={SPRING}
