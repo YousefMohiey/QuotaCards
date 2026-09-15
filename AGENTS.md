@@ -1,5 +1,8 @@
 # QuotaCards - notes for coding agents
 
+The long-form handoff (system map, flows, code map, build and release, traps) is in
+`docs/HANDOFF.md`. Read it before changing anything structural.
+
 A VPN client for Windows and Android that routes per-app and per-quota traffic
 through a personal Xray/VLESS server. The phone adds WireGuard (UDP/53) and
 Hysteria2 (UDP/443) transports; the PC speaks Standard VLESS only.

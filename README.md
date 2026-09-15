@@ -80,5 +80,6 @@ Build needs Rust stable, Node, plus Android SDK 35 / NDK 28 / JDK 23 for the APK
 
 ## Docs
 
+- `docs/HANDOFF.md` - full handoff: system map, flows, code map, build/release, traps
 - `docs/ARCHITECTURE.md` - how it is built, file by file
 - `docs/STATUS.md` - what works, known issues, roadmap
