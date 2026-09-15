@@ -22,7 +22,7 @@ export function Settings() {
             : t("upCur").replace("{v}", update?.current ?? "0.2.4")
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-[var(--gap-3)]">
       <PageTitle>{t("tabSettings")}</PageTitle>
 
       <section>
@@ -44,7 +44,7 @@ export function Settings() {
             <div className="flex flex-wrap items-center gap-3">
               <Button
                 variant="secondary"
-                className="h-9 gap-2 rounded-[10px] px-3.5 text-[13px]"
+                className="h-[var(--ctl-h)] gap-2 rounded-[var(--r-ctl)] px-3.5 text-[13px]"
                 onClick={() => void checkUpdates()}
                 disabled={updateState === "checking"}
               >
@@ -52,7 +52,7 @@ export function Settings() {
                 {updateState === "checking" ? t("upChecking") : t("upCheck")}
               </Button>
               {updateState === "available" && (
-                <Button className="h-9 rounded-[10px] px-3.5 text-[13px]" onClick={() => void applyUpdate()}>
+                <Button className="h-[var(--ctl-h)] rounded-[var(--r-ctl)] px-3.5 text-[13px]" onClick={() => void applyUpdate()}>
                   {t("upGet")}
                 </Button>
               )}
@@ -65,7 +65,7 @@ export function Settings() {
           <Row label={t("copyLog")}>
             <Button
               variant="secondary"
-              className="h-9 gap-2 rounded-[10px] px-3.5 text-[13px]"
+              className="h-[var(--ctl-h)] gap-2 rounded-[var(--r-ctl)] px-3.5 text-[13px]"
               onClick={() => void copyLog()}
             >
               <Copy className="size-4" aria-hidden />

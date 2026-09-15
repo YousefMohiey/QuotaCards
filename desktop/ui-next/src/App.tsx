@@ -48,14 +48,15 @@ export default function App() {
       <div className="relative z-10 flex h-full">
         <Sidebar tab={tab} onTab={go} />
         <main id="content" className="min-w-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-[900px] px-8 py-7">
+          <div className="mx-auto flex w-full max-w-[880px] flex-col gap-[var(--gap-3)] px-[var(--pad-page)] py-[var(--pad-page)]">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={tab}
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.2, ease: EASE_OUT }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.18, ease: EASE_OUT }}
+                className="flex flex-col gap-[var(--gap-3)]"
               >
                 {tab === "home" && <Home onOpenApps={() => go("apps")} />}
                 {tab === "cards" && <Cards />}

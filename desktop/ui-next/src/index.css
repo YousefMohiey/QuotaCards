@@ -59,14 +59,29 @@
   --red-bg: rgb(207 112 120 / 0.12);
   --red-line: rgb(207 112 120 / 0.36);
 
-  /* Shape, elevation, motion. */
-  --r-ctl: 10px;
-  --r-card: 16px;
+  /* Shape, elevation, motion. One control height, one row rhythm, one radius
+     per role: every surface in the app is built from these, so a button in a
+     dialog lines up with one on a page. */
+  --ctl-h: 36px;
+  --ctl-h-sm: 30px;
+  --pad-page: 20px;
+  --pad-card: 16px;
+  --row-h: 34px;
+  --gap-1: 6px;
+  --gap-2: 10px;
+  --gap-3: 16px;
+  --gap-4: 22px;
+  --r-ctl: 9px;
+  --r-card: 14px;
+  --r-modal: 14px;
   --r-pill: 999px;
   --sh-1: 0 1px 2px rgb(0 0 0 / 0.24);
-  --sh-2: 0 16px 40px rgb(0 0 0 / 0.45), 0 2px 8px rgb(0 0 0 / 0.35);
+  --sh-2: 0 12px 32px rgb(0 0 0 / 0.34), 0 2px 6px rgb(0 0 0 / 0.28);
+  --sh-3: 0 24px 64px rgb(0 0 0 / 0.48);
   --ease: cubic-bezier(0.33, 0, 0.67, 1);
   --ease-out: cubic-bezier(0.1, 0.9, 0.2, 1);
+  --t-fast: 160ms;
+  --t-base: 190ms;
 
   /* shadcn token bridge */
   --background: var(--bg);
@@ -221,10 +236,10 @@
    legibility rules live in the `liquid-glass-ui` skill.
    --------------------------------------------------------------------------- */
 :root {
-  --glass-fill: rgb(13 18 30 / 0.45);
-  --glass-line: rgb(255 255 255 / 0.12);
-  --glass-top: rgb(255 255 255 / 0.1);
-  --glass-blur: blur(20px) saturate(150%);
+  --glass-fill: rgb(13 18 30 / 0.46);
+  --glass-line: rgb(255 255 255 / 0.11);
+  --glass-top: rgb(255 255 255 / 0.09);
+  --glass-blur: blur(15px) saturate(145%);
 }
 
 .scene {
@@ -279,46 +294,85 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
 }
 
-/* The one shared material: diagonal lit wash, dark frosted fill, lit edge,
-   inner thickness, outer float. */
+/* The one shared material. Less layering than before: a single thin border,
+   a soft float shadow and a quiet top light, so stacked panes never read as
+   nested frames. */
 .glass {
   background:
-    linear-gradient(115deg, rgb(255 255 255 / 0.06), transparent 32%),
+    linear-gradient(115deg, rgb(255 255 255 / 0.05), transparent 30%),
     var(--glass-fill);
   backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-line);
   box-shadow:
     inset 0 1px 0 var(--glass-top),
-    inset 0 -12px 24px rgb(0 0 0 / 0.18),
-    0 24px 60px rgb(0 0 0 / 0.35);
+    var(--sh-2);
 }
 
 /* Sidebar: same pane, cooler and quieter, so content stays the focus. */
 .glass-side {
   background: rgb(9 12 20 / 0.5);
-  backdrop-filter: blur(26px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(145%);
   border-inline-end: 1px solid var(--glass-line);
 }
 
-/* Sheets: heavier blur, never heavier opacity than this or the scene dies. */
+/* Sheets: a native dialog, so a moderate frost and one border. */
 .glass-dialog {
   background:
-    linear-gradient(115deg, rgb(255 255 255 / 0.07), transparent 30%),
-    rgb(12 17 28 / 0.74) !important;
-  backdrop-filter: blur(30px) saturate(150%);
+    linear-gradient(115deg, rgb(255 255 255 / 0.05), transparent 28%),
+    rgb(12 17 28 / 0.82) !important;
+  backdrop-filter: blur(18px) saturate(140%);
   border: 1px solid var(--glass-line);
   box-shadow:
     inset 0 1px 0 var(--glass-top),
-    0 30px 80px rgb(0 0 0 / 0.5);
+    var(--sh-3);
 }
 
 /* Small surfaces: lighter frost so stacked glass never turns muddy. */
 .glass-tile {
   background:
-    linear-gradient(115deg, rgb(255 255 255 / 0.05), transparent 34%),
-    rgb(13 18 30 / 0.38);
-  backdrop-filter: blur(16px) saturate(140%);
-  border: 1px solid rgb(255 255 255 / 0.1);
+    linear-gradient(115deg, rgb(255 255 255 / 0.04), transparent 34%),
+    rgb(13 18 30 / 0.34);
+  backdrop-filter: blur(14px) saturate(135%);
+  border: 1px solid rgb(255 255 255 / 0.09);
+}
+
+/* ---------------------------------------------------------------------------
+   Shared surface roles, so pages stop inventing their own paddings.
+   --------------------------------------------------------------------------- */
+.pane {
+  border-radius: var(--r-card);
+  padding: var(--pad-card);
+}
+/* A list that lives on the page instead of inside a card. */
+.list-sep > * + * {
+  border-top: 1px solid var(--line);
+}
+/* One nav row: fixed height keeps icons and labels on a baseline grid. */
+.nav-item {
+  height: var(--row-h);
+  border-radius: var(--r-ctl);
+  transition:
+    background-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease);
+}
+/* Page heading block: title + one line of support, same on every page. */
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--gap-3);
+  padding-inline: 2px;
+}
+.page-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--txt);
+}
+.page-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--txt3);
 }
 
 /* Popovers, selects and menus are part of the same material. */
@@ -330,5 +384,5 @@
   border-color: var(--glass-line);
 }
 [data-slot="dialog-overlay"] {
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(4px);
 }

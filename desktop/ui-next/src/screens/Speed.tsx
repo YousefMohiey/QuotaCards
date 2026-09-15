@@ -197,7 +197,7 @@ export function Speed() {
 
   return (
     <div className="mx-auto flex w-full max-w-[640px] flex-col gap-3.5">
-      <section className="glass rounded-[24px] px-5 pb-4 pt-4">
+      <section className="glass rounded-[var(--r-card)] px-5 pb-4 pt-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="truncate text-[13px] font-semibold text-txt">{t("tabSpeed")}</div>
@@ -218,7 +218,7 @@ export function Speed() {
         <div className="mt-3 flex items-end justify-between gap-6">
           <div className="min-w-0">
             <div className="flex items-baseline gap-2">
-              <span className="text-[46px] leading-none font-light tabular-nums text-txt" style={{ letterSpacing: "-0.02em" }}>
+              <span className="text-[54px] leading-none font-light tabular-nums text-txt" style={{ letterSpacing: "-0.02em" }}>
                 {unit === "ms" ? Math.round(value) : value >= 100 ? value.toFixed(0) : value.toFixed(1)}
               </span>
               <span className="text-[13px] text-txt3">{unit}</span>

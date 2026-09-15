@@ -27,7 +27,7 @@ export function Home({ onOpenApps }: { onOpenApps: () => void }) {
   const routingCount = appsMode !== "all" && apps.length ? ` · ${apps.length}` : ""
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-[var(--gap-3)]">
       <Hero />
 
       <Panel>
@@ -36,7 +36,7 @@ export function Home({ onOpenApps }: { onOpenApps: () => void }) {
           <button
             type="button"
             onClick={() => setPickOpen(true)}
-            className="flex h-10 w-full max-w-[400px] items-center justify-between gap-3 rounded-[12px] border border-line bg-white/[0.02] px-3.5 text-[13px] text-txt transition-all duration-200 hover:border-[var(--brand-line)] hover:bg-[var(--brand-bg)]"
+            className="flex h-[var(--ctl-h)] w-full items-center justify-between gap-3 rounded-[var(--r-ctl)] border border-line bg-white/[0.02] px-3 text-[13px] text-txt transition-colors duration-[var(--t-fast)] hover:border-[var(--brand-line)]"
           >
             <span className="truncate">{card ? card.name.split(" (")[0] : t("needCard")}</span>
             <ChevronDown className="size-4 shrink-0 text-txt3" aria-hidden />
@@ -47,14 +47,14 @@ export function Home({ onOpenApps }: { onOpenApps: () => void }) {
           <button
             type="button"
             onClick={onOpenApps}
-            className="group flex h-10 w-full items-center justify-between gap-3 rounded-[12px] border border-line bg-white/[0.02] px-3.5 text-[13px] text-txt transition-all duration-200 hover:border-[var(--brand-line)] hover:bg-[var(--brand-bg)]"
+            className="group flex h-[var(--ctl-h)] w-full items-center justify-between gap-3 rounded-[var(--r-ctl)] border border-line bg-white/[0.02] px-3 text-[13px] text-txt transition-colors duration-[var(--t-fast)] hover:border-[var(--brand-line)]"
           >
             <span className="truncate">
               {routing}
               {routingCount}
             </span>
             <ChevronRight
-              className="size-4 shrink-0 text-txt3 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-brand-strong"
+              className="size-4 shrink-0 text-txt3 transition-transform duration-[var(--t-fast)] group-hover:translate-x-0.5 group-hover:text-brand-strong"
               aria-hidden
             />
           </button>
@@ -72,7 +72,7 @@ export function Home({ onOpenApps }: { onOpenApps: () => void }) {
                 { value: "hy2", label: "Hysteria2" },
               ]}
             />
-            <p className="mt-2 text-[11.5px] text-txt3">
+            <p className="mt-1.5 text-[11.5px] text-txt3">
               {transport === "vless" ? t("trNoteVless") : transport === "wg" ? t("trNoteWg") : t("trNoteHy2")}
             </p>
           </div>
@@ -83,7 +83,7 @@ export function Home({ onOpenApps }: { onOpenApps: () => void }) {
         open={pickOpen}
         onOpenChange={setPickOpen}
         title={t("cardForVpn")}
-        search={t("appsSearch")}
+        search={t("searchList")}
         items={cardItems}
         value={card?.uuid ?? ""}
         onPick={(uuid) => pickCard(uuid)}

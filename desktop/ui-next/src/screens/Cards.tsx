@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Check, Copy, Link as LinkIcon, Plus, Trash2, TriangleAlert } from "lucide-react"
+import { Check, ChevronDown, Copy, Link as LinkIcon, Plus, Trash2, TriangleAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import { PickerDialog, type PickerItem } from "@/components/PickerDialog"
 import { Segmented } from "@/components/Segmented"
-import { Panel } from "@/components/Row"
+import { Panel, PageTitle } from "@/components/Row"
 import { useApp } from "@/state/app"
 import { useI18n } from "@/lib/i18n"
 import { CUSTOM_SNI, DEFAULT_SNI, SNIS, labelForSni } from "@/lib/snis"
@@ -21,6 +21,8 @@ import { parseCardLink } from "@/lib/cardlink"
 import { cn } from "@/lib/utils"
 
 type Kind = "Gamerz" | "Streamerz"
+
+const FIELD = "h-[var(--ctl-h)] rounded-[var(--r-ctl)] border-line bg-white/[0.02] text-[13px]"
 
 export function Cards() {
   const { t } = useI18n()
@@ -100,101 +102,94 @@ export function Cards() {
   ]
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3 px-1">
-        <h2 className="text-[15px] font-semibold text-txt">
-          {t("myCards")}
-          <span className="ms-2 text-[12.5px] font-normal text-txt3">{cards.length}</span>
-        </h2>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            className="h-8 gap-1.5 rounded-[10px] px-3 text-[12.5px]"
-            onClick={() => {
-              setPasteNote("")
-              setPasted("")
-              setPasteOpen(true)
-            }}
-          >
-            <LinkIcon className="size-3.5" aria-hidden />
-            {t("addCardLink")}
-          </Button>
-          <Button
-            size="sm"
-            className="h-8 gap-1.5 rounded-[10px] px-3 text-[12.5px]"
-            onClick={() => {
-              reset()
-              setOpen(true)
-            }}
-          >
-            <Plus className="size-3.5" aria-hidden />
-            {t("newCard")}
-          </Button>
-        </div>
+    <div className="flex flex-col gap-[var(--gap-3)]">
+      <PageTitle sub={t("cardsSub")}>{t("myCards")}</PageTitle>
+
+      <div className="flex items-center gap-2">
+        <Button
+          variant="secondary"
+          className="h-[var(--ctl-h-sm)] gap-1.5 rounded-[var(--r-ctl)] px-3 text-[12.5px]"
+          onClick={() => {
+            setPasteNote("")
+            setPasted("")
+            setPasteOpen(true)
+          }}
+        >
+          <LinkIcon className="size-3.5" aria-hidden />
+          {t("addCardLink")}
+        </Button>
+        <Button
+          className="h-[var(--ctl-h-sm)] gap-1.5 rounded-[var(--r-ctl)] px-3 text-[12.5px]"
+          onClick={() => {
+            reset()
+            setOpen(true)
+          }}
+        >
+          <Plus className="size-3.5" aria-hidden />
+          {t("newCard")}
+        </Button>
       </div>
 
       {cards.length === 0 ? (
-        <Panel className="p-6 text-[13px] text-txt3">{t("noCards")}</Panel>
+        <Panel className="p-5 text-[13px] text-txt3">{t("noCards")}</Panel>
       ) : (
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2.5 xl:grid-cols-2">
           {cards.map((c) => {
             const inUse = c.uuid === cardUuid
             return (
               <div
                 key={c.uuid}
                 className={cn(
-                  "glass-tile rounded-[14px] p-4 transition-colors",
-                  inUse ? "border-[var(--brand-line)]" : "hover:bg-white/[0.02]",
+                  "glass flex flex-col gap-3 rounded-[var(--r-card)] p-3.5 transition-colors duration-[var(--t-base)]",
+                  inUse ? "border-[var(--brand-line)]" : "hover:border-[var(--glass-line)]",
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="truncate text-[14px] font-medium text-txt">{c.name.split(" (")[0]}</div>
-                    <div className="mt-1 truncate text-[12px] text-txt3">{c.sni || "—"}</div>
+                    <div className="truncate text-[13.5px] font-semibold text-txt">{c.name.split(" (")[0]}</div>
+                    <div className="mt-0.5 truncate text-[11.5px] text-txt3">{c.sni || "-"}</div>
                   </div>
-                  <span className="shrink-0 rounded-full border border-line-strong px-2 py-[3px] text-[11px] text-txt3">
-                    {c.card_type}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span className="rounded-full border border-line bg-white/[0.02] px-1.5 py-[1px] text-[10px] tracking-[0.04em] text-txt2 uppercase">
+                      {c.card_type}
+                    </span>
+                    {inUse && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--green-line)] bg-[var(--green-bg)] px-2 py-[1px] text-[10.5px] text-[var(--green)]">
+                        <span className="size-1.5 rounded-full bg-[var(--green)]" aria-hidden />
+                        {t("inUse")}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="mt-4 flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <Button
-                    variant="secondary"
                     size="sm"
-                    className="h-8 gap-1.5 rounded-[10px] px-2.5 text-[12px]"
+                    className="h-[var(--ctl-h-sm)] gap-1.5 rounded-[var(--r-ctl)] px-2.5 text-[12px]"
                     onClick={() => void copyCard(c.uuid)}
                   >
                     <Copy className="size-3.5" aria-hidden />
                     {t("copy")}
                   </Button>
+                  {!inUse && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="h-[var(--ctl-h-sm)] rounded-[var(--r-ctl)] px-3 text-[12px]"
+                      onClick={() => pickCard(c.uuid)}
+                    >
+                      {t("connect")}
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 gap-1.5 rounded-[10px] px-2.5 text-[12px] text-txt3 hover:text-[var(--red)]"
+                    className="ms-auto h-[var(--ctl-h-sm)] gap-1.5 rounded-[var(--r-ctl)] px-2.5 text-[12px] text-[var(--red)] opacity-75 transition-all duration-[var(--t-fast)] hover:bg-[var(--red-bg)] hover:opacity-100"
                     onClick={() => void revokeCard(c.uuid)}
                   >
                     <Trash2 className="size-3.5" aria-hidden />
                     {t("revoke")}
                   </Button>
-
-                  <div className="ms-auto">
-                    {inUse ? (
-                      <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--green)]">
-                        <Check className="size-3.5" aria-hidden />
-                        {t("inUse")}
-                      </span>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-8 rounded-[10px] px-3 text-[12px]"
-                        onClick={() => pickCard(c.uuid)}
-                      >
-                        {t("connect")}
-                      </Button>
-                    )}
-                  </div>
                 </div>
               </div>
             )
@@ -204,13 +199,13 @@ export function Cards() {
 
       {/* new card: name, kind, then the domain through the list picker */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-[420px] gap-5 rounded-[16px] border-line bg-[var(--popover)]">
+        <DialogContent className="max-w-[420px] gap-4">
           <DialogHeader>
-            <DialogTitle className="text-[15px]">{t("newCard")}</DialogTitle>
+            <DialogTitle className="text-[14.5px]">{t("newCard")}</DialogTitle>
             <DialogDescription className="text-[12.5px] text-txt3">{t("ptDomain")}</DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3.5">
             <Segmented
               id="kind"
               value={kind}
@@ -226,7 +221,7 @@ export function Cards() {
             />
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="card-name" className="text-[12.5px] text-txt2">
+              <Label htmlFor="card-name" className="text-[12px] text-txt2">
                 {t("cardName")}
               </Label>
               <Input
@@ -234,30 +229,31 @@ export function Cards() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t("exName")}
-                className="h-9 rounded-[10px] border-line bg-white/[0.02] text-[13px]"
+                className={FIELD}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label className="text-[12.5px] text-txt2">{t("domainSni")}</Label>
+              <Label className="text-[12px] text-txt2">{t("domainSni")}</Label>
               <button
                 type="button"
                 onClick={() => setDomainOpen(true)}
-                className="flex h-9 w-full items-center justify-between gap-2 rounded-[10px] border border-line bg-white/[0.02] px-3 text-[13px] text-txt transition-colors hover:border-[var(--brand-line)]"
+                className={cn(
+                  FIELD,
+                  "flex w-full items-center justify-between gap-2 border px-3 text-txt transition-colors duration-[var(--t-fast)] hover:border-[var(--brand-line)]",
+                )}
               >
                 <span className="truncate">
-                  {sni === CUSTOM_SNI
-                    ? custom.trim() || t("customDomainOpt")
-                    : `${labelForSni(sni)} · ${sni}`}
+                  {sni === CUSTOM_SNI ? custom.trim() || t("customDomainOpt") : `${labelForSni(sni)} · ${sni}`}
                 </span>
-                <span className="text-[11.5px] text-txt3">{t("domainSni")}</span>
+                <ChevronDown className="size-4 shrink-0 text-txt3" aria-hidden />
               </button>
               {sni === CUSTOM_SNI && (
                 <Input
                   value={custom}
                   onChange={(e) => setCustom(e.target.value)}
                   placeholder="example.com"
-                  className="mt-1 h-9 rounded-[10px] border-line bg-white/[0.02] text-[13px]"
+                  className={cn(FIELD, "mt-0.5")}
                 />
               )}
             </div>
@@ -266,10 +262,18 @@ export function Cards() {
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="ghost" className="h-9 rounded-[10px] text-[13px]" onClick={() => setOpen(false)}>
+            <Button
+              variant="ghost"
+              className="h-[var(--ctl-h)] rounded-[var(--r-ctl)] text-[13px]"
+              onClick={() => setOpen(false)}
+            >
               {t("cancel")}
             </Button>
-            <Button className="h-9 rounded-[10px] text-[13px]" disabled={busy} onClick={() => void submit()}>
+            <Button
+              className="h-[var(--ctl-h)] rounded-[var(--r-ctl)] text-[13px]"
+              disabled={busy}
+              onClick={() => void submit()}
+            >
               {busy ? t("measuring") : t("generateCard")}
             </Button>
           </DialogFooter>
@@ -278,9 +282,9 @@ export function Cards() {
 
       {/* add a card that came from somewhere else */}
       <Dialog open={pasteOpen} onOpenChange={setPasteOpen}>
-        <DialogContent className="max-w-[440px] gap-5 rounded-[16px] border-line bg-[var(--popover)]">
+        <DialogContent className="max-w-[440px] gap-4">
           <DialogHeader>
-            <DialogTitle className="text-[15px]">{t("pasteTitle")}</DialogTitle>
+            <DialogTitle className="text-[14.5px]">{t("pasteTitle")}</DialogTitle>
             <DialogDescription className="text-[12.5px] text-txt3">{t("pasteHint")}</DialogDescription>
           </DialogHeader>
 
@@ -293,16 +297,24 @@ export function Cards() {
             }}
             placeholder={t("pastePlaceholder")}
             aria-label={t("pasteTitle")}
-            className="h-9 rounded-[10px] border-line bg-white/[0.02] font-mono text-[12px]"
+            className={cn(FIELD, "font-mono text-[12px]")}
           />
 
           {pasteNote && <Note text={pasteNote} bad={pasteBad} />}
 
           <DialogFooter className="gap-2">
-            <Button variant="ghost" className="h-9 rounded-[10px] text-[13px]" onClick={() => setPasteOpen(false)}>
+            <Button
+              variant="ghost"
+              className="h-[var(--ctl-h)] rounded-[var(--r-ctl)] text-[13px]"
+              onClick={() => setPasteOpen(false)}
+            >
               {t("cancel")}
             </Button>
-            <Button className="h-9 rounded-[10px] text-[13px]" disabled={busy || !pasted.trim()} onClick={() => void submitPaste()}>
+            <Button
+              className="h-[var(--ctl-h)] rounded-[var(--r-ctl)] text-[13px]"
+              disabled={busy || !pasted.trim()}
+              onClick={() => void submitPaste()}
+            >
               {t("add")}
             </Button>
           </DialogFooter>
@@ -331,17 +343,13 @@ function Note({ text, bad }: { text: string; bad: boolean }) {
     <p
       role={bad ? "alert" : "status"}
       className={cn(
-        "flex items-center gap-2 rounded-[10px] px-3 py-2 text-[12px]",
+        "flex items-center gap-2 rounded-[var(--r-ctl)] px-3 py-2 text-[12px]",
         bad
           ? "border border-[var(--red-line)] bg-[var(--red-bg)] text-[var(--red)]"
           : "border border-[var(--green-line)] bg-[var(--green-bg)] text-[var(--green)]",
       )}
     >
-      {bad ? (
-        <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-      ) : (
-        <Check className="size-3.5 shrink-0" aria-hidden />
-      )}
+      {bad ? <TriangleAlert className="size-3.5 shrink-0" aria-hidden /> : <Check className="size-3.5 shrink-0" aria-hidden />}
       {text}
     </p>
   )

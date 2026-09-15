@@ -53,8 +53,8 @@ export function Hero() {
   useTick(1000, connected)
 
   return (
-    <section className="glass rounded-[24px] p-6">
-      <div className="flex min-h-[240px] items-center">
+    <section className="glass rounded-[var(--r-card)] p-5">
+      <div className="flex min-h-[210px] items-center">
         <motion.div
           layout
           transition={SPRING}
