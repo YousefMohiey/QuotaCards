@@ -35,6 +35,10 @@ pub struct AppConfig {
     /// Process names routed through the tunnel in "apps" mode.
     #[serde(default)]
     pub tun_apps: Vec<String>,
+    /// The app build that last re-registered every card on the server. Lets
+    /// the launch refresh run once per update instead of on every open.
+    #[serde(default)]
+    pub healed_version: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

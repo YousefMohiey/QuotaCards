@@ -133,6 +133,37 @@ async fn probe_server(state: tauri::State<'_, State>) -> Result<CmdResult, Strin
     Ok(CmdResult { ok: true, msg: "Connected - server ready.".into() })
 }
 
+/// One refresh per app build: list the server's clients and re-add every local
+/// card it does not know. Silent, detached, and the marker is only written on
+/// success, so a launch with no network simply retries on the next one.
+fn spawn_launch_refresh(app: tauri::AppHandle) {
+    let version = app.package_info().version.to_string();
+    let (host, user, port, key, cards) = {
+        let state = app.state::<State>();
+        let cfg = state.0.lock().unwrap();
+        if cfg.server_ip.is_empty() || cfg.cards.is_empty() || cfg.healed_version == version {
+            return;
+        }
+        (
+            cfg.server_ip.clone(),
+            cfg.ssh_user.clone(),
+            cfg.ssh_port,
+            cfg.private_key.clone(),
+            cfg.cards.iter().map(|c| c.uuid.clone()).collect::<Vec<_>>(),
+        )
+    };
+    tauri::async_runtime::spawn(async move {
+        if let Ok(remote) = server::list_clients(&host, port, &user, &key).await {
+            for u in cards.iter().filter(|u| !remote.contains(u)) {
+                let _ = server::add_client(&host, port, &user, &key, u).await;
+            }
+            let state = app.state::<State>();
+            state.0.lock().unwrap().healed_version = version;
+            state.0.lock().unwrap().save();
+        }
+    });
+}
+
 #[tauri::command]
 async fn generate_card(
     _app: tauri::AppHandle,
@@ -574,6 +605,10 @@ pub fn run() {
             ))
             .unwrap_or_default();
             *app.state::<State>().0.lock().unwrap() = cfg;
+            // Once per update: quietly re-register every local card on the
+            // server so a wiped or rebuilt server heals on launch, not only
+            // when the user connects.
+            spawn_launch_refresh(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
