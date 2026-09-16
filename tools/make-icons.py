@@ -36,30 +36,6 @@ SHARPEN = {
 # get a contrast and saturation lift: the downscale averages the thin ring into
 # the dark tile and the mark goes muddy exactly where it is smallest.
 SMALL_LIFT = {16, 20, 24, 30, 32, 36}
-# Below ~24px the mark's ring is a single antialiased pixel across and the
-# counter fills in, so the mark reads as a smudge. These sizes get the mark
-# itself magnified in place (glyph only, tile untouched) so the stroke and the
-# counter both survive the raster. Growing the bright pixels instead turned the
-# ring into a white blob - never do that.
-SMALL_MARK = {16, 20, 24, 30, 32}
-MARK_ZOOM = 1.28
-# On a dark taskbar the near-black tile disappears and only the mark floats.
-# The smallest sizes get a flat lift of the whole frame instead of an outline:
-# the ring is already white, so only the tile and the blue move, and the icon
-# reads as a tile sitting on the taskbar rather than a sticker with a border.
-TILE_LIFT = {16}
-# From 20px up there is room for a real rim: a one-pixel top-lit edge, which
-# reads as light falling on the tile. Verified clean at 24 and 32.
-RIM = {20, 24, 30, 32, 36}
-
-
-def mark_mask(im: Image.Image) -> Image.Image:
-    """The mark itself: the light ring plus the saturated blue tail."""
-    rgb = im.convert("RGB")
-    r, g, b = rgb.split()
-    bright = rgb.convert("L").point(lambda v: 255 if v > 150 else 0)
-    blue = ImageChops.subtract(b, r).point(lambda v: 255 if v > 30 else 0)
-    return ImageChops.lighter(bright, blue)
 # The master carries ~14% empty margin around the tile. Trimmed to this much
 # margin so the tile fills the frame: Windows renders tray and shortcut icons
 # at 16-48px, and art that sits at 72% of the canvas reads as a smaller icon
@@ -90,59 +66,18 @@ def source_master() -> Image.Image:
 
 
 def render(master: Image.Image, size: int) -> Image.Image:
+    """Plain downscale plus a light unsharp at the sizes Windows actually
+    shows small. The master art (tools/tune-master.py) carries the legibility:
+    a lifted tile, a baked edge and a slightly larger mark, so no per-size
+    trickery is needed here."""
     im = master.resize((size, size), Image.LANCZOS)
     spec = SHARPEN.get(size)
     if spec:
         radius, percent = spec
         rgb = im.convert("RGB")
-        if size in SMALL_MARK:
-            # Magnify the mark in place. Only the mark's own pixels are pasted
-            # back, so the tile underneath (and its rounded corners) is never
-            # disturbed by the enlargement.
-            mask = mark_mask(im)
-            box = mask.getbbox()
-            if box:
-                x0, y0, x1, y1 = box
-                pad = max(2, round(max(x1 - x0, y1 - y0) * 0.55))
-                crop = (max(0, x0 - pad), max(0, y0 - pad), min(size, x1 + pad), min(size, y1 + pad))
-                mark = im.crop(crop)
-                mmask = mask.crop(crop)
-                z = MARK_ZOOM
-                big = mark.resize((max(1, round(mark.width * z)), max(1, round(mark.height * z))), Image.LANCZOS)
-                bmask = mmask.resize(big.size, Image.LANCZOS)
-                px = (x0 + x1) // 2 - big.width // 2
-                py = (y0 + y1) // 2 - big.height // 2
-                layer = Image.new("RGBA", im.size, (0, 0, 0, 0))
-                layer.paste(big, (px, py))
-                base = Image.new("RGBA", im.size, (0, 0, 0, 0))
-                base.paste(bmask, (px, py))
-                rgb = Image.composite(layer.convert("RGB"), rgb, base.getchannel("A"))
         if size in SMALL_LIFT:
-            # Lift before sharpening so the ring and the glyph survive the
-            # average: at 16-36px the unmodified downscale reads as a smudge.
-            rgb = ImageEnhance.Contrast(rgb).enhance(1.16)
-            rgb = ImageEnhance.Color(rgb).enhance(1.25)
-        if size in TILE_LIFT:
-            rgb = ImageEnhance.Brightness(rgb).enhance(1.6)
-        if size in RIM:
-            # A one-pixel lighter edge on the tile so the icon is not a black
-            # square on a black taskbar. Slightly brighter at the top, so it
-            # reads as light falling on the tile rather than a sticker outline,
-            # and pushed harder at the smallest sizes where the band is barely
-            # a pixel wide.
-            alpha = im.getchannel("A")
-            inner = alpha.filter(ImageFilter.MinFilter(3))
-            edge = ImageChops.subtract(alpha, inner)
-            if size <= 24:
-                edge = edge.point(lambda v: min(255, int(v * 1.8)))
-            edge = edge.filter(ImageFilter.GaussianBlur(0.6))
-            g = Image.linear_gradient("L").resize(im.size)
-            rim = Image.composite(
-                Image.new("RGB", im.size, (150, 166, 196)),
-                Image.new("RGB", im.size, (92, 104, 130)),
-                g,
-            )
-            rgb = Image.composite(rim, rgb, edge)
+            rgb = ImageEnhance.Contrast(rgb).enhance(1.08)
+            rgb = ImageEnhance.Color(rgb).enhance(1.1)
         rgb = rgb.filter(
             ImageFilter.UnsharpMask(radius=radius, percent=percent, threshold=1)
         ).convert("RGBA")
@@ -203,7 +138,11 @@ def build():
 
     # multi-size .ico: DIB frames for <=128 (max compatibility incl. windres),
     # PNG frame for 256 (standard, keeps the file small).
-    entries = [(frames[s], s == 256) for s in SIZES]
+    # Tauri's docs: the ico must carry 16, 24, 32, 48, 64 and 256px, and the
+    # 32px layer should come FIRST for a correct display in development.
+    first = [32, 16, 24, 48, 64, 256]
+    order = first + [s for s in SIZES if s not in first]
+    entries = [(frames[s], s == 256) for s in order]
     for p in [
         ROOT / "res" / "app-icon.ico",
         ROOT / "desktop" / "src-tauri" / "icons" / "icon.ico",
