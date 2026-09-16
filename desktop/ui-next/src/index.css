@@ -60,6 +60,9 @@
   --red: #cf7078;
   --red-bg: rgb(207 112 120 / 0.12);
   --red-line: rgb(207 112 120 / 0.36);
+  /* Upload phase of the speed run: the steel tone the palette already uses
+     for jitter, kept muted so no phase shouts. */
+  --cyan: #63a8bb;
 
   /* Shape, elevation, motion. */
   --r-ctl: 10px;

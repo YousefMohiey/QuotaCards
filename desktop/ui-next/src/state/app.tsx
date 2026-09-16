@@ -299,14 +299,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setVpnOn(false)
     try {
       const r = await api.stop()
-      setStatus(r.msg)
       if (!r.ok) {
+        setStatus(r.msg)
         // engine still up: put the UI back where it was
         setVpnOn(true)
         setConnected(true)
         setPhase("on")
         return
       }
+      // A clean stop says nothing: the dial and the panel already show the
+      // state, and the backend's "VPN off." line read as noise under the name.
+      setStatus("")
     } catch (e) {
       setStatus(String(e))
       setVpnOn(true)

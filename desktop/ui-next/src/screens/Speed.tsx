@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
-import { ChevronRight, Gamepad2, Play, RotateCcw, Tv, Video } from "lucide-react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { ChevronDown, ChevronRight, Gamepad2, Play, RotateCcw, Tv, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PickerDialog, type PickerItem } from "@/components/PickerDialog"
 import { SpeedBars } from "@/components/SpeedBars"
 import { useApp } from "@/state/app"
 import { useI18n, type StrKey } from "@/lib/i18n"
@@ -17,7 +18,7 @@ export type Run = { at: number; ping: number | null; jitter: number | null; down
 /** A history page is only useful if it keeps more than a handful, so the
     store holds a long list (the old inline strip capped it at 3). */
 const HISTORY_MAX = 100
-type NetInfo = { isp: string; place: string; colo: string }
+type NetInfo = { ip: string; isp: string; place: string }
 
 const EMPTY: Result = { ping: null, jitter: null, down: null, up: null }
 
@@ -42,32 +43,77 @@ export function loadHistory(): Run[] {
   }
 }
 
-/** ISP plus Cloudflare colo for the internet test. Both endpoints are
-   CORS-open; anything failing just means no provider lines are shown. */
+/** Where a run measures against. Cloudflare's speed endpoints are the public
+    reference (that is the site's own API, CORS-open); the QuotaCards server
+    option measures the card's own path through the tunnel. */
+export type TestServer = "cloudflare" | "own"
+
+export type RunUrls = {
+  ping: string
+  down: (bytes: number) => string
+  up: string
+}
+
+export function runUrls(server: TestServer, host: string): RunUrls {
+  if (server === "own" && host) {
+    const base = `https://${host}`
+    return {
+      ping: `${base}/speed/down?bytes=1&r=${Math.random()}`,
+      down: (bytes: number) => `${base}/speed/down?bytes=${bytes}&r=${Math.random()}`,
+      up: `${base}/speed/up?r=${Math.random()}`,
+    }
+  }
+  return { ping: CF_PING_URL, down: cfDownUrl, up: CF_UP_URL }
+}
+
+/** Exit IP plus provider for the speed page. Both services are HTTPS and
+    CORS-open; with the tunnel up this reports the server's address, which is
+    what a speed test should show. Failure just means no provider line. */
 async function resolveNetInfo(signal: AbortSignal): Promise<NetInfo | null> {
+  const timeout = AbortSignal.timeout(8000)
   try {
-    const timeout = AbortSignal.timeout(6000)
-    const [a, b] = await Promise.all([
-      fetch("https://ip-api.com/json/?fields=status,isp,org,country,city", { signal: timeout })
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-      fetch("https://www.cloudflare.com/cdn-cgi/trace", { signal: timeout })
-        .then((r) => (r.ok ? r.text() : ""))
-        .catch(() => ""),
-    ])
-    if (signal.aborted) return null
-    if (!a || a.status !== "success") return null
-    const colo = (/^colo=(.+)$/m.exec(b || "") || [])[1]?.trim() || ""
-    const place = [a.city, a.country].filter(Boolean).join(", ")
-    return { isp: String(a.isp || a.org || ""), place, colo }
+    const r = await fetch("https://ipwho.is/", { signal: timeout, cache: "no-store" })
+    if (r.ok) {
+      const d = await r.json()
+      if (d && d.success !== false && typeof d.ip === "string" && d.ip) {
+        const isp = String(d.connection?.isp || d.connection?.org || "")
+        const place = [d.city, d.country].filter(Boolean).join(", ")
+        return { ip: d.ip, isp, place }
+      }
+    }
   } catch {
-    return null
+    /* try the next one */
+  }
+  try {
+    const r = await fetch("https://ipapi.co/json/", { signal: timeout, cache: "no-store" })
+    if (r.ok) {
+      const d = await r.json()
+      if (d && typeof d.ip === "string" && d.ip) {
+        return {
+          ip: d.ip,
+          isp: String(d.org || ""),
+          place: [d.city, d.country_name].filter(Boolean).join(", "),
+        }
+      }
+    }
+  } catch {
+    /* no provider line then */
+  }
+  if (signal.aborted) return null
+  return null
+}
+
+export function saveHistory(runs: Run[]) {
+  try {
+    localStorage.setItem("qc-speed-history", JSON.stringify(runs.slice(0, HISTORY_MAX)))
+  } catch {
+    /* private mode: history just does not stick */
   }
 }
 
 export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
   const { t } = useI18n()
-  const { card } = useApp()
+  const { card, serverIp } = useApp()
 
   const [phase, setPhase] = useState<Phase>("idle")
   const [caption, setCaption] = useState(() => t("idle"))
@@ -78,12 +124,16 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
   const [hint, setHint] = useState("")
   const [history, setHistory] = useState<Run[]>(() => loadHistory())
   const [netInfo, setNetInfo] = useState<NetInfo | null>(null)
+  const [server, setServer] = useState<TestServer>("cloudflare")
+  const [serverOpen, setServerOpen] = useState(false)
 
   const abort = useRef<AbortController | null>(null)
   const gate = useRef(0)
 
   const running = phase === "ping" || phase === "download" || phase === "upload"
   const kind = card?.card_type === "Streamerz" ? "Streamerz" : "Gamerz"
+  const serverLabel = server === "own" ? serverIp || t("targetServer") : "Cloudflare"
+  const urls = useMemo(() => runUrls(server, serverIp), [server, serverIp])
 
   useEffect(() => {
     setResult(EMPTY)
@@ -113,7 +163,7 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     try {
       const r = await measurePing(host, PING_PROBES, {
         signal,
-        pingUrl: CF_PING_URL,
+        pingUrl: urls.ping,
         onPing: (ms) => push(ms),
       })
       setResult((prev) => ({ ...prev, ping: r.ping, jitter: r.jitter }))
@@ -139,7 +189,7 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
         seconds: PHASE_SECONDS,
         signal,
         onTick: (v) => push(v),
-        ...(direction === "down" ? { downUrl: cfDownUrl } : { upUrl: CF_UP_URL }),
+        ...(direction === "down" ? { downUrl: urls.down } : { upUrl: urls.up }),
       })
       setResult((prev) => (direction === "down" ? { ...prev, down: mbps } : { ...prev, up: mbps }))
       setValue(mbps)
@@ -163,13 +213,17 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
 
   const run = async (which: "all" | "ping" | "down" | "up") => {
     if (running) return
-    const host = "net"
+    if (server === "own" && !serverIp) {
+      setHint(t("needServer"))
+      return
+    }
+    const host = server === "own" ? serverIp : "net"
     abort.current?.abort()
     const ctl = new AbortController()
     abort.current = ctl
     const s = ctl.signal
     const acc: Result = { ...result }
-    const label = t("targetInternet")
+    const label = serverLabel
     setNetInfo(null)
     if (!isSimEnv()) {
       void resolveNetInfo(s).then((info) => {
@@ -214,6 +268,10 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
   const measured = result.ping !== null || result.down !== null || result.up !== null
   const verdicts = buildVerdicts(result, t)
   const peak = samples.length ? Math.max(...samples) : 0
+  const serverItems: PickerItem[] = [
+    { value: "cloudflare", label: "Cloudflare", sub: t("srvPublic") },
+    { value: "own", label: serverIp || t("targetServer"), sub: t("srvOwnNote") },
+  ]
 
   return (
     <div className="mx-auto flex w-full max-w-[640px] flex-col gap-3">
@@ -227,13 +285,23 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
         {netInfo && (
           <div className="mt-1.5 space-y-0.5 text-[11px] text-txt3">
             <div className="truncate">
-              {t("provider")}: <span className="text-txt2"><bdi>{netInfo.isp}{netInfo.place ? ` - ${netInfo.place}` : ""}</bdi></span>
-            </div>
-            <div className="truncate">
-              {t("serverLabel")}: <span className="text-txt2">Cloudflare{netInfo.colo ? ` ${netInfo.colo}` : ""}</span>
+              {t("yourIp")}:{" "}
+              <span className="text-txt2">
+                <bdi>{netInfo.ip}</bdi>
+                {netInfo.isp ? <> · <bdi>{netInfo.isp}</bdi></> : null}
+                {netInfo.place ? <> · <bdi>{netInfo.place}</bdi></> : null}
+              </span>
             </div>
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => setServerOpen(true)}
+          className="mt-1 flex items-center gap-1.5 text-[11px] text-txt3 transition-colors duration-150 hover:text-txt2"
+        >
+          {t("serverLabel")}: <span className="text-txt2">{serverLabel}</span>
+          <ChevronDown className="size-3 shrink-0" aria-hidden />
+        </button>
 
         <div className="mt-2.5 flex items-end justify-between gap-6">
           <div className="min-w-0">
@@ -345,6 +413,17 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
           {hint || t("speedIdle")}
         </p>
       )}
+
+      {/* pick the server the run measures against, the way a speed test does */}
+      <PickerDialog
+        open={serverOpen}
+        onOpenChange={setServerOpen}
+        title={t("pickServer")}
+        search={t("searchList")}
+        items={serverItems}
+        value={server}
+        onPick={(v) => setServer(v as TestServer)}
+      />
     </div>
   )
 }
