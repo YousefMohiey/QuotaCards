@@ -44,10 +44,13 @@ SMALL_LIFT = {16, 20, 24, 30, 32, 36}
 SMALL_MARK = {16, 20, 24, 30, 32}
 MARK_ZOOM = 1.28
 # On a dark taskbar the near-black tile disappears and only the mark floats.
-# These sizes get a one-pixel lighter rim so the icon reads as a tile, the way
-# every neighbouring icon does (Microsoft: "exaggerate aspects at smaller
-# sizes ... to focus the key point").
-RIM = {16, 20, 24, 30, 32, 36}
+# The smallest sizes get a flat lift of the whole frame instead of an outline:
+# the ring is already white, so only the tile and the blue move, and the icon
+# reads as a tile sitting on the taskbar rather than a sticker with a border.
+TILE_LIFT = {16}
+# From 20px up there is room for a real rim: a one-pixel top-lit edge, which
+# reads as light falling on the tile. Verified clean at 24 and 32.
+RIM = {20, 24, 30, 32, 36}
 
 
 def mark_mask(im: Image.Image) -> Image.Image:
@@ -119,6 +122,8 @@ def render(master: Image.Image, size: int) -> Image.Image:
             # average: at 16-36px the unmodified downscale reads as a smudge.
             rgb = ImageEnhance.Contrast(rgb).enhance(1.16)
             rgb = ImageEnhance.Color(rgb).enhance(1.25)
+        if size in TILE_LIFT:
+            rgb = ImageEnhance.Brightness(rgb).enhance(1.6)
         if size in RIM:
             # A one-pixel lighter edge on the tile so the icon is not a black
             # square on a black taskbar. Slightly brighter at the top, so it
