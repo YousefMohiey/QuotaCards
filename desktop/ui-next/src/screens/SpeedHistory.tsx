@@ -5,7 +5,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -323,30 +322,32 @@ export function SpeedHistory({ onBack, onOpenResult }: { onBack: () => void; onO
       )}
 
       <Dialog open={pending !== null} onOpenChange={(o) => !o && setPending(null)}>
-        <DialogContent className="max-w-[380px] gap-3.5">
-          <DialogHeader>
-            <DialogTitle className="text-[14.5px]">{title}</DialogTitle>
-            <DialogDescription className="text-[12.5px] text-txt3">{body}</DialogDescription>
-          </DialogHeader>
-          <p className="text-[12.5px] text-txt2">
-            {t("history")}: <span className="tabular-nums">{rowsToGo}</span>
-          </p>
-          <DialogFooter className="gap-2">
+        <DialogContent className="max-w-[360px] gap-0 overflow-hidden rounded-[var(--r-card)] p-0">
+          <div className="px-5 pb-4 pt-4">
+            <DialogHeader className="gap-1.5">
+              <DialogTitle className="text-[14px] font-semibold">{title}</DialogTitle>
+              <DialogDescription className="text-[12.5px] leading-relaxed text-txt3">{body}</DialogDescription>
+            </DialogHeader>
+            <p className="mt-3 text-[12.5px] text-txt3">
+              {t("history")}: <span className="tabular-nums text-txt2">{rowsToGo}</span>
+            </p>
+          </div>
+          <div className="flex items-center justify-end gap-2 border-t border-line bg-[var(--panel)]/40 px-5 py-3">
             <Button
               variant="ghost"
-              className="h-[var(--ctl-h)] rounded-[var(--r-ctl)] text-[13px]"
+              className="h-[var(--ctl-h)] rounded-[var(--r-ctl)] border border-line px-4 text-[13px] hover:border-line-strong"
               onClick={() => setPending(null)}
             >
               {t("cancel")}
             </Button>
             <Button
-              className="h-[var(--ctl-h)] gap-1.5 rounded-[var(--r-ctl)] bg-[var(--red)] text-[13px] text-white hover:bg-[var(--red)]/90"
+              className="h-[var(--ctl-h)] gap-1.5 rounded-[var(--r-ctl)] border border-[var(--red-line)] bg-[rgb(207_112_120/0.2)] px-4 text-[13px] font-medium text-[#e6999f] hover:bg-[rgb(207_112_120/0.26)]"
               onClick={confirm}
             >
               <Trash2 className="size-3.5" aria-hidden />
               {t("delete")}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

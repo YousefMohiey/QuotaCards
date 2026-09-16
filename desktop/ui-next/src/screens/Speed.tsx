@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ChevronDown, ChevronRight, Gamepad2, History, Play, RotateCcw, Tv, Video } from "lucide-react"
+import { ChevronRight, Gamepad2, History, Play, RotateCcw, Tv, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { PickerDialog, type PickerItem } from "@/components/PickerDialog"
 import { SpeedBars } from "@/components/SpeedBars"
 import { useApp } from "@/state/app"
 import { useI18n, type StrKey } from "@/lib/i18n"
-import { measureDownload, measurePing, measureUpload, CF_PING_URL, CF_UP_URL, cfDownUrl, isSimEnv } from "@/lib/speedtest"
+import { measureDownload, measurePing, measureUpload, CF_PING_URL, CF_UP_URL, cfDownUrl } from "@/lib/speedtest"
 import { cn } from "@/lib/utils"
 
 const PING_PROBES = 8
@@ -113,7 +112,7 @@ export function saveHistory(runs: Run[]) {
 
 export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
   const { t } = useI18n()
-  const { card, serverIp } = useApp()
+  const { card } = useApp()
 
   const [phase, setPhase] = useState<Phase>("idle")
   const [caption, setCaption] = useState(() => t("idle"))
@@ -124,40 +123,33 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
   const [hint, setHint] = useState("")
   const [history, setHistory] = useState<Run[]>(() => loadHistory())
   const [netInfo, setNetInfo] = useState<NetInfo | null>(null)
-  const [server, setServer] = useState<TestServer>("cloudflare")
-  const [serverOpen, setServerOpen] = useState(false)
-  const [serverInfo, setServerInfo] = useState<NetInfo | null>(null)
 
   const abort = useRef<AbortController | null>(null)
   const gate = useRef(0)
 
   const running = phase === "ping" || phase === "download" || phase === "upload"
   const kind = card?.card_type === "Streamerz" ? "Streamerz" : "Gamerz"
-  const serverLabel = server === "own" ? serverIp || t("targetServer") : "Cloudflare"
-  const urls = useMemo(() => runUrls(server, serverIp), [server, serverIp])
+  const urls = useMemo(() => runUrls("cloudflare", ""), [])
 
-  // Both ends of the test, resolved on arrival so the facts are on screen
-  // before a run, not only after one.
+  // The exit address, resolved on arrival so the facts are on screen before a
+  // run, not only after one. A failed lookup gets one quiet retry: the first
+  // request after launch can race the network stack coming up.
   useEffect(() => {
     const ctl = new AbortController()
-    void resolveNetInfo(ctl.signal).then((info) => {
-      if (info && !ctl.signal.aborted) setNetInfo(info)
-    })
-    return () => ctl.abort()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [card?.uuid, server])
-
-  useEffect(() => {
-    if (server !== "own" || !serverIp) {
-      setServerInfo(null)
-      return
+    let retry: number | undefined
+    const look = (first: boolean) =>
+      void resolveNetInfo(ctl.signal).then((info) => {
+        if (ctl.signal.aborted) return
+        if (info) setNetInfo(info)
+        else if (first) retry = window.setTimeout(() => look(false), 4000)
+      })
+    look(true)
+    return () => {
+      ctl.abort()
+      if (retry) window.clearTimeout(retry)
     }
-    const ctl = new AbortController()
-    void resolveNetInfo(ctl.signal, serverIp).then((info) => {
-      if (info && !ctl.signal.aborted) setServerInfo(info)
-    })
-    return () => ctl.abort()
-  }, [server, serverIp])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card?.uuid])
 
   useEffect(() => {
     setResult(EMPTY)
@@ -237,23 +229,17 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
 
   const run = async (which: "all" | "ping" | "down" | "up") => {
     if (running) return
-    if (server === "own" && !serverIp) {
-      setHint(t("needServer"))
-      return
-    }
-    const host = server === "own" ? serverIp : "net"
+    const host = "net"
     abort.current?.abort()
     const ctl = new AbortController()
     abort.current = ctl
     const s = ctl.signal
     const acc: Result = { ...result }
-    const label = serverLabel
+    const label = "Cloudflare"
     setNetInfo(null)
-    if (!isSimEnv()) {
-      void resolveNetInfo(s).then((info) => {
-        if (!s.aborted) setNetInfo(info)
-      })
-    }
+    void resolveNetInfo(s).then((info) => {
+      if (!s.aborted) setNetInfo(info)
+    })
     // Each phase reports back here so the history line reflects the run that
     // just happened, not whatever the tiles happened to hold before.
     if (which === "all" || which === "ping") {
@@ -291,10 +277,6 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
   const measured = result.ping !== null || result.down !== null || result.up !== null
   const verdicts = buildVerdicts(result, t)
   const peak = samples.length ? Math.max(...samples) : 0
-  const serverItems: PickerItem[] = [
-    { value: "cloudflare", label: "Cloudflare", sub: t("srvPublic") },
-    { value: "own", label: serverIp || t("targetServer"), sub: t("srvOwnNote") },
-  ]
 
   return (
     <div className="mx-auto flex w-full max-w-[640px] flex-col gap-3">
@@ -306,43 +288,25 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
           </div>
         </div>
 
-        {/* The server the run measures against: a real control with its value
-            on it, not a caption sized like a footnote. */}
-        <button
-          type="button"
-          onClick={() => setServerOpen(true)}
-          className="mt-3 flex w-full items-center justify-between gap-3 rounded-[12px] border border-line bg-[var(--field)] px-3 py-2 text-start transition-colors duration-150 hover:border-line-strong"
-        >
-          <span className="shrink-0 text-[12px] text-txt3">{t("serverLabel")}</span>
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-[13px] font-medium text-txt">{serverLabel}</span>
-            <ChevronDown className="size-4 shrink-0 text-txt3" aria-hidden />
-          </span>
-        </button>
-
-        {/* Both ends of the test, laid out the way a speed test reports them. */}
-        <div className="mt-3 grid grid-cols-2 gap-4">
-          <div className="min-w-0">
-            <div className="text-[11px] text-txt3">{t("yourIp")}</div>
-            <div className="mt-0.5 truncate text-[12.5px] text-txt2" dir="auto">
+        {/* Both ends of the test: the address the world sees, and the host the
+            numbers come from. Label and value sit together - aligning values
+            to the far edge just parks dead space between them. */}
+        <div className="mt-3 divide-y divide-line rounded-[12px] border border-line">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-2">
+            <span className="shrink-0 text-[11.5px] text-txt3">{t("yourIp")}</span>
+            <span className="min-w-0 text-[12.5px] text-txt2" dir="auto">
               {netInfo?.ip ?? "-"}
-            </div>
-            <div className="truncate text-[11px] text-txt3" dir="auto">
-              {netInfo ? [netInfo.isp, netInfo.place].filter(Boolean).join(" · ") : ""}
-            </div>
+            </span>
+            {netInfo && (netInfo.isp || netInfo.place) ? (
+              <span className="min-w-0 text-[11px] text-txt3" dir="auto">
+                {[netInfo.isp, netInfo.place].filter(Boolean).join(" · ")}
+              </span>
+            ) : null}
           </div>
-          <div className="min-w-0">
-            <div className="text-[11px] text-txt3">{t("srvHost")}</div>
-            <div className="mt-0.5 truncate text-[12.5px] text-txt2" dir="auto">
-              {server === "own" ? serverIp || "-" : "speed.cloudflare.com"}
-            </div>
-            <div className="truncate text-[11px] text-txt3" dir="auto">
-              {server === "own"
-                ? serverInfo
-                  ? [serverInfo.isp, serverInfo.place].filter(Boolean).join(" · ")
-                  : ""
-                : "Cloudflare, Inc."}
-            </div>
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-2">
+            <span className="shrink-0 text-[11.5px] text-txt3">{t("srvHost")}</span>
+            <span className="min-w-0 text-[12.5px] text-txt2">speed.cloudflare.com</span>
+            <span className="min-w-0 text-[11px] text-txt3">Cloudflare, Inc.</span>
           </div>
         </div>
 
@@ -452,17 +416,6 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
           {hint || t("speedIdle")}
         </p>
       )}
-
-      {/* pick the server the run measures against, the way a speed test does */}
-      <PickerDialog
-        open={serverOpen}
-        onOpenChange={setServerOpen}
-        title={t("pickServer")}
-        search={t("searchList")}
-        items={serverItems}
-        value={server}
-        onPick={(v) => setServer(v as TestServer)}
-      />
     </div>
   )
 }

@@ -36,10 +36,22 @@ SHARPEN = {
 # get a contrast and saturation lift: the downscale averages the thin ring into
 # the dark tile and the mark goes muddy exactly where it is smallest.
 SMALL_LIFT = {16, 20, 24, 30, 32, 36}
-# Below ~24px the white ring is a single antialiased pixel across and reads as
-# a grey smear. These sizes get their bright pixels grown by ~1px first, so the
-# stroke survives the raster as a stroke instead of dissolving into the tile.
-BOLDEN = {16, 20, 24}
+# Below ~24px the mark's ring is a single antialiased pixel across and the
+# counter fills in, so the mark reads as a smudge. These sizes get the mark
+# itself magnified in place (glyph only, tile untouched) so the stroke and the
+# counter both survive the raster. Growing the bright pixels instead turned the
+# ring into a white blob - never do that.
+SMALL_MARK = {16, 20, 24, 30, 32}
+MARK_ZOOM = 1.28
+
+
+def mark_mask(im: Image.Image) -> Image.Image:
+    """The mark itself: the light ring plus the saturated blue tail."""
+    rgb = im.convert("RGB")
+    r, g, b = rgb.split()
+    bright = rgb.convert("L").point(lambda v: 255 if v > 150 else 0)
+    blue = ImageChops.subtract(b, r).point(lambda v: 255 if v > 30 else 0)
+    return ImageChops.lighter(bright, blue)
 # The master carries ~14% empty margin around the tile. Trimmed to this much
 # margin so the tile fills the frame: Windows renders tray and shortcut icons
 # at 16-48px, and art that sits at 72% of the canvas reads as a smaller icon
@@ -75,20 +87,33 @@ def render(master: Image.Image, size: int) -> Image.Image:
     if spec:
         radius, percent = spec
         rgb = im.convert("RGB")
-        if size in BOLDEN:
-            # Grow the light stroke (ring, and the glyph's light face) by about
-            # one pixel: at 16-24px a one-pixel stroke cannot express a circle
-            # and averages into the dark tile. Only bright pixels are grown, so
-            # the saturated blue tail keeps its colour.
-            lum = rgb.convert("L")
-            ring = lum.point(lambda v: 255 if v > 118 else 0)
-            add = ImageChops.subtract(ring.filter(ImageFilter.MaxFilter(3)), ring)
-            rgb.paste((243, 246, 255), mask=add.filter(ImageFilter.GaussianBlur(0.4)))
+        if size in SMALL_MARK:
+            # Magnify the mark in place. Only the mark's own pixels are pasted
+            # back, so the tile underneath (and its rounded corners) is never
+            # disturbed by the enlargement.
+            mask = mark_mask(im)
+            box = mask.getbbox()
+            if box:
+                x0, y0, x1, y1 = box
+                pad = max(2, round(max(x1 - x0, y1 - y0) * 0.55))
+                crop = (max(0, x0 - pad), max(0, y0 - pad), min(size, x1 + pad), min(size, y1 + pad))
+                mark = im.crop(crop)
+                mmask = mask.crop(crop)
+                z = MARK_ZOOM
+                big = mark.resize((max(1, round(mark.width * z)), max(1, round(mark.height * z))), Image.LANCZOS)
+                bmask = mmask.resize(big.size, Image.LANCZOS)
+                px = (x0 + x1) // 2 - big.width // 2
+                py = (y0 + y1) // 2 - big.height // 2
+                layer = Image.new("RGBA", im.size, (0, 0, 0, 0))
+                layer.paste(big, (px, py))
+                base = Image.new("RGBA", im.size, (0, 0, 0, 0))
+                base.paste(bmask, (px, py))
+                rgb = Image.composite(layer.convert("RGB"), rgb, base.getchannel("A"))
         if size in SMALL_LIFT:
             # Lift before sharpening so the ring and the glyph survive the
             # average: at 16-36px the unmodified downscale reads as a smudge.
-            rgb = ImageEnhance.Contrast(rgb).enhance(1.18)
-            rgb = ImageEnhance.Color(rgb).enhance(1.3)
+            rgb = ImageEnhance.Contrast(rgb).enhance(1.16)
+            rgb = ImageEnhance.Color(rgb).enhance(1.25)
         rgb = rgb.filter(
             ImageFilter.UnsharpMask(radius=radius, percent=percent, threshold=1)
         ).convert("RGBA")
