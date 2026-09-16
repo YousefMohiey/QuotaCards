@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { ChevronDown, ChevronRight, Gamepad2, Play, RotateCcw, Tv, Video } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { ChevronDown, ChevronRight, Gamepad2, History, Play, RotateCcw, Tv, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PickerDialog, type PickerItem } from "@/components/PickerDialog"
 import { SpeedBars } from "@/components/SpeedBars"
@@ -69,10 +69,10 @@ export function runUrls(server: TestServer, host: string): RunUrls {
 /** Exit IP plus provider for the speed page. Both services are HTTPS and
     CORS-open; with the tunnel up this reports the server's address, which is
     what a speed test should show. Failure just means no provider line. */
-async function resolveNetInfo(signal: AbortSignal): Promise<NetInfo | null> {
+async function resolveNetInfo(signal: AbortSignal, ip?: string): Promise<NetInfo | null> {
   const timeout = AbortSignal.timeout(8000)
   try {
-    const r = await fetch("https://ipwho.is/", { signal: timeout, cache: "no-store" })
+    const r = await fetch(ip ? `https://ipwho.is/${ip}` : "https://ipwho.is/", { signal: timeout, cache: "no-store" })
     if (r.ok) {
       const d = await r.json()
       if (d && d.success !== false && typeof d.ip === "string" && d.ip) {
@@ -126,6 +126,7 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
   const [netInfo, setNetInfo] = useState<NetInfo | null>(null)
   const [server, setServer] = useState<TestServer>("cloudflare")
   const [serverOpen, setServerOpen] = useState(false)
+  const [serverInfo, setServerInfo] = useState<NetInfo | null>(null)
 
   const abort = useRef<AbortController | null>(null)
   const gate = useRef(0)
@@ -134,6 +135,29 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
   const kind = card?.card_type === "Streamerz" ? "Streamerz" : "Gamerz"
   const serverLabel = server === "own" ? serverIp || t("targetServer") : "Cloudflare"
   const urls = useMemo(() => runUrls(server, serverIp), [server, serverIp])
+
+  // Both ends of the test, resolved on arrival so the facts are on screen
+  // before a run, not only after one.
+  useEffect(() => {
+    const ctl = new AbortController()
+    void resolveNetInfo(ctl.signal).then((info) => {
+      if (info && !ctl.signal.aborted) setNetInfo(info)
+    })
+    return () => ctl.abort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card?.uuid, server])
+
+  useEffect(() => {
+    if (server !== "own" || !serverIp) {
+      setServerInfo(null)
+      return
+    }
+    const ctl = new AbortController()
+    void resolveNetInfo(ctl.signal, serverIp).then((info) => {
+      if (info && !ctl.signal.aborted) setServerInfo(info)
+    })
+    return () => ctl.abort()
+  }, [server, serverIp])
 
   useEffect(() => {
     setResult(EMPTY)
@@ -262,7 +286,6 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     setPhase("idle")
     setCaption(t("idle"))
     setHint("")
-    setNetInfo(null)
   }
 
   const measured = result.ping !== null || result.down !== null || result.up !== null
@@ -282,26 +305,46 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
             <bdi>{card?.name.split(" (")[0] ?? "-"}</bdi> · <bdi>{kind === "Streamerz" ? t("kindStreamerz") : t("kindGamerz")}</bdi>
           </div>
         </div>
-        {netInfo && (
-          <div className="mt-1.5 space-y-0.5 text-[11px] text-txt3">
-            <div className="truncate">
-              {t("yourIp")}:{" "}
-              <span className="text-txt2">
-                <bdi>{netInfo.ip}</bdi>
-                {netInfo.isp ? <> · <bdi>{netInfo.isp}</bdi></> : null}
-                {netInfo.place ? <> · <bdi>{netInfo.place}</bdi></> : null}
-              </span>
-            </div>
-          </div>
-        )}
+
+        {/* The server the run measures against: a real control with its value
+            on it, not a caption sized like a footnote. */}
         <button
           type="button"
           onClick={() => setServerOpen(true)}
-          className="mt-1 flex items-center gap-1.5 text-[11px] text-txt3 transition-colors duration-150 hover:text-txt2"
+          className="mt-3 flex w-full items-center justify-between gap-3 rounded-[12px] border border-line bg-[var(--field)] px-3 py-2 text-start transition-colors duration-150 hover:border-line-strong"
         >
-          {t("serverLabel")}: <span className="text-txt2">{serverLabel}</span>
-          <ChevronDown className="size-3 shrink-0" aria-hidden />
+          <span className="shrink-0 text-[12px] text-txt3">{t("serverLabel")}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-[13px] font-medium text-txt">{serverLabel}</span>
+            <ChevronDown className="size-4 shrink-0 text-txt3" aria-hidden />
+          </span>
         </button>
+
+        {/* Both ends of the test, laid out the way a speed test reports them. */}
+        <div className="mt-3 grid grid-cols-2 gap-4">
+          <div className="min-w-0">
+            <div className="text-[11px] text-txt3">{t("yourIp")}</div>
+            <div className="mt-0.5 truncate text-[12.5px] text-txt2" dir="auto">
+              {netInfo?.ip ?? "-"}
+            </div>
+            <div className="truncate text-[11px] text-txt3" dir="auto">
+              {netInfo ? [netInfo.isp, netInfo.place].filter(Boolean).join(" · ") : ""}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div className="text-[11px] text-txt3">{t("srvHost")}</div>
+            <div className="mt-0.5 truncate text-[12.5px] text-txt2" dir="auto">
+              {server === "own" ? serverIp || "-" : "speed.cloudflare.com"}
+            </div>
+            <div className="truncate text-[11px] text-txt3" dir="auto">
+              {server === "own"
+                ? serverInfo
+                  ? [serverInfo.isp, serverInfo.place].filter(Boolean).join(" · ")
+                  : ""
+                : "Cloudflare, Inc."}
+            </div>
+          </div>
+        </div>
 
         <div className="mt-2.5 flex items-end justify-between gap-6">
           <div className="min-w-0">
@@ -323,7 +366,7 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
         <div className="mt-2.5">
           <SpeedBars
             samples={samples}
-            accent={phase === "upload" ? "var(--cyan)" : phase === "ping" ? "var(--amber)" : "var(--brand)"}
+            accent={phase === "upload" ? "var(--green)" : phase === "ping" ? "var(--amber)" : "var(--brand)"}
             active={running}
           />
         </div>
@@ -382,29 +425,25 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
         )}
       </div>
 
-      {/* last run at a glance; the full history lives on its own page */}
+      {/* the full history lives on its own page; this is the way in */}
       {history.length > 0 && (
         <button
           type="button"
           onClick={onOpenHistory}
-          className="glass group w-full rounded-[20px] px-4 py-2.5 text-start transition-colors"
+          className="glass group flex w-full items-center justify-between gap-3 rounded-[16px] px-4 py-3 text-start transition-colors hover:border-line-strong"
         >
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-[11px] font-medium tracking-[0.08em] text-txt3 uppercase">
-              {t("history")}
-              <span className="ms-2 font-normal tabular-nums">{history.length}</span>
-            </div>
-            <span className="flex shrink-0 items-center gap-1 text-[12px] text-txt3 transition-colors group-hover:text-brand-strong">
-              {t("histOpen")}
-              <ChevronRight
-                className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5"
-                aria-hidden
-              />
-            </span>
-          </div>
-          <div className="mt-1">
-            <HistoryRow h={history[0]} />
-          </div>
+          <span className="flex min-w-0 items-center gap-2.5 text-[13px] text-txt2">
+            <History className="size-4 shrink-0 text-txt3" strokeWidth={1.7} aria-hidden />
+            <span className="truncate">{t("history")}</span>
+            <span className="tabular-nums text-txt3">{history.length}</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1 text-[12px] text-txt3 transition-colors group-hover:text-brand-strong">
+            {t("histOpen")}
+            <ChevronRight
+              className="size-4 transition-transform duration-200 group-hover:translate-x-0.5"
+              aria-hidden
+            />
+          </span>
         </button>
       )}
 
@@ -429,46 +468,6 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
 }
 
 type Verdict = { icon: typeof Gamepad2; label: string; tone: "ok" | "warn" | "bad"; text: string }
-
-/** One stored run: date plus target on top, then the numbers as mini
-    readings echoing the main block. Pane-less content: the history page wraps
-    each run in glass, the Speed summary card embeds it in its own pane. */
-export function HistoryRow({ h, trailing }: { h: Run; trailing?: ReactNode }) {
-  const { t } = useI18n()
-  const cells = [
-    { key: "ping", title: t("pingTitle"), text: h.ping !== null ? String(Math.round(h.ping)) : "-", unit: t("ms"), show: true, empty: h.ping === null },
-    { key: "down", title: t("chDown"), text: h.down !== null ? h.down.toFixed(0) : "-", unit: t("mbps"), show: true, empty: h.down === null },
-    { key: "up", title: t("chUp"), text: h.up !== null ? h.up.toFixed(0) : "-", unit: t("mbps"), show: true, empty: h.up === null },
-    { key: "jitter", title: t("jitter"), text: h.jitter !== null ? String(Math.round(h.jitter)) : "-", unit: t("ms"), show: h.jitter !== null, empty: false },
-  ]
-  const shown = cells.filter((c) => c.show)
-  return (
-    <div>
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="shrink-0 text-[11.5px] tabular-nums text-txt3">
-          {new Date(h.at).toLocaleDateString([], { month: "short", day: "numeric" })}
-          {" "}
-          {new Date(h.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-end text-[12.5px] text-txt2" dir="auto">
-          {h.target || t("targetServer")}
-        </span>
-        {trailing}
-      </div>
-      <div className={cn("mt-2 grid divide-x divide-line", shown.length > 3 ? "grid-cols-4" : "grid-cols-3")}>
-        {shown.map((c) => (
-          <div key={c.key} className="flex flex-col items-center gap-0.5 py-0.5">
-            <span className="text-[10.5px] text-txt3">{c.title}</span>
-            <span className={cn("text-[15px] font-medium tabular-nums", c.empty ? "text-txt3" : "text-txt")}>
-              {c.text}
-            </span>
-            <span className="text-[10px] text-txt3">{c.unit}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 /**
  * Plain language instead of raw numbers: what the line can actually do.

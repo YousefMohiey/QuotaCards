@@ -19,18 +19,27 @@ import struct
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageFilter
+from PIL import Image, ImageChops, ImageEnhance, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 MASTER = ROOT / "res" / "app-icon-src.png"
 
-SIZES = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256]
+SIZES = [16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 128, 256]
 # size -> unsharp (radius, percent); None = no sharpening
 SHARPEN = {
-    16: (0.6, 120), 20: (0.6, 110), 24: (0.6, 100), 32: (0.6, 95),
-    40: (0.6, 80), 48: (0.6, 80), 64: (0.5, 55), 96: (0.5, 25),
-    128: None, 256: None,
+    16: (0.6, 130), 20: (0.6, 125), 24: (0.6, 120), 30: (0.6, 110),
+    32: (0.6, 105), 36: (0.6, 100), 40: (0.6, 80), 48: (0.6, 80),
+    60: (0.5, 60), 64: (0.5, 55), 72: (0.5, 45), 80: (0.5, 40),
+    96: (0.5, 25), 128: None, 256: None,
 }
+# Sizes Windows shows at 100-150% scaling on the taskbar and in Explorer. They
+# get a contrast and saturation lift: the downscale averages the thin ring into
+# the dark tile and the mark goes muddy exactly where it is smallest.
+SMALL_LIFT = {16, 20, 24, 30, 32, 36}
+# Below ~24px the white ring is a single antialiased pixel across and reads as
+# a grey smear. These sizes get their bright pixels grown by ~1px first, so the
+# stroke survives the raster as a stroke instead of dissolving into the tile.
+BOLDEN = {16, 20, 24}
 # The master carries ~14% empty margin around the tile. Trimmed to this much
 # margin so the tile fills the frame: Windows renders tray and shortcut icons
 # at 16-48px, and art that sits at 72% of the canvas reads as a smaller icon
@@ -65,8 +74,23 @@ def render(master: Image.Image, size: int) -> Image.Image:
     spec = SHARPEN.get(size)
     if spec:
         radius, percent = spec
-        rgb = im.convert("RGB").filter(
-            ImageFilter.UnsharpMask(radius=radius, percent=percent, threshold=2)
+        rgb = im.convert("RGB")
+        if size in BOLDEN:
+            # Grow the light stroke (ring, and the glyph's light face) by about
+            # one pixel: at 16-24px a one-pixel stroke cannot express a circle
+            # and averages into the dark tile. Only bright pixels are grown, so
+            # the saturated blue tail keeps its colour.
+            lum = rgb.convert("L")
+            ring = lum.point(lambda v: 255 if v > 118 else 0)
+            add = ImageChops.subtract(ring.filter(ImageFilter.MaxFilter(3)), ring)
+            rgb.paste((243, 246, 255), mask=add.filter(ImageFilter.GaussianBlur(0.4)))
+        if size in SMALL_LIFT:
+            # Lift before sharpening so the ring and the glyph survive the
+            # average: at 16-36px the unmodified downscale reads as a smudge.
+            rgb = ImageEnhance.Contrast(rgb).enhance(1.18)
+            rgb = ImageEnhance.Color(rgb).enhance(1.3)
+        rgb = rgb.filter(
+            ImageFilter.UnsharpMask(radius=radius, percent=percent, threshold=1)
         ).convert("RGBA")
         rgb.putalpha(im.getchannel("A"))
         im = rgb
