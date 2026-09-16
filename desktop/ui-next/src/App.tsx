@@ -4,6 +4,8 @@ import { Sidebar, type Tab } from "@/components/Sidebar"
 import { Home } from "@/screens/Home"
 import { Cards } from "@/screens/Cards"
 import { Speed } from "@/screens/Speed"
+import { SpeedHistory } from "@/screens/SpeedHistory"
+import { SpeedResult } from "@/screens/SpeedResult"
 import { Settings } from "@/screens/Settings"
 import { Apps } from "@/screens/Apps"
 
@@ -14,8 +16,10 @@ export default function App() {
   // makes each screen linkable and lets the preview harness open one cold.
   const [tab, setTab] = useState<Tab>(() => {
     const h = (typeof location !== "undefined" ? location.hash.slice(1) : "") as Tab
-    return (["home", "cards", "speed", "apps", "settings"] as Tab[]).includes(h) ? h : "home"
+    return (["home", "cards", "speed", "history", "result", "apps", "settings"] as Tab[]).includes(h) ? h : "home"
   })
+  // The stored run opened in the result view, if any.
+  const [resultAt, setResultAt] = useState<number | null>(null)
 
   const go = (t: Tab) => {
     setTab(t)
@@ -26,11 +30,16 @@ export default function App() {
     }
   }
 
+  const openResult = (at: number) => {
+    setResultAt(at)
+    go("result")
+  }
+
   // Back/forward and anything else that moves the hash keeps the shell in step.
   useEffect(() => {
     const onHash = () => {
       const h = location.hash.slice(1) as Tab
-      if ((["home", "cards", "speed", "apps", "settings"] as Tab[]).includes(h)) setTab(h)
+      if ((["home", "cards", "speed", "history", "result", "apps", "settings"] as Tab[]).includes(h)) setTab(h)
     }
     window.addEventListener("hashchange", onHash)
     return () => window.removeEventListener("hashchange", onHash)
@@ -47,20 +56,21 @@ export default function App() {
       </div>
       <div className="relative z-10 flex h-full">
         <Sidebar tab={tab} onTab={go} />
-        <main id="content" className="min-w-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-[880px] flex-col gap-[var(--gap-3)] px-[var(--pad-page)] py-[var(--pad-page)]">
+        <main id="content" className="min-w-0 flex-1 overflow-y-auto scroll-pb-6">
+          <div className="mx-auto w-full max-w-[900px] px-8 py-6">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={tab}
-                initial={{ opacity: 0, y: 6 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.18, ease: EASE_OUT }}
-                className="flex flex-col gap-[var(--gap-3)]"
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2, ease: EASE_OUT }}
               >
                 {tab === "home" && <Home onOpenApps={() => go("apps")} />}
                 {tab === "cards" && <Cards />}
-                {tab === "speed" && <Speed />}
+                {tab === "speed" && <Speed onOpenHistory={() => go("history")} />}
+                {tab === "history" && <SpeedHistory onBack={() => go("speed")} onOpenResult={openResult} />}
+                {tab === "result" && <SpeedResult runAt={resultAt} onBack={() => go("history")} />}
                 {tab === "settings" && <Settings />}
                 {tab === "apps" && <Apps onBack={() => go("home")} />}
               </motion.div>

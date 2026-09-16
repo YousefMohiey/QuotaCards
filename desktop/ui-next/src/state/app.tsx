@@ -9,9 +9,12 @@ import {
   type ReactNode,
 } from "react"
 import { api, type Card, type CmdResult, type UpdateInfo } from "@/lib/ipc"
+import { useI18n } from "@/lib/i18n"
+import { DEFAULT_SNI } from "@/lib/snis"
 
 export type AppsMode = "all" | "allow" | "block"
 export type Transport = "vless" | "wg" | "hy2"
+export type PresetKind = "Gamerz" | "Streamerz"
 /** One dial state that both the hero and the sidebar read. */
 export type Phase = "idle" | "connecting" | "on" | "stopping"
 
@@ -39,9 +42,13 @@ type Value = {
   generateCard: (name: string, kind: string, sni: string) => Promise<CmdResult>
   importCard: (uuid: string, name: string, kind: string, sni: string) => Promise<CmdResult>
   revokeCard: (uuid: string) => Promise<CmdResult>
+  revokeCardOptimistic: (uuid: string) => Promise<CmdResult>
+  ensurePresetCard: (p: PresetKind) => Promise<CmdResult>
   copyCard: (uuid: string) => Promise<CmdResult>
   copyLog: () => Promise<CmdResult>
   pickCard: (uuid: string) => void
+  preset: PresetKind
+  setPreset: (p: PresetKind) => void
   setAppsMode: (m: AppsMode) => void
   setApps: (list: string[]) => void
   setTransport: (t: Transport) => void
@@ -74,6 +81,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [serverIp, setServerIp] = useState("")
   const [cards, setCards] = useState<Card[]>([])
   const [cardUuid, setCardUuid] = useState<string>(() => read("qc-card", ""))
+  const [preset, setPresetState] = useState<PresetKind>(() => read<PresetKind>("qc-preset", "Gamerz"))
   const [appsMode, setAppsModeState] = useState<AppsMode>(() => read<AppsMode>("qc-apps-mode", "all"))
   const [apps, setAppsState] = useState<string[]>(() => read<string[]>("qc-apps", []))
   const [transport, setTransportState] = useState<Transport>(() => read<Transport>("qc-transport", "vless"))
@@ -90,9 +98,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState("")
   const busyRef = useRef(false)
   const vpnRef = useRef(false)
+  // Guards the staged disconnect teardown below: any new connect run
+  // invalidates a pending clear so fresh session data is never wiped.
+  const teardownRef = useRef(0)
+  const { t } = useI18n()
 
   busyRef.current = busy
   vpnRef.current = vpnOn
+  const cardsRef = useRef<Card[]>([])
+  const cardUuidRef = useRef("")
+  cardsRef.current = cards
+  cardUuidRef.current = cardUuid
 
   // ---- boot ------------------------------------------------------------
   useEffect(() => {
@@ -105,6 +121,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         setCards(st.cards)
         setVersion(st.version)
         setCardUuid((cur) => (st.cards.some((c) => c.uuid === cur) ? cur : st.cards[0]?.uuid ?? ""))
+        // The preset follows the first card when nothing was ever picked,
+        // so a returning install opens on the kind it actually uses.
+        try {
+          if (localStorage.getItem("qc-preset") == null) {
+            const first = st.cards.find((c) => c.card_type === "Gamerz" || c.card_type === "Streamerz")
+            if (first) setPresetState(first.card_type as PresetKind)
+          }
+        } catch {
+          /* private mode */
+        }
         // An engine can outlive the window (tray close, crash re-open):
         // pick the live state back up instead of showing "ready".
         const tunnel = await api.status().catch(() => null)
@@ -178,21 +204,55 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     write("qc-transport", t)
   }, [])
 
+  const setPreset = useCallback((p: PresetKind) => {
+    setPresetState(p)
+    write("qc-preset", p)
+  }, [])
+
   const connect = useCallback(async () => {
-    if (!cardUuid) {
-      setStatus("Pick a profile first.")
-      return
-    }
+    teardownRef.current += 1
+    // A routing mode with nothing behind it can never match: fall back to
+    // the whole device instead of silently doing nothing.
+    let mode = appsMode
     if (appsMode !== "all" && apps.length === 0) {
-      setStatus("Pick at least one app for this routing mode.")
-      return
+      mode = "all"
+      setAppsMode("all")
+      setStatus(t("appsEmptyFallback"))
     }
     setBusy(true)
     setPhase("connecting")
-    setStatus("")
+    if (mode === appsMode) setStatus("")
     try {
+      // One-tap connect: make sure a card of the selected preset kind
+      // exists first, creating it through the normal detached path.
+      let uuid = cardUuid
+      const current = cards.find((c) => c.uuid === uuid)
+      if (!current || current.card_type !== preset) {
+        const existing = cards.find((c) => c.card_type === preset)
+        if (existing) {
+          uuid = existing.uuid
+        } else {
+          const g = await api.generateCard(preset, preset, DEFAULT_SNI[preset])
+          if (!g.ok) {
+            setStatus(g.msg)
+            setPhase("idle")
+            return
+          }
+          const st = await api.state()
+          setCards(st.cards)
+          const created = st.cards.find((c) => c.card_type === preset)
+          if (!created) {
+            setStatus(g.msg)
+            setPhase("idle")
+            return
+          }
+          uuid = created.uuid
+        }
+        setCardUuid(uuid)
+        write("qc-card", uuid)
+      }
       await api.probeServer()
-      const r = await api.start(cardUuid, appsMode, apps, transport)
+      const r = await api.start(uuid, mode, apps, transport)
       setStatus(r.msg)
       if (!r.ok) {
         setPhase("idle")
@@ -202,8 +262,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setSessionStart(Date.now())
       setRx(0)
       setTx(0)
+      // Check the engine state before the first sleep so an already-up
+      // engine (and the instant mock) resolves without paying a full wait.
       for (let i = 0; i < 8; i++) {
-        await new Promise((res) => setTimeout(res, 900))
         const st = await api.status()
         if (st.running) break
         if (st.error) {
@@ -211,26 +272,31 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           setPhase("idle")
           return
         }
+        if (i < 7) await new Promise((res) => setTimeout(res, 900))
       }
       const probe = await api.probeTunnel().catch(() => null)
       setConnected(!!probe?.ok)
       setPhase("on")
-      if (probe?.msg) setStatus(probe.msg)
+      // Success messages (like the reachable line) stay out of the UI;
+      // only a failed probe gets to speak.
+      if (probe && !probe.ok && probe.msg) setStatus(probe.msg)
+      else setStatus("")
     } catch (e) {
       setStatus(String(e))
       setPhase("idle")
     } finally {
       setBusy(false)
     }
-  }, [apps, appsMode, cardUuid, transport])
+  }, [apps, appsMode, cards, cardUuid, preset, t, transport])
 
   const disconnect = useCallback(async () => {
     setBusy(true)
     // Flip the dial first: waiting for the engine round-trip is what made
     // disconnecting feel like it lagged.
     setPhase("stopping")
+    // Stop polling, but keep everything the panel shows mounted until the
+    // slide-back lands; clearing it early is what made data vanish mid-move.
     setVpnOn(false)
-    setConnected(false)
     try {
       const r = await api.stop()
       setStatus(r.msg)
@@ -244,14 +310,22 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       setStatus(String(e))
       setVpnOn(true)
+      setConnected(true)
       setPhase("on")
       return
     } finally {
       setBusy(false)
     }
+    // The slide-back settles in about four hundred milliseconds; clear the
+    // session only once it lands, never under a moving dial. A fresh connect
+    // invalidates this wait so new data is never wiped.
+    const id = ++teardownRef.current
+    await new Promise((res) => setTimeout(res, 420))
+    if (teardownRef.current !== id) return
     setSessionStart(null)
     setRx(0)
     setTx(0)
+    setConnected(false)
     setPhase("idle")
   }, [])
 
@@ -306,6 +380,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       const st = await api.state()
       setServerIp(st.server_ip)
       setCards(st.cards)
+      // Repair a selection that points at nothing (revoked active card, first
+      // card landing on an empty selection) so every derived label re-renders
+      // from fresh state in the same tick.
+      if (!st.cards.some((c) => c.uuid === cardUuidRef.current)) {
+        const fallback = st.cards[0]?.uuid ?? ""
+        setCardUuid(fallback)
+        write("qc-card", fallback)
+      }
     } catch {
       /* the next action reports its own error */
     }
@@ -313,9 +395,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const generateCard = useCallback(
     async (name: string, kind: string, sni: string) => {
-      const r = await api.generateCard(name, kind, sni)
-      await refresh()
-      return r
+      // The backend Err path (saved locally but server registration failed)
+      // rejects the invoke, so convert it to a visible CmdResult and still
+      // refresh: the local card stays in all cases.
+      try {
+        const r = await api.generateCard(name, kind, sni)
+        await refresh()
+        return r
+      } catch (e) {
+        await refresh()
+        return { ok: false, msg: e instanceof Error ? e.message : String(e) }
+      }
     },
     [refresh],
   )
@@ -333,6 +423,82 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     async (uuid: string) => {
       const r = await api.revokeCard(uuid)
       await refresh()
+      return r
+    },
+    [refresh],
+  )
+
+  // One-tap preset support: flip the preset, make sure that kind exists
+  // (generating it when missing), and select it. No connection involved.
+  const presetBusyRef = useRef<PresetKind | null>(null)
+  const ensurePresetCard = useCallback(
+    async (p: PresetKind) => {
+      if (presetBusyRef.current) return { ok: true, msg: "" }
+      setPresetState(p)
+      write("qc-preset", p)
+      const existing = cardsRef.current.find((c) => c.card_type === p)
+      if (existing) {
+        setCardUuid(existing.uuid)
+        write("qc-card", existing.uuid)
+        return { ok: true, msg: "" }
+      }
+      presetBusyRef.current = p
+      try {
+        const g = await api.generateCard(p, p, DEFAULT_SNI[p])
+        if (!g.ok) {
+          setStatus(g.msg)
+          return g
+        }
+        const st = await api.state()
+        setServerIp(st.server_ip)
+        setCards(st.cards)
+        const created = st.cards.find((c) => c.card_type === p)
+        if (created) {
+          setCardUuid(created.uuid)
+          write("qc-card", created.uuid)
+        } else {
+          setStatus(g.msg)
+        }
+        return g
+      } catch (e) {
+        const r = { ok: false, msg: String(e) }
+        setStatus(r.msg)
+        return r
+      } finally {
+        presetBusyRef.current = null
+      }
+    },
+    [],
+  )
+
+  // Optimistic revoke: the tile leaves in this tick, the server reconciles in
+  // the background. A failure puts the exact snapshot back.
+  const revokeCardOptimistic = useCallback(
+    async (uuid: string) => {
+      const before = cardsRef.current
+      const beforeUuid = cardUuidRef.current
+      const survivors = before.filter((c) => c.uuid !== uuid)
+      setCards(survivors)
+      if (beforeUuid === uuid) {
+        const fallback = survivors[0]?.uuid ?? ""
+        setCardUuid(fallback)
+        write("qc-card", fallback)
+      }
+      let r: CmdResult
+      try {
+        r = await api.revokeCard(uuid)
+      } catch (e) {
+        r = { ok: false, msg: String(e) }
+      }
+      if (!r.ok) {
+        setCards(before)
+        if (cardUuidRef.current !== beforeUuid) {
+          setCardUuid(beforeUuid)
+          write("qc-card", beforeUuid)
+        }
+      } else {
+        await refresh()
+      }
       return r
     },
     [refresh],
@@ -365,9 +531,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     generateCard,
     importCard,
     revokeCard,
+    revokeCardOptimistic,
+    ensurePresetCard,
     copyCard,
     copyLog,
     pickCard,
+    preset,
+    setPreset,
     setAppsMode,
     setApps,
     setTransport,

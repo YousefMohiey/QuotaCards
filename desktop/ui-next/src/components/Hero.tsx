@@ -22,7 +22,7 @@ function useTick(ms: number, on: boolean) {
 
 export function Hero() {
   const { t } = useI18n()
-  const { phase, connected, busy, toggle, card, rx, tx, sessionStart, serverIp } = useApp()
+  const { phase, connected, busy, toggle, card, rx, tx, sessionStart, serverIp, status } = useApp()
   const [serverAddr, setServerAddr] = useState("")
 
   // While the tunnel is up the world sees the server's address, so resolve it
@@ -50,23 +50,58 @@ export function Hero() {
   const state: DialState = phase === "on" ? "on" : phase === "connecting" ? "connecting" : "idle"
   const name = card?.name.split(" (")[0] ?? ""
 
+  // The info panel waits for the dial to land first. Mounting both at once
+  // is what made the motion feel fast and rough, so the panel fades in
+  // only after the slide has had room to travel.
+  const [showInfo, setShowInfo] = useState(false)
+  useEffect(() => {
+    if (!active) {
+      setShowInfo(false)
+      return
+    }
+    const id = window.setTimeout(() => setShowInfo(true), 250)
+    return () => window.clearTimeout(id)
+  }, [active])
+
+  // Disconnect plays in order too: the panel exits first and the dial only
+  // starts home once the exit is nearly done, never both at once.
+  const [dialLeft, setDialLeft] = useState(false)
+  useEffect(() => {
+    if (active) {
+      setDialLeft(true)
+      return
+    }
+    if (phase === "stopping") {
+      // Short hold only: the panel exit leads by a beat, then the dial
+      // answers at once. A long hold here reads as a dead pause.
+      const id = window.setTimeout(() => setDialLeft(false), 140)
+      return () => window.clearTimeout(id)
+    }
+    setDialLeft(false)
+  }, [active, phase])
+
   useTick(1000, connected)
 
   return (
-    <section className="glass rounded-[var(--r-card)] p-5">
-      <div className="flex min-h-[210px] items-center">
+    <section className="glass rounded-[24px] p-5">
+      <div className="flex min-h-[208px] items-center">
         <motion.div
           layout
           transition={SPRING}
-          className={cn("flex w-full items-center", active ? "justify-start gap-8" : "justify-center")}
+          className={cn("flex w-full items-center", dialLeft ? "justify-start gap-8" : "justify-center")}
         >
-          <motion.div layout transition={SPRING} className="shrink-0 text-center">
+          <motion.div layout transition={SPRING} className="flex shrink-0 flex-col items-center text-center">
             <Dial state={state} onClick={toggle} disabled={busy} />
-            <div className="mt-3 max-w-[190px] truncate text-[12.5px] text-txt2">{name}</div>
+            <div className="mt-3 max-w-[190px] truncate text-center text-[12.5px] text-txt2" dir="auto">{name}</div>
+            {status ? (
+              <div className="mt-2 max-w-[280px] text-center text-[11.5px] leading-snug text-txt3">
+                {status}
+              </div>
+            ) : null}
           </motion.div>
 
           <AnimatePresence mode="popLayout">
-            {active && (
+            {showInfo && (
               <motion.div
                 key="info"
                 initial={{ opacity: 0, x: 16 }}
@@ -88,7 +123,7 @@ export function Hero() {
                   </span>
                   {card && (
                     <span className="rounded-full border border-line-strong px-2 py-[3px] text-[11px] text-txt3">
-                      {card.card_type}
+                      {card.card_type === "Streamerz" ? t("kindStreamerz") : t("kindGamerz")}
                     </span>
                   )}
                 </div>
@@ -111,7 +146,7 @@ export function Hero() {
                         <StatTile
                           label={t("sessLabel")}
                           value={sessionStart ? fmtDuration((Date.now() - sessionStart) / 1000) : "-"}
-                          sub={"↓ " + fmtBytes(rx) + "   ↑ " + fmtBytes(tx)}
+                          sub={"⁨↓ " + fmtBytes(rx) + "⁩   ⁨↑ " + fmtBytes(tx) + "⁩"}
                         />
                         <StatTile label={t("yourIp")} value={serverAddr || displayHost(serverIp)} />
                       </div>
@@ -129,10 +164,10 @@ export function Hero() {
 
 function StatTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="glass-tile rounded-[14px] px-3 py-2.5">
+    <div className="rounded-[12px] border border-line bg-white/[0.02] px-3.5 py-2.5">
       <div className="text-[11px] text-txt3">{label}</div>
-      <div className="mt-1 truncate text-[13px] font-medium text-txt">{value}</div>
-      {sub && <div className="mt-0.5 truncate text-[11.5px] text-txt3">{sub}</div>}
+      <div className="mt-1 truncate text-[13px] font-medium tabular-nums text-txt">{value}</div>
+      {sub && <div className="mt-0.5 truncate text-[11.5px] tabular-nums text-txt3">{sub}</div>}
     </div>
   )
 }

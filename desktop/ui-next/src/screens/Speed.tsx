@@ -1,13 +1,10 @@
-import { useEffect, useRef, useState } from "react"
-import { ChevronDown, Gamepad2, Play, RotateCcw, Tv, Video } from "lucide-react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
+import { ChevronRight, Gamepad2, Play, RotateCcw, Tv, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { PickerDialog, type PickerItem } from "@/components/PickerDialog"
 import { SpeedBars } from "@/components/SpeedBars"
 import { useApp } from "@/state/app"
 import { useI18n, type StrKey } from "@/lib/i18n"
-import { measureDownload, measurePing, measureUpload } from "@/lib/speedtest"
-import { CUSTOM_SNI, SNIS } from "@/lib/snis"
+import { measureDownload, measurePing, measureUpload, CF_PING_URL, CF_UP_URL, cfDownUrl, isSimEnv } from "@/lib/speedtest"
 import { cn } from "@/lib/utils"
 
 const PING_PROBES = 8
@@ -16,31 +13,61 @@ const BARS_MEMORY = 96
 
 type Phase = "idle" | "ping" | "download" | "upload" | "done"
 type Result = { ping: number | null; jitter: number | null; down: number | null; up: number | null }
-type Run = { at: number; ping: number | null; jitter: number | null; down: number | null; up: number | null }
+export type Run = { at: number; ping: number | null; jitter: number | null; down: number | null; up: number | null; target: string }
+/** A history page is only useful if it keeps more than a handful, so the
+    store holds a long list (the old inline strip capped it at 3). */
+const HISTORY_MAX = 100
+type NetInfo = { isp: string; place: string; colo: string }
 
 const EMPTY: Result = { ping: null, jitter: null, down: null, up: null }
 
-/** Public resolvers, the same names every speed test uses as fixed anchors. */
-const PUBLIC: Array<[string, string]> = [
-  ["Cloudflare", "1.1.1.1"],
-  ["Google DNS", "dns.google"],
-  ["Quad9", "dns.quad9.net"],
-  ["OpenDNS", "opendns.com"],
-]
-
-function loadHistory(): Run[] {
+export function loadHistory(): Run[] {
   try {
     const raw = localStorage.getItem("qc-speed-history")
-    const arr = raw ? (JSON.parse(raw) as Run[]) : []
-    return Array.isArray(arr) ? arr.slice(0, 3) : []
+    const arr = raw ? (JSON.parse(raw) as Array<Partial<Run>>) : []
+    if (!Array.isArray(arr)) return []
+    return arr
+      .filter((h) => h && typeof h === "object")
+      .map((h) => ({
+        at: typeof h.at === "number" ? h.at : Date.now(),
+        ping: typeof h.ping === "number" ? h.ping : null,
+        jitter: typeof h.jitter === "number" ? h.jitter : null,
+        down: typeof h.down === "number" ? h.down : null,
+        up: typeof h.up === "number" ? h.up : null,
+        target: typeof h.target === "string" ? h.target : "",
+      }))
+      .slice(0, HISTORY_MAX)
   } catch {
     return []
   }
 }
 
-export function Speed() {
+/** ISP plus Cloudflare colo for the internet test. Both endpoints are
+   CORS-open; anything failing just means no provider lines are shown. */
+async function resolveNetInfo(signal: AbortSignal): Promise<NetInfo | null> {
+  try {
+    const timeout = AbortSignal.timeout(6000)
+    const [a, b] = await Promise.all([
+      fetch("https://ip-api.com/json/?fields=status,isp,org,country,city", { signal: timeout })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch("https://www.cloudflare.com/cdn-cgi/trace", { signal: timeout })
+        .then((r) => (r.ok ? r.text() : ""))
+        .catch(() => ""),
+    ])
+    if (signal.aborted) return null
+    if (!a || a.status !== "success") return null
+    const colo = (/^colo=(.+)$/m.exec(b || "") || [])[1]?.trim() || ""
+    const place = [a.city, a.country].filter(Boolean).join(", ")
+    return { isp: String(a.isp || a.org || ""), place, colo }
+  } catch {
+    return null
+  }
+}
+
+export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
   const { t } = useI18n()
-  const { serverIp, card } = useApp()
+  const { card } = useApp()
 
   const [phase, setPhase] = useState<Phase>("idle")
   const [caption, setCaption] = useState(() => t("idle"))
@@ -50,18 +77,13 @@ export function Speed() {
   const [result, setResult] = useState<Result>(EMPTY)
   const [hint, setHint] = useState("")
   const [history, setHistory] = useState<Run[]>(() => loadHistory())
-  const [target, setTarget] = useState("")
-  const [custom, setCustom] = useState("")
-  const [customOpen, setCustomOpen] = useState(false)
-  const [pickOpen, setPickOpen] = useState(false)
+  const [netInfo, setNetInfo] = useState<NetInfo | null>(null)
 
   const abort = useRef<AbortController | null>(null)
   const gate = useRef(0)
 
   const running = phase === "ping" || phase === "download" || phase === "upload"
   const kind = card?.card_type === "Streamerz" ? "Streamerz" : "Gamerz"
-  const targetHost = custom.trim() || (target || serverIp)
-  const targetLabel = custom.trim() || target || serverIp || t("targetServer")
 
   useEffect(() => {
     setResult(EMPTY)
@@ -81,18 +103,6 @@ export function Speed() {
     setSamples((prev) => [...prev.slice(-(BARS_MEMORY - 1)), v])
   }
 
-  const guard = (): string | null => {
-    if (!serverIp) {
-      setHint(t("needServer"))
-      return null
-    }
-    if (!card) {
-      setHint(t("needDomain"))
-      return null
-    }
-    return serverIp
-  }
-
   const runPing = async (host: string, signal: AbortSignal) => {
     setPhase("ping")
     setCaption(t("pingTitle"))
@@ -101,7 +111,11 @@ export function Speed() {
     setSamples([])
     setHint(t("pingHint"))
     try {
-      const r = await measurePing(host, PING_PROBES, { signal, target: targetHost, onPing: (ms) => push(ms) })
+      const r = await measurePing(host, PING_PROBES, {
+        signal,
+        pingUrl: CF_PING_URL,
+        onPing: (ms) => push(ms),
+      })
       setResult((prev) => ({ ...prev, ping: r.ping, jitter: r.jitter }))
       push(r.ping)
       setValue(r.ping)
@@ -121,7 +135,12 @@ export function Speed() {
     setHint(direction === "down" ? t("downHint") : t("upHint"))
     try {
       const fn = direction === "down" ? measureDownload : measureUpload
-      const mbps = await fn(host, { seconds: PHASE_SECONDS, signal, onTick: (v) => push(v) })
+      const mbps = await fn(host, {
+        seconds: PHASE_SECONDS,
+        signal,
+        onTick: (v) => push(v),
+        ...(direction === "down" ? { downUrl: cfDownUrl } : { upUrl: CF_UP_URL }),
+      })
       setResult((prev) => (direction === "down" ? { ...prev, down: mbps } : { ...prev, up: mbps }))
       setValue(mbps)
       return mbps
@@ -131,9 +150,9 @@ export function Speed() {
     }
   }
 
-  const remember = (r: Result) => {
+  const remember = (r: Result, label: string) => {
     if (r.ping === null && r.down === null && r.up === null) return
-    const next = [{ at: Date.now(), ...r }, ...history].slice(0, 3)
+    const next = [{ at: Date.now(), ...r, target: label }, ...history].slice(0, HISTORY_MAX)
     setHistory(next)
     try {
       localStorage.setItem("qc-speed-history", JSON.stringify(next))
@@ -143,13 +162,20 @@ export function Speed() {
   }
 
   const run = async (which: "all" | "ping" | "down" | "up") => {
-    const host = guard()
-    if (!host || running) return
+    if (running) return
+    const host = "net"
     abort.current?.abort()
     const ctl = new AbortController()
     abort.current = ctl
     const s = ctl.signal
     const acc: Result = { ...result }
+    const label = t("targetInternet")
+    setNetInfo(null)
+    if (!isSimEnv()) {
+      void resolveNetInfo(s).then((info) => {
+        if (!s.aborted) setNetInfo(info)
+      })
+    }
     // Each phase reports back here so the history line reflects the run that
     // just happened, not whatever the tiles happened to hold before.
     if (which === "all" || which === "ping") {
@@ -171,7 +197,7 @@ export function Speed() {
       if (s.aborted) return
     }
     setPhase("done")
-    remember(acc)
+    remember(acc, label)
   }
 
   const reset = () => {
@@ -182,43 +208,37 @@ export function Speed() {
     setPhase("idle")
     setCaption(t("idle"))
     setHint("")
+    setNetInfo(null)
   }
-
-  const items: PickerItem[] = [
-    { value: "", label: t("targetServer"), sub: serverIp },
-    ...SNIS[kind].map(([name, domain]) => ({ value: domain, label: name, sub: domain })),
-    ...PUBLIC.map(([name, domain]) => ({ value: domain, label: name, sub: domain })),
-    { value: CUSTOM_SNI, label: t("targetCustom") },
-  ]
 
   const measured = result.ping !== null || result.down !== null || result.up !== null
   const verdicts = buildVerdicts(result, t)
   const peak = samples.length ? Math.max(...samples) : 0
 
   return (
-    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-3.5">
-      <section className="glass rounded-[var(--r-card)] px-5 pb-4 pt-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="truncate text-[13px] font-semibold text-txt">{t("tabSpeed")}</div>
-            <div className="mt-0.5 truncate text-[11.5px] text-txt3">
-              {card?.name.split(" (")[0] ?? "—"} · {kind}
+    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-3">
+      <section className="glass rounded-[24px] px-5 pb-3 pt-3">
+        <div className="min-w-0">
+          <div className="truncate text-[13px] font-semibold text-txt">{t("tabSpeed")}</div>
+          <div className="mt-0.5 truncate text-[11.5px] text-txt3" dir="auto">
+            <bdi>{card?.name.split(" (")[0] ?? "-"}</bdi> · <bdi>{kind === "Streamerz" ? t("kindStreamerz") : t("kindGamerz")}</bdi>
+          </div>
+        </div>
+        {netInfo && (
+          <div className="mt-1.5 space-y-0.5 text-[11px] text-txt3">
+            <div className="truncate">
+              {t("provider")}: <span className="text-txt2"><bdi>{netInfo.isp}{netInfo.place ? ` - ${netInfo.place}` : ""}</bdi></span>
+            </div>
+            <div className="truncate">
+              {t("serverLabel")}: <span className="text-txt2">Cloudflare{netInfo.colo ? ` ${netInfo.colo}` : ""}</span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setPickOpen(true)}
-            className="flex max-w-[60%] items-center gap-1.5 rounded-full border border-[rgb(255_255_255/0.12)] px-2.5 py-1 text-[12px] text-txt3 transition-colors hover:text-txt"
-          >
-            <span className="truncate">{targetLabel}</span>
-            <ChevronDown className="size-3.5 shrink-0" aria-hidden />
-          </button>
-        </div>
+        )}
 
-        <div className="mt-3 flex items-end justify-between gap-6">
+        <div className="mt-2.5 flex items-end justify-between gap-6">
           <div className="min-w-0">
             <div className="flex items-baseline gap-2">
-              <span className="text-[54px] leading-none font-light tabular-nums text-txt" style={{ letterSpacing: "-0.02em" }}>
+              <span className="text-[46px] leading-none font-light tabular-nums text-txt" style={{ letterSpacing: "-0.02em" }}>
                 {unit === "ms" ? Math.round(value) : value >= 100 ? value.toFixed(0) : value.toFixed(1)}
               </span>
               <span className="text-[13px] text-txt3">{unit}</span>
@@ -232,7 +252,7 @@ export function Speed() {
           )}
         </div>
 
-        <div className="mt-3">
+        <div className="mt-2.5">
           <SpeedBars
             samples={samples}
             accent={phase === "upload" ? "var(--cyan)" : phase === "ping" ? "var(--amber)" : "var(--brand)"}
@@ -240,7 +260,7 @@ export function Speed() {
           />
         </div>
 
-        <div className="mt-3 grid grid-cols-4 divide-x divide-line">
+        <div className="mt-2.5 grid grid-cols-4 divide-x divide-line">
           <Reading title={t("pingTitle")} value={result.ping} unit={t("ms")} onClick={() => void run("ping")} disabled={running} />
           <Reading title={t("jitter")} value={result.jitter} unit={t("ms")} onClick={() => void run("ping")} disabled={running} />
           <Reading
@@ -261,7 +281,7 @@ export function Speed() {
 
         {/* what the numbers mean, in one row, inside the same pane */}
         {verdicts.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-line pt-3">
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-line pt-2.5">
             {verdicts.map((v) => (
               <span key={v.label} className="flex items-center gap-2 text-[12px]">
                 <v.icon className="size-3.5 shrink-0 text-txt3" strokeWidth={1.7} aria-hidden />
@@ -294,20 +314,30 @@ export function Speed() {
         )}
       </div>
 
-      {/* last runs, one thin line, newest first */}
+      {/* last run at a glance; the full history lives on its own page */}
       {history.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[11.5px] text-txt3">
-          <span>{t("history")}</span>
-          {history.map((h) => (
-            <span key={h.at} className="tabular-nums">
-              {new Date(h.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              {" · "}
-              {h.down !== null ? `${h.down.toFixed(0)}↓` : "—"}
-              {" · "}
-              {h.ping !== null ? `${Math.round(h.ping)}ms` : "—"}
+        <button
+          type="button"
+          onClick={onOpenHistory}
+          className="glass group w-full rounded-[20px] px-4 py-2.5 text-start transition-colors"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[11px] font-medium tracking-[0.08em] text-txt3 uppercase">
+              {t("history")}
+              <span className="ms-2 font-normal tabular-nums">{history.length}</span>
+            </div>
+            <span className="flex shrink-0 items-center gap-1 text-[12px] text-txt3 transition-colors group-hover:text-brand-strong">
+              {t("histOpen")}
+              <ChevronRight
+                className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5"
+                aria-hidden
+              />
             </span>
-          ))}
-        </div>
+          </div>
+          <div className="mt-1">
+            <HistoryRow h={history[0]} />
+          </div>
+        </button>
       )}
 
       {(hint || !measured) && (
@@ -315,52 +345,58 @@ export function Speed() {
           {hint || t("speedIdle")}
         </p>
       )}
-
-      {customOpen && (
-        <Input
-          autoFocus
-          value={custom}
-          onChange={(e) => setCustom(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") setCustomOpen(false)
-          }}
-          placeholder="example.com"
-          aria-label={t("targetCustom")}
-          className="h-9 rounded-[12px] border-line bg-white/[0.02] text-[13px]"
-        />
-      )}
-
-      <PickerDialog
-        open={pickOpen}
-        onOpenChange={setPickOpen}
-        title={t("target")}
-        search={t("searchTargets")}
-        items={items}
-        value={customOpen ? CUSTOM_SNI : target}
-        onPick={(v) => {
-          if (v === CUSTOM_SNI) {
-            setCustomOpen(true)
-            setTarget("")
-            setCustom("")
-            return
-          }
-          setCustomOpen(false)
-          setCustom("")
-          setTarget(v)
-        }}
-      />
     </div>
   )
 }
 
 type Verdict = { icon: typeof Gamepad2; label: string; tone: "ok" | "warn" | "bad"; text: string }
 
+/** One stored run: date plus target on top, then the numbers as mini
+    readings echoing the main block. Pane-less content: the history page wraps
+    each run in glass, the Speed summary card embeds it in its own pane. */
+export function HistoryRow({ h, trailing }: { h: Run; trailing?: ReactNode }) {
+  const { t } = useI18n()
+  const cells = [
+    { key: "ping", title: t("pingTitle"), text: h.ping !== null ? String(Math.round(h.ping)) : "-", unit: t("ms"), show: true, empty: h.ping === null },
+    { key: "down", title: t("chDown"), text: h.down !== null ? h.down.toFixed(0) : "-", unit: t("mbps"), show: true, empty: h.down === null },
+    { key: "up", title: t("chUp"), text: h.up !== null ? h.up.toFixed(0) : "-", unit: t("mbps"), show: true, empty: h.up === null },
+    { key: "jitter", title: t("jitter"), text: h.jitter !== null ? String(Math.round(h.jitter)) : "-", unit: t("ms"), show: h.jitter !== null, empty: false },
+  ]
+  const shown = cells.filter((c) => c.show)
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="shrink-0 text-[11.5px] tabular-nums text-txt3">
+          {new Date(h.at).toLocaleDateString([], { month: "short", day: "numeric" })}
+          {" "}
+          {new Date(h.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-end text-[12.5px] text-txt2" dir="auto">
+          {h.target || t("targetServer")}
+        </span>
+        {trailing}
+      </div>
+      <div className={cn("mt-2 grid divide-x divide-line", shown.length > 3 ? "grid-cols-4" : "grid-cols-3")}>
+        {shown.map((c) => (
+          <div key={c.key} className="flex flex-col items-center gap-0.5 py-0.5">
+            <span className="text-[10.5px] text-txt3">{c.title}</span>
+            <span className={cn("text-[15px] font-medium tabular-nums", c.empty ? "text-txt3" : "text-txt")}>
+              {c.text}
+            </span>
+            <span className="text-[10px] text-txt3">{c.unit}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /**
  * Plain language instead of raw numbers: what the line can actually do.
  * Thresholds are the published practical ones - competitive play needs jitter
  * under ~10 ms, 1080p needs ~25 Mbps, 4K wants 50+.
  */
-function buildVerdicts(r: Result, t: (k: StrKey) => string): Verdict[] {
+export function buildVerdicts(r: Result, t: (k: StrKey) => string): Verdict[] {
   const { ping, jitter, down } = r
   const out: Verdict[] = []
 
@@ -408,7 +444,7 @@ function Reading({
     >
       <span className="text-[11.5px] text-txt3">{title}</span>
       <span className={cn("text-[17px] font-medium tabular-nums", value === null ? "text-txt3" : "text-txt")}>
-        {value === null ? "—" : unit === "ms" ? Math.round(value) : value.toFixed(1)}
+        {value === null ? "-" : unit === "ms" ? Math.round(value) : value.toFixed(1)}
       </span>
       <span className="text-[11px] text-txt3">{unit}</span>
     </button>

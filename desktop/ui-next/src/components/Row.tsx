@@ -14,38 +14,29 @@ export function Row({
   return (
     <div
       className={cn(
-        "flex gap-4 px-[var(--pad-card)] py-3",
+        "flex gap-4 border-b border-line px-4 py-2.5 last:border-b-0",
         align === "center" ? "items-center" : "items-start",
       )}
     >
-      <div className="w-[136px] shrink-0 pt-[7px] text-[12.5px] text-txt2">{label}</div>
+      <div className="w-[148px] shrink-0 pt-[7px] text-[12.5px] text-txt2">{label}</div>
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   )
 }
 
-/** The standard content card. One border, one radius, one shadow, no nesting. */
 export function Panel({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("glass pane overflow-hidden", className)}>{children}</div>
-}
-
-/** Rows inside a Panel sit on hairlines, never on their own frames. */
-export function Rows({ children }: { children: ReactNode }) {
-  return <div className="flex flex-col">{children}</div>
+  return <div className={cn("glass overflow-hidden rounded-[20px]", className)}>{children}</div>
 }
 
 export function GroupLabel({ children }: { children: ReactNode }) {
-  return <div className="px-1 pb-1.5 text-[10.5px] font-medium tracking-[0.07em] text-txt3 uppercase">{children}</div>
+  return <div className="px-1 pb-2 text-[11px] font-medium tracking-[0.07em] text-txt3 uppercase">{children}</div>
 }
 
-/** Every page opens with the same heading block. */
 export function PageTitle({ children, sub }: { children: ReactNode; sub?: string }) {
   return (
-    <div className="page-head">
-      <div className="min-w-0">
-        <h1 className="page-title truncate">{children}</h1>
-        {sub && <p className="page-sub truncate">{sub}</p>}
-      </div>
+    <div className="px-1">
+      <h1 className="text-[15px] font-semibold text-txt">{children}</h1>
+      {sub && <p className="mt-0.5 text-[12.5px] text-txt3">{sub}</p>}
     </div>
   )
 }

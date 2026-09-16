@@ -20,9 +20,25 @@ export type RunOpts = {
   signal?: AbortSignal
   /** What the ping should measure against, on top of the server host itself. */
   target?: string
+  /** Direct probe URL, used by the public internet test. */
+  pingUrl?: string
+  /** Download URL builder, used by the public internet test. */
+  downUrl?: (bytes: number) => string
+  /** Upload URL, used by the public internet test. */
+  upUrl?: string
 }
 
 const sim = () => typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window)
+
+/** True outside Tauri: measurements are simulated stand-ins. */
+export function isSimEnv(): boolean {
+  return sim()
+}
+
+/** Public Cloudflare speed endpoints for the real-internet test. */
+export const CF_PING_URL = "https://speed.cloudflare.com/__down?bytes=10000"
+export const cfDownUrl = (bytes: number) => `https://speed.cloudflare.com/__down?bytes=${bytes}`
+export const CF_UP_URL = "https://speed.cloudflare.com/__up"
 
 export async function measurePing(host: string, count = 8, opts: RunOpts = {}): Promise<PingResult> {
   if (sim()) {
@@ -34,18 +50,29 @@ export async function measurePing(host: string, count = 8, opts: RunOpts = {}): 
     return { ping: Math.round(ping), jitter: 2 + Math.random() * 2 }
   }
   const samples: number[] = []
-  // Pinging the server itself goes through its own tiny endpoint. Any other
-  // target is an opaque cross-origin probe: the reply is unreadable but the
-  // round trip is real, and it travels the same route as everything else.
-  const bare = opts.target && opts.target !== host && opts.target !== ""
+  // A direct probe URL measures a fixed public endpoint (the internet
+  // test). Otherwise pinging the server itself goes through its own tiny
+  // endpoint, and any other target is an opaque cross-origin probe: the
+  // reply is unreadable but the round trip is real, and it travels the
+  // same route as everything else.
+  const bare = !opts.pingUrl && opts.target && opts.target !== host && opts.target !== ""
   for (let i = 0; i < count; i++) {
     if (opts.signal?.aborted) break
-    const url = bare
-      ? `https://${opts.target}/?qc=${Math.random()}`
-      : `${base(host)}/speed/down?bytes=1&r=${Math.random()}`
+    let url: string
+    let mode: RequestMode
+    if (opts.pingUrl) {
+      url = `${opts.pingUrl}${opts.pingUrl.includes("?") ? "&" : "?"}r=${Math.random()}`
+      mode = "no-cors"
+    } else if (bare) {
+      url = `https://${opts.target}/?qc=${Math.random()}`
+      mode = "no-cors"
+    } else {
+      url = `${base(host)}/speed/down?bytes=1&r=${Math.random()}`
+      mode = "cors"
+    }
     const t0 = performance.now()
     try {
-      await fetch(url, { cache: "no-store", signal: opts.signal, mode: bare ? "no-cors" : "cors" })
+      await fetch(url, { cache: "no-store", signal: opts.signal, mode })
       const dt = performance.now() - t0
       samples.push(dt)
       opts.onPing?.(dt)
@@ -69,11 +96,12 @@ export async function measureDownload(host: string, opts: RunOpts = {}): Promise
   const win: Array<[number, number]> = []
   let chunk = 1 << 20
   let best = 0
+  const dl = opts.downUrl ?? ((bytes: number) => `${base(host)}/speed/down?bytes=${bytes}&r=${Math.random()}`)
   while (performance.now() < deadline && !opts.signal?.aborted) {
     const t0 = performance.now()
     let got = 0
     try {
-      const r = await fetch(`${base(host)}/speed/down?bytes=${chunk}&r=${Math.random()}`, {
+      const r = await fetch(dl(chunk), {
         cache: "no-store",
         signal: opts.signal,
       })
@@ -101,7 +129,7 @@ export async function measureDownload(host: string, opts: RunOpts = {}): Promise
 export async function measureUpload(host: string, opts: RunOpts = {}): Promise<number> {
   const seconds = opts.seconds ?? 9
   if (sim()) return simulated("up", seconds, opts)
-  const url = `${base(host)}/speed/up?r=${Math.random()}`
+  const url = opts.upUrl ?? `${base(host)}/speed/up?r=${Math.random()}`
   const deadline = performance.now() + seconds * 1000
   let size = 4 << 20
   let best = 0

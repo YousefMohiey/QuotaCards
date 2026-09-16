@@ -1,7 +1,8 @@
 /* QuotaCards desktop, React + Tailwind v4 + shadcn token model.
-   The palette is the design-system v3 set (synced to the app icon: near-black
-   navy surfaces, one royal-blue accent, muted semantics). shadcn components
-   consume the token bridge at the bottom, so nothing invents its own colour. */
+   Charcoal-navy theme by owner call: dark surfaces that still read black
+   at a glance, silver hairlines, one royal-blue accent, muted semantics.
+   shadcn components consume the token bridge at the bottom, so nothing
+   invents its own colour. */
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -28,12 +29,13 @@
 :root {
   color-scheme: dark;
 
-  /* Surfaces: one shade step per layer, the way the phone app stacks them. */
-  --bg: #0b0f18;
-  --side: #090c14;
-  --panel: #121a2a;
-  --panel-hover: #172033;
-  --field: #1a2336;
+  /* Surfaces: charcoal-navy ladder, window base up through panels to
+     controls. Separation comes from tone steps plus silver hairlines. */
+  --bg: #0b0e14;
+  --side: #0e1320;
+  --panel: #111826;
+  --panel-hover: #161e30;
+  --field: #1a2338;
 
   /* Lines: one hairline weight, two strengths. */
   --line: rgb(255 255 255 / 0.08);
@@ -45,10 +47,10 @@
   --txt3: #8b95a6;
 
   /* One accent + muted semantics. Saturated hues read as generated. */
-  --brand: #4a86e8;
-  --brand-strong: #6b9df0;
-  --brand-bg: rgb(74 134 232 / 0.14);
-  --brand-line: rgb(74 134 232 / 0.4);
+  --brand: #1f59b6;
+  --brand-strong: #5b8def;
+  --brand-bg: rgb(31 89 182 / 0.14);
+  --brand-line: rgb(31 89 182 / 0.4);
   --green: #5cb28e;
   --green-bg: rgb(92 178 142 / 0.12);
   --green-line: rgb(92 178 142 / 0.36);
@@ -59,36 +61,21 @@
   --red-bg: rgb(207 112 120 / 0.12);
   --red-line: rgb(207 112 120 / 0.36);
 
-  /* Shape, elevation, motion. One control height, one row rhythm, one radius
-     per role: every surface in the app is built from these, so a button in a
-     dialog lines up with one on a page. */
-  --ctl-h: 36px;
-  --ctl-h-sm: 30px;
-  --pad-page: 20px;
-  --pad-card: 16px;
-  --row-h: 34px;
-  --gap-1: 6px;
-  --gap-2: 10px;
-  --gap-3: 16px;
-  --gap-4: 22px;
-  --r-ctl: 9px;
-  --r-card: 14px;
-  --r-modal: 14px;
+  /* Shape, elevation, motion. */
+  --r-ctl: 10px;
+  --r-card: 16px;
   --r-pill: 999px;
   --sh-1: 0 1px 2px rgb(0 0 0 / 0.24);
-  --sh-2: 0 12px 32px rgb(0 0 0 / 0.34), 0 2px 6px rgb(0 0 0 / 0.28);
-  --sh-3: 0 24px 64px rgb(0 0 0 / 0.48);
+  --sh-2: 0 16px 40px rgb(0 0 0 / 0.45), 0 2px 8px rgb(0 0 0 / 0.35);
   --ease: cubic-bezier(0.33, 0, 0.67, 1);
   --ease-out: cubic-bezier(0.1, 0.9, 0.2, 1);
-  --t-fast: 160ms;
-  --t-base: 190ms;
 
   /* shadcn token bridge */
   --background: var(--bg);
   --foreground: var(--txt);
   --card: var(--panel);
   --card-foreground: var(--txt);
-  --popover: #141c2b;
+  --popover: #111826;
   --popover-foreground: var(--txt);
   --primary: var(--brand);
   --primary-foreground: #08111f;
@@ -96,13 +83,13 @@
   --secondary-foreground: var(--txt);
   --muted: var(--field);
   --muted-foreground: var(--txt3);
-  --accent: #1b2437;
+  --accent: #1a2338;
   --accent-foreground: var(--txt);
   --destructive: var(--red);
   --destructive-foreground: #1b0e10;
   --border: var(--line);
   --input: var(--line-strong);
-  --ring: rgb(74 134 232 / 0.5);
+  --ring: rgb(31 89 182 / 0.5);
   --radius: 0.625rem;
 }
 
@@ -150,6 +137,13 @@
   --radius-xl: calc(var(--radius) + 6px);
 }
 
+/* Arabic reads from the right edge, but the document stays LTR so no layout
+   ever mirrors. Tailwind's text-start is therefore left-locked; this
+   unlayered override sends it to the reading edge in Arabic only. */
+[lang="ar"] .text-start {
+  text-align: right;
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -161,7 +155,7 @@
   }
   body {
     @apply text-foreground antialiased;
-    background: #04060b;
+    background: #0b0e14;
     margin: 0;
     font-size: 13.5px;
     line-height: 1.45;
@@ -203,30 +197,10 @@
   @media (prefers-reduced-motion: reduce) {
     /* Windows reports this for a plain "animation effects off" preference,
        so only endless decorative loops stand down; state motion still plays. */
-    .pulse-dot,
-    .soft-ping {
+    .pulse-dot {
       animation: none !important;
     }
   }
-}
-
-/* A soft halo for the update reminder: slow, low contrast, easy to ignore. */
-@keyframes softPing {
-  0% {
-    transform: scale(0.55);
-    opacity: 0.5;
-  }
-  70% {
-    transform: scale(1.7);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1.7);
-    opacity: 0;
-  }
-}
-.soft-ping {
-  animation: softPing 2.8s cubic-bezier(0.33, 0, 0.67, 1) infinite;
 }
 
 /* ---------------------------------------------------------------------------
@@ -236,10 +210,10 @@
    legibility rules live in the `liquid-glass-ui` skill.
    --------------------------------------------------------------------------- */
 :root {
-  --glass-fill: rgb(13 18 30 / 0.46);
-  --glass-line: rgb(255 255 255 / 0.11);
-  --glass-top: rgb(255 255 255 / 0.09);
-  --glass-blur: blur(15px) saturate(145%);
+  --glass-fill: rgb(11 14 20 / 0.55);
+  --glass-line: rgb(255 255 255 / 0.12);
+  --glass-top: rgb(255 255 255 / 0.1);
+  --glass-blur: blur(20px) saturate(150%);
 }
 
 .scene {
@@ -294,95 +268,52 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
 }
 
-/* The one shared material. Less layering than before: a single thin border,
-   a soft float shadow and a quiet top light, so stacked panes never read as
-   nested frames. */
+/* The one shared material: flat dark frosted fill, lit edge,
+   inner thickness, outer float. No sheen wash, no top light. */
 .glass {
-  background:
-    linear-gradient(115deg, rgb(255 255 255 / 0.05), transparent 30%),
-    var(--glass-fill);
+  background: var(--glass-fill);
   backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-line);
   box-shadow:
-    inset 0 1px 0 var(--glass-top),
-    var(--sh-2);
+    inset 0 -12px 24px rgb(0 0 0 / 0.18),
+    0 24px 60px rgb(0 0 0 / 0.35);
 }
 
 /* Sidebar: same pane, cooler and quieter, so content stays the focus. */
 .glass-side {
-  background: rgb(9 12 20 / 0.5);
-  backdrop-filter: blur(22px) saturate(145%);
+  background: rgb(11 14 20 / 0.72);
+  backdrop-filter: blur(26px) saturate(150%);
   border-inline-end: 1px solid var(--glass-line);
 }
 
-/* Sheets: a native dialog, so a moderate frost and one border. */
+/* Sheets: heavier blur, never heavier opacity than this or the scene dies. */
 .glass-dialog {
-  background:
-    linear-gradient(115deg, rgb(255 255 255 / 0.05), transparent 28%),
-    rgb(12 17 28 / 0.82) !important;
-  backdrop-filter: blur(18px) saturate(140%);
+  background: rgb(13 18 28 / 0.85) !important;
+  backdrop-filter: blur(30px) saturate(150%);
   border: 1px solid var(--glass-line);
-  box-shadow:
-    inset 0 1px 0 var(--glass-top),
-    var(--sh-3);
+  box-shadow: 0 30px 80px rgb(0 0 0 / 0.5);
 }
 
 /* Small surfaces: lighter frost so stacked glass never turns muddy. */
 .glass-tile {
-  background:
-    linear-gradient(115deg, rgb(255 255 255 / 0.04), transparent 34%),
-    rgb(13 18 30 / 0.34);
-  backdrop-filter: blur(14px) saturate(135%);
-  border: 1px solid rgb(255 255 255 / 0.09);
-}
-
-/* ---------------------------------------------------------------------------
-   Shared surface roles, so pages stop inventing their own paddings.
-   --------------------------------------------------------------------------- */
-.pane {
-  border-radius: var(--r-card);
-  padding: var(--pad-card);
-}
-/* A list that lives on the page instead of inside a card. */
-.list-sep > * + * {
-  border-top: 1px solid var(--line);
-}
-/* One nav row: fixed height keeps icons and labels on a baseline grid. */
-.nav-item {
-  height: var(--row-h);
-  border-radius: var(--r-ctl);
-  transition:
-    background-color var(--t-fast) var(--ease),
-    color var(--t-fast) var(--ease);
-}
-/* Page heading block: title + one line of support, same on every page. */
-.page-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--gap-3);
-  padding-inline: 2px;
-}
-.page-title {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--txt);
-}
-.page-sub {
-  margin-top: 2px;
-  font-size: 12px;
-  color: var(--txt3);
+  background: rgb(15 21 35 / 0.5);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgb(255 255 255 / 0.1);
 }
 
 /* Popovers, selects and menus are part of the same material. */
 [data-slot="select-content"],
 [data-slot="dropdown-menu-content"],
 [data-slot="popover-content"] {
-  background-color: rgb(15 21 34 / 0.84) !important;
+  background-color: rgb(13 18 28 / 0.9) !important;
   backdrop-filter: blur(24px) saturate(150%);
   border-color: var(--glass-line);
 }
 [data-slot="dialog-overlay"] {
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
+}
+
+/* Owner call: true-black theme. The night scene stays out entirely. */
+.scene {
+  display: none;
 }
