@@ -43,6 +43,11 @@ SMALL_LIFT = {16, 20, 24, 30, 32, 36}
 # ring into a white blob - never do that.
 SMALL_MARK = {16, 20, 24, 30, 32}
 MARK_ZOOM = 1.28
+# On a dark taskbar the near-black tile disappears and only the mark floats.
+# These sizes get a one-pixel lighter rim so the icon reads as a tile, the way
+# every neighbouring icon does (Microsoft: "exaggerate aspects at smaller
+# sizes ... to focus the key point").
+RIM = {16, 20, 24, 30, 32, 36}
 
 
 def mark_mask(im: Image.Image) -> Image.Image:
@@ -114,6 +119,25 @@ def render(master: Image.Image, size: int) -> Image.Image:
             # average: at 16-36px the unmodified downscale reads as a smudge.
             rgb = ImageEnhance.Contrast(rgb).enhance(1.16)
             rgb = ImageEnhance.Color(rgb).enhance(1.25)
+        if size in RIM:
+            # A one-pixel lighter edge on the tile so the icon is not a black
+            # square on a black taskbar. Slightly brighter at the top, so it
+            # reads as light falling on the tile rather than a sticker outline,
+            # and pushed harder at the smallest sizes where the band is barely
+            # a pixel wide.
+            alpha = im.getchannel("A")
+            inner = alpha.filter(ImageFilter.MinFilter(3))
+            edge = ImageChops.subtract(alpha, inner)
+            if size <= 24:
+                edge = edge.point(lambda v: min(255, int(v * 1.8)))
+            edge = edge.filter(ImageFilter.GaussianBlur(0.6))
+            g = Image.linear_gradient("L").resize(im.size)
+            rim = Image.composite(
+                Image.new("RGB", im.size, (150, 166, 196)),
+                Image.new("RGB", im.size, (92, 104, 130)),
+                g,
+            )
+            rgb = Image.composite(rim, rgb, edge)
         rgb = rgb.filter(
             ImageFilter.UnsharpMask(radius=radius, percent=percent, threshold=1)
         ).convert("RGBA")

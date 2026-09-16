@@ -633,6 +633,89 @@ struct UpdateInfo {
     url: String,
 }
 
+/// Exit address plus provider for the speed page, resolved in Rust so no
+/// webview policy, CORS rule or fetch quirk can block it. The UI tries its
+/// own lookups first; this is the dependable path.
+#[derive(serde::Serialize)]
+struct NetInfo {
+    ip: String,
+    isp: String,
+    place: String,
+}
+
+fn join_place(city: Option<&str>, country: Option<&str>) -> String {
+    match (city, country) {
+        (Some(c), Some(k)) => format!("{c}, {k}"),
+        (Some(c), None) => c.to_string(),
+        (None, Some(k)) => k.to_string(),
+        _ => String::new(),
+    }
+}
+
+#[tauri::command]
+async fn net_info() -> Option<NetInfo> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(8))
+        .user_agent("QuotaCards")
+        .build()
+        .ok()?;
+
+    if let Ok(r) = client.get("https://ipwho.is/").send().await {
+        if let Ok(v) = r.json::<serde_json::Value>().await {
+            if v.get("success").and_then(|x| x.as_bool()) != Some(false) {
+                if let Some(ip) = v.get("ip").and_then(|x| x.as_str()) {
+                    if !ip.is_empty() {
+                        let isp = v
+                            .pointer("/connection/isp")
+                            .and_then(|x| x.as_str())
+                            .or_else(|| v.pointer("/connection/org").and_then(|x| x.as_str()))
+                            .unwrap_or("")
+                            .to_string();
+                        let place = join_place(
+                            v.get("city").and_then(|x| x.as_str()),
+                            v.get("country").and_then(|x| x.as_str()),
+                        );
+                        return Some(NetInfo { ip: ip.to_string(), isp, place });
+                    }
+                }
+            }
+        }
+    }
+
+    if let Ok(r) = client.get("https://ipapi.co/json/").send().await {
+        if let Ok(v) = r.json::<serde_json::Value>().await {
+            if let Some(ip) = v.get("ip").and_then(|x| x.as_str()) {
+                if !ip.is_empty() {
+                    let isp = v.get("org").and_then(|x| x.as_str()).unwrap_or("").to_string();
+                    let place = join_place(
+                        v.get("city").and_then(|x| x.as_str()),
+                        v.get("country_name").and_then(|x| x.as_str()),
+                    );
+                    return Some(NetInfo { ip: ip.to_string(), isp, place });
+                }
+            }
+        }
+    }
+
+    // Last resort: Cloudflare's trace endpoint, on the same host the speed
+    // test itself uses. It carries no provider, but an address beats a dash.
+    if let Ok(t) = client.get("https://cloudflare.com/cdn-cgi/trace").send().await {
+        if let Ok(body) = t.text().await {
+            let ip = body
+                .lines()
+                .find_map(|l| l.strip_prefix("ip="))
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if !ip.is_empty() {
+                return Some(NetInfo { ip, isp: String::new(), place: String::new() });
+            }
+        }
+    }
+
+    None
+}
+
 fn newer(latest: &str, current: &str) -> bool {
     // Numeric dot-part compare, no semver crate needed.
     let p = |s: &str| {
@@ -818,7 +901,8 @@ pub fn run() {
             tunnel_apps,
             resolve_host,
             check_update,
-            apply_update
+            apply_update,
+            net_info
         ])
         .run(tauri::generate_context!())
         .expect("QuotaCards failed to start");

@@ -31,9 +31,13 @@ export type UiState = {
 export type TunnelState = { running: boolean; error: string }
 export type TrafficState = { rx: number; tx: number }
 export type UpdateInfo = { current: string; latest: string; available: boolean; url: string }
+export type NetInfo = { ip: string; isp: string; place: string }
 
 export const isTauri = (): boolean =>
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
+
+/** Exit-address facts for the speed page, resolved backend-side. */
+export const netInfo = (): Promise<NetInfo | null> => call<NetInfo | null>("net_info")
 
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (isTauri()) return invoke<T>(cmd, args)

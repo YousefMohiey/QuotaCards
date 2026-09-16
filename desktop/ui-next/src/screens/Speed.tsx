@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ChevronRight, Gamepad2, History, Play, RotateCcw, Tv, Video } from "lucide-react"
+import { ChevronRight, Gamepad2, History, Play, Square, Tv, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SpeedBars } from "@/components/SpeedBars"
 import { useApp } from "@/state/app"
 import { useI18n, type StrKey } from "@/lib/i18n"
 import { measureDownload, measurePing, measureUpload, CF_PING_URL, CF_UP_URL, cfDownUrl } from "@/lib/speedtest"
+import { isTauri, netInfo } from "@/lib/ipc"
 import { cn } from "@/lib/utils"
 
 const PING_PROBES = 8
@@ -68,10 +69,22 @@ export function runUrls(server: TestServer, host: string): RunUrls {
 /** Exit IP plus provider for the speed page. Both services are HTTPS and
     CORS-open; with the tunnel up this reports the server's address, which is
     what a speed test should show. Failure just means no provider line. */
-async function resolveNetInfo(signal: AbortSignal, ip?: string): Promise<NetInfo | null> {
+async function resolveNetInfo(signal: AbortSignal): Promise<NetInfo | null> {
+  // In the app the backend resolves this first: the webview is at the mercy
+  // of whatever the host network or a policy does to these JSON APIs, the
+  // Rust client is not. Whatever it returns wins; otherwise fall through to
+  // the browser chain so the preview still shows something real.
+  if (isTauri()) {
+    try {
+      const r = await netInfo()
+      if (r && r.ip) return r
+    } catch {
+      /* keep going */
+    }
+  }
   const timeout = AbortSignal.timeout(8000)
   try {
-    const r = await fetch(ip ? `https://ipwho.is/${ip}` : "https://ipwho.is/", { signal: timeout, cache: "no-store" })
+    const r = await fetch("https://ipwho.is/", { signal: timeout, cache: "no-store" })
     if (r.ok) {
       const d = await r.json()
       if (d && d.success !== false && typeof d.ip === "string" && d.ip) {
@@ -264,14 +277,11 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     remember(acc, label)
   }
 
-  const reset = () => {
+  const stop = () => {
     abort.current?.abort()
-    setResult(EMPTY)
-    setValue(0)
-    setSamples([])
     setPhase("idle")
     setCaption(t("idle"))
-    setHint("")
+    setHint(t("stopped"))
   }
 
   const measured = result.ping !== null || result.down !== null || result.up !== null
@@ -288,25 +298,31 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
           </div>
         </div>
 
-        {/* Both ends of the test: the address the world sees, and the host the
-            numbers come from. Label and value sit together - aligning values
-            to the far edge just parks dead space between them. */}
-        <div className="mt-3 divide-y divide-line rounded-[12px] border border-line">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-2">
-            <span className="shrink-0 text-[11.5px] text-txt3">{t("yourIp")}</span>
-            <span className="min-w-0 text-[12.5px] text-txt2" dir="auto">
-              {netInfo?.ip ?? "-"}
-            </span>
-            {netInfo && (netInfo.isp || netInfo.place) ? (
-              <span className="min-w-0 text-[11px] text-txt3" dir="auto">
-                {[netInfo.isp, netInfo.place].filter(Boolean).join(" · ")}
-              </span>
-            ) : null}
+        {/* Both ends of the test, stated the way a speed test states them:
+            who you are on the left, what is being measured against on the
+            right. The provider is the headline, the address sits under it. */}
+        <div className="mt-3 grid grid-cols-2 divide-x divide-line overflow-hidden rounded-[12px] border border-line">
+          <div className="min-w-0 px-3.5 py-2.5">
+            <div className="text-[10.5px] font-medium tracking-[0.08em] text-txt3 uppercase">
+              {t("yourConn")}
+            </div>
+            <div className="mt-1 truncate text-[14.5px] font-semibold text-txt" dir="auto">
+              {netInfo?.isp || netInfo?.ip || "-"}
+            </div>
+            <div className="mt-0.5 truncate text-[12px] tabular-nums text-txt2" dir="auto">
+              {netInfo?.isp ? netInfo.ip : ""}
+            </div>
+            <div className="truncate text-[11.5px] text-txt3" dir="auto">
+              {netInfo?.place ?? ""}
+            </div>
           </div>
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-2">
-            <span className="shrink-0 text-[11.5px] text-txt3">{t("srvHost")}</span>
-            <span className="min-w-0 text-[12.5px] text-txt2">speed.cloudflare.com</span>
-            <span className="min-w-0 text-[11px] text-txt3">Cloudflare, Inc.</span>
+          <div className="min-w-0 px-3.5 py-2.5">
+            <div className="text-[10.5px] font-medium tracking-[0.08em] text-txt3 uppercase">
+              {t("targetServer")}
+            </div>
+            <div className="mt-1 truncate text-[14.5px] font-semibold text-txt">Cloudflare</div>
+            <div className="mt-0.5 truncate text-[12px] text-txt2">speed.cloudflare.com</div>
+            <div className="truncate text-[11.5px] text-txt3">Cloudflare, Inc.</div>
           </div>
         </div>
 
@@ -381,10 +397,14 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
           <Play className="size-3.5" aria-hidden />
           {running ? t("measuring") : t("startTest")}
         </Button>
-        {measured && (
-          <Button variant="ghost" className="h-11 gap-2 rounded-[14px] px-3.5 text-[13px]" onClick={reset}>
-            <RotateCcw className="size-3.5" aria-hidden />
-            {t("clear")}
+        {running && (
+          <Button
+            variant="ghost"
+            className="h-11 gap-2 rounded-[14px] border border-line px-4 text-[13px] hover:border-line-strong"
+            onClick={stop}
+          >
+            <Square className="size-3.5" aria-hidden />
+            {t("stop")}
           </Button>
         )}
       </div>
