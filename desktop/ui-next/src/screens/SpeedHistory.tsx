@@ -131,11 +131,11 @@ export function SpeedHistory({ onBack, onOpenResult }: { onBack: () => void; onO
                 />
               </button>
             ) : (
-              <div key={h.at} className="glass group relative rounded-[20px] transition-colors hover:border-line-strong">
+              <div key={h.at} className="glass group flex items-center rounded-[20px] transition-colors hover:border-line-strong">
                 <button
                   type="button"
                   onClick={() => onOpenResult(h.at)}
-                  className="w-full px-4 py-3 text-start"
+                  className="min-w-0 flex-1 px-4 py-3 text-start"
                 >
                   <HistoryRow
                     h={h}
@@ -152,7 +152,7 @@ export function SpeedHistory({ onBack, onOpenResult }: { onBack: () => void; onO
                   aria-label={t("delete")}
                   title={t("delete")}
                   onClick={() => setPending({ kind: "one", at: h.at })}
-                  className="absolute end-2 top-2 grid size-7 place-items-center rounded-[8px] text-txt3 opacity-0 transition-opacity duration-150 hover:bg-[var(--red-bg)] hover:text-[var(--red)] focus-visible:opacity-100 group-hover:opacity-100"
+                  className="me-2 mt-1.5 grid size-7 shrink-0 self-start place-items-center rounded-[8px] text-txt3 opacity-0 transition-opacity duration-150 hover:bg-[var(--red-bg)] hover:text-[var(--red)] focus-visible:opacity-100 group-hover:opacity-100"
                 >
                   <Trash2 className="size-3.5" aria-hidden />
                 </button>

@@ -93,7 +93,14 @@ export async function measureDownload(host: string, opts: RunOpts = {}): Promise
   const seconds = opts.seconds ?? 9
   if (sim()) return simulated("down", seconds, opts)
   const deadline = performance.now() + seconds * 1000
+  // Cumulative bytes with their timestamps. The rate is
+  // (bytes at the last sample - bytes at the first sample) / that time, and
+  // never the sum of the chunks in the window: a chunk's bytes were on the
+  // wire BEFORE the timestamp that records them, so summing them counts time
+  // that is not in the denominator. On a fast link the window holds one big
+  // chunk and that reads roughly double the real speed.
   const win: Array<[number, number]> = []
+  let total = 0
   let chunk = 1 << 20
   let best = 0
   const dl = opts.downUrl ?? ((bytes: number) => `${base(host)}/speed/down?bytes=${bytes}&r=${Math.random()}`)
@@ -112,15 +119,18 @@ export async function measureDownload(host: string, opts: RunOpts = {}): Promise
     }
     const t1 = performance.now()
     if (!got) break
-    win.push([t1, got])
-    while (win.length > 1 && t1 - win[0][0] > 1500) win.shift()
+    total += got
+    win.push([t1, total])
+    while (win.length > 2 && t1 - win[0][0] > 1500) win.shift()
     const span = (t1 - win[0][0]) / 1000
-    const bytes = win.reduce((a, [, b]) => a + b, 0)
-    const speed = span > 0 ? (bytes * 8) / span / 1e6 : 0
+    const bytes = win[win.length - 1][1] - win[0][1]
+    // Below half a second the window is one chunk's tail and the number is
+    // noise, so it reports nothing until there is a real interval to average.
+    const speed = span >= 0.5 ? (bytes * 8) / span / 1e6 : 0
     if (speed > best) best = speed
     opts.onTick?.(speed)
     const dt = (t1 - t0) / 1000
-    if (dt < 0.7 && chunk < 64 << 20) chunk = Math.min(chunk * 2, 64 << 20)
+    if (dt < 0.7 && chunk < 32 << 20) chunk = Math.min(chunk * 2, 32 << 20)
     else if (dt > 2.5 && chunk > 256 << 10) chunk = Math.max(chunk / 2, 256 << 10)
   }
   return best
@@ -156,16 +166,16 @@ function uploadRound(
     // random data defeats any compression on the way up
     const body = new Uint8Array(size)
     for (let i = 0; i < size; i += 4096) body[i] = (Math.random() * 255) | 0
-    // Rolling ~1.2s window, exactly like the download side. An instantaneous
-    // per-event rate reports a burst from one TCP window and reads far above
-    // what the link actually sustains; the window cannot spike like that.
+    // Same rolling window as the download: cumulative loaded bytes, at least
+    // half a second of interval, so a single TCP window's burst cannot be
+    // reported as the link's speed.
     const win: Array<[number, number]> = []
     xhr.upload.onprogress = (e) => {
       const now = performance.now()
       win.push([now, e.loaded])
-      while (win.length > 2 && now - win[0][0] > 1200) win.shift()
+      while (win.length > 2 && now - win[0][0] > 1500) win.shift()
       const span = (now - win[0][0]) / 1000
-      if (span >= 0.3) onProgress(((e.loaded - win[0][1]) * 8) / span / 1e6)
+      if (span >= 0.5) onProgress(((e.loaded - win[0][1]) * 8) / span / 1e6)
     }
     xhr.onload = () => resolve()
     xhr.onerror = () => reject(new Error("upload failed"))

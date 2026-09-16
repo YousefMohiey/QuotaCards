@@ -32,7 +32,8 @@ export function SpeedBars({
   }, [samples])
 
   const max = Math.max(1, ...view)
-  const height = view.map((v) => `${Math.max(5, (v / max) * 100)}%`)
+  const any = view.some((v) => v > 0)
+  const height = view.map((v) => (v === 0 ? "2px" : `${Math.max(8, (v / max) * 100)}%`))
   const t = view.map((v) => v / max)
 
   return (
@@ -42,18 +43,21 @@ export function SpeedBars({
         role="img"
         aria-label={active ? "live throughput" : "last run shape"}
       >
-        {view.map((_, i) => (
-          <span
-            key={i}
-            className="flex-1 rounded-t-[3px]"
-            style={{
-              height: height[i],
-              background: `color-mix(in oklab, ${accent} ${Math.round(18 + t[i] * 62)}%, rgb(255 255 255 / 0.10))`,
-              opacity: i === view.length - 1 && active ? 1 : 0.92,
-              transition: "height 140ms linear, background 200ms linear",
-            }}
-          />
-        ))}
+        {/* Nothing measured yet: an empty scale with its hairline reads as
+            intent, a row of stubs reads as a broken graph. */}
+        {any &&
+          view.map((v, i) => (
+            <span
+              key={i}
+              className="flex-1 rounded-t-[3px]"
+              style={{
+                height: height[i],
+                background: `color-mix(in oklab, ${accent} ${Math.round(18 + t[i] * 62)}%, rgb(255 255 255 / 0.10))`,
+                opacity: v === 0 ? 0.28 : i === view.length - 1 && active ? 1 : 0.92,
+                transition: "height 140ms linear, background 200ms linear",
+              }}
+            />
+          ))}
       </div>
       {/* baseline: without it the row of bars reads as decoration, not a scale */}
       <div className="mt-1 h-px w-full bg-[rgb(255_255_255/0.10)]" />
