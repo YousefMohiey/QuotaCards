@@ -36,6 +36,23 @@ SHARPEN = {
 # get a contrast and saturation lift: the downscale averages the thin ring into
 # the dark tile and the mark goes muddy exactly where it is smallest.
 SMALL_LIFT = {16, 20, 24, 30, 32, 36}
+# The smallest frames also get the mark magnified in place (glyph only, tile
+# untouched) so the stroke and its counter both survive the raster, plus a
+# graduated brightness lift: the master's tile is near-black, and at 16px on a
+# dark Explorer background the square would otherwise vanish into the window,
+# leaving a faint ring that reads as a smudge. Growing the bright pixels
+# themselves is still off limits - that turned the ring into a white blob.
+MARK_ZOOM = {16: 1.22, 20: 1.18, 24: 1.12}
+TILE_LIFT = {16: 1.35, 20: 1.22, 24: 1.1}
+
+
+def mark_mask(im: Image.Image) -> Image.Image:
+    """The mark itself: the light ring plus the saturated blue tail."""
+    rgb = im.convert("RGB")
+    r, g, b = rgb.split()
+    bright = rgb.convert("L").point(lambda v: 255 if v > 150 else 0)
+    blue = ImageChops.subtract(b, r).point(lambda v: 255 if v > 30 else 0)
+    return ImageChops.lighter(bright, blue)
 # The master carries ~14% empty margin around the tile. Trimmed to this much
 # margin so the tile fills the frame: Windows renders tray and shortcut icons
 # at 16-48px, and art that sits at 72% of the canvas reads as a smaller icon
@@ -66,15 +83,42 @@ def source_master() -> Image.Image:
 
 
 def render(master: Image.Image, size: int) -> Image.Image:
-    """Plain downscale plus a light unsharp at the sizes Windows actually
-    shows small. The master art (tools/tune-master.py) carries the legibility:
-    a lifted tile, a baked edge and a slightly larger mark, so no per-size
-    trickery is needed here."""
+    """Plain downscale plus the small-frame treatment: a graduated tile lift,
+    the mark magnified in place at the smallest sizes, and a tuned unsharp.
+    The master art carries its own tile edge, so nothing here redraws it."""
     im = master.resize((size, size), Image.LANCZOS)
     spec = SHARPEN.get(size)
     if spec:
         radius, percent = spec
         rgb = im.convert("RGB")
+        if size in TILE_LIFT:
+            rgb = ImageEnhance.Brightness(rgb).enhance(TILE_LIFT[size])
+        if size in MARK_ZOOM:
+            mask = mark_mask(im)
+            box = mask.getbbox()
+            if box:
+                x0, y0, x1, y1 = box
+                pad = max(2, round(max(x1 - x0, y1 - y0) * 0.55))
+                crop = (max(0, x0 - pad), max(0, y0 - pad), min(size, x1 + pad), min(size, y1 + pad))
+                mark = rgb.crop(crop)
+                mmask = mask.crop(crop)
+                z = MARK_ZOOM[size]
+                big = mark.resize((max(1, round(mark.width * z)), max(1, round(mark.height * z))), Image.LANCZOS)
+                bmask = mmask.resize(big.size, Image.LANCZOS)
+                px = (x0 + x1) // 2 - big.width // 2
+                py = (y0 + y1) // 2 - big.height // 2
+                # Clip the enlarged mark to the canvas: PIL refuses a paste whose
+                # mask does not match the clipped region.
+                dx, dy = max(0, px), max(0, py)
+                sx, sy = max(0, -px), max(0, -py)
+                w = min(big.width - sx, im.width - dx)
+                h = min(big.height - sy, im.height - dy)
+                if w > 0 and h > 0:
+                    rgb.paste(
+                        big.crop((sx, sy, sx + w, sy + h)),
+                        (dx, dy),
+                        bmask.crop((sx, sy, sx + w, sy + h)),
+                    )
         if size in SMALL_LIFT:
             rgb = ImageEnhance.Contrast(rgb).enhance(1.08)
             rgb = ImageEnhance.Color(rgb).enhance(1.1)

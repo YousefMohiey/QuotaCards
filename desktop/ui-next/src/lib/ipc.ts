@@ -42,6 +42,23 @@ export const netInfo = (): Promise<NetInfo | null> => call<NetInfo | null>("net_
 /** The public speed-test server list as raw JSON (CORS-free, backend-side). */
 export const speedServers = (): Promise<string | null> => call<string | null>("speed_servers")
 
+/** Speed measurement, backend-side: any host, and honest byte/ack accounting. */
+export const speedLatency = (url: string, probes: number): Promise<number[]> =>
+  call<number[]>("speed_latency", { url, probes })
+
+export const speedDown = (urls: string[], seconds: number): Promise<number | null> =>
+  call<number | null>("speed_down", { urls, seconds })
+
+export const speedUp = (url: string, seconds: number, chunkMb = 2): Promise<number | null> =>
+  call<number | null>("speed_up", { url, seconds, chunkMb })
+
+/** Live Mbps during a run. Returns the unsubscribe. */
+export async function onSpeedTick(cb: (mbps: number) => void): Promise<() => void> {
+  if (!isTauri()) return () => {}
+  const { listen } = await import("@tauri-apps/api/event")
+  return listen<number>("speed-tick", (e) => cb(e.payload))
+}
+
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (isTauri()) return invoke<T>(cmd, args)
   return mockCall<T>(cmd, args)

@@ -6,12 +6,17 @@ import { useApp } from "@/state/app"
 import { useI18n, type StrKey } from "@/lib/i18n"
 import { measureDownload, measurePing, measureUpload } from "@/lib/speedtest"
 import { CLOUDFLARE, loadPool, pickFastest, type SpeedServer } from "@/lib/speedservers"
-import { isTauri, netInfo } from "@/lib/ipc"
+import { isTauri, netInfo, onSpeedTick, speedDown, speedLatency, speedUp } from "@/lib/ipc"
 import { cn } from "@/lib/utils"
 
 const PING_PROBES = 8
 const PHASE_SECONDS = 9
 const BARS_MEMORY = 96
+
+/** Mean absolute delta between consecutive samples: the same jitter reading
+ *  the browser-side measurer reports, for the backend path. */
+const meanAbsDelta = (xs: number[]): number =>
+  xs.length < 2 ? 0 : xs.slice(1).reduce((a, v, i) => a + Math.abs(v - xs[i]), 0) / (xs.length - 1)
 
 type Phase = "idle" | "ping" | "download" | "upload" | "done"
 type Result = { ping: number | null; jitter: number | null; down: number | null; up: number | null }
@@ -193,6 +198,17 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     setSamples([])
     setHint(t("pingHint"))
     try {
+      if (isTauri()) {
+        const ms = await speedLatency(srv.ping, PING_PROBES)
+        if (!ms.length) throw new Error("no probes")
+        for (const v of ms) push(v)
+        const ping = Math.min(...ms)
+        const jitter = meanAbsDelta(ms)
+        setResult((prev) => ({ ...prev, ping, jitter }))
+        push(ping)
+        setValue(ping)
+        return { ping, jitter }
+      }
       const r = await measurePing("net", PING_PROBES, {
         signal,
         pingUrl: srv.ping,
@@ -216,13 +232,30 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     setSamples([])
     setHint(direction === "down" ? t("downHint") : t("upHint"))
     try {
-      const fn = direction === "down" ? measureDownload : measureUpload
-      const mbps = await fn("net", {
-        seconds: PHASE_SECONDS,
-        signal,
-        onTick: (v) => push(v),
-        ...(direction === "down" ? { downUrl: srv.down } : { upUrl: srv.up }),
-      })
+      let mbps: number | null
+      if (isTauri()) {
+        // Backend measurement: streams are counted after arrival and upload
+        // chunks are timed to the server's ack, which is the difference
+        // between a real number and a buffer-inflated one.
+        const off = await onSpeedTick((v) => {
+          if (!signal.aborted) push(v)
+        })
+        try {
+          mbps =
+            direction === "down"
+              ? await speedDown(srv.downUrls, PHASE_SECONDS)
+              : await speedUp(srv.up, PHASE_SECONDS)
+        } finally {
+          off()
+        }
+      } else {
+        const opts = { seconds: PHASE_SECONDS, signal, onTick: (v: number) => push(v) }
+        mbps =
+          direction === "down"
+            ? await measureDownload("net", { ...opts, downUrl: () => srv.downUrls[0] })
+            : await measureUpload("net", { ...opts, upUrl: srv.up })
+      }
+      if (mbps === null) throw new Error("no throughput")
       setResult((prev) => (direction === "down" ? { ...prev, down: mbps } : { ...prev, up: mbps }))
       setValue(mbps)
       return mbps

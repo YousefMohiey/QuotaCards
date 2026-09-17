@@ -19,6 +19,8 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_updater::UpdaterExt;
 
+pub mod speed;
+
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
@@ -716,25 +718,105 @@ async fn net_info() -> Option<NetInfo> {
     None
 }
 
-/// The public speed-test server list, fetched backend-side: the list endpoint
-/// sends no CORS headers (its own site reads it same-origin), so the webview
-/// cannot read it directly.
+/// The speed-test server list, fetched backend-side. Two sources: Ookla's
+/// public list (the same one speedtest.net and its CLI select from, which
+/// includes servers hosted inside providers like this user's own ISP) and the
+/// LibreSpeed public list as a fallback pool. Neither sends CORS headers, so
+/// the webview cannot read them, only the backend can.
 #[tauri::command]
 async fn speed_servers() -> Option<String> {
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .user_agent("QuotaCards")
+        .timeout(std::time::Duration::from_secs(12))
+        .user_agent(BROWSER_UA)
         .build()
         .ok()?;
-    let r = client
+
+    let mut ookla: Option<String> = None;
+    let mut libre: Option<String> = None;
+
+    let ookla_url = "https://www.speedtest.net/api/js/servers?engine=js&limit=60";
+    if let Ok(r) = client.get(ookla_url).header("Accept", "application/json").send().await {
+        if r.status().is_success() {
+            if let Ok(t) = r.text().await {
+                let t = t.trim().to_string();
+                if t.starts_with('[') {
+                    ookla = Some(t);
+                }
+            }
+        }
+    }
+
+    if let Ok(r) = client
         .get("https://librespeed.org/backend-servers/servers.php")
         .send()
         .await
-        .ok()?;
-    if !r.status().is_success() {
+    {
+        if r.status().is_success() {
+            if let Ok(t) = r.text().await {
+                let t = t.trim().to_string();
+                if t.starts_with('[') {
+                    libre = Some(t);
+                }
+            }
+        }
+    }
+
+    if ookla.is_none() && libre.is_none() {
         return None;
     }
-    r.text().await.ok()
+    Some(format!(
+        "{{\"ookla\":{},\"librespeed\":{}}}",
+        ookla.unwrap_or_else(|| "null".into()),
+        libre.unwrap_or_else(|| "null".into())
+    ))
+}
+
+const BROWSER_UA: &str =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36";
+
+/// No overall timeout: a measurement stream is supposed to run for seconds.
+/// `follow` is off for latency probes: the first response is the round trip,
+/// and for servers that redirect http to https, following it would time two
+/// trips and report a ping twice the real one.
+fn speed_client(follow: bool) -> reqwest::Client {
+    let policy = if follow {
+        reqwest::redirect::Policy::default()
+    } else {
+        reqwest::redirect::Policy::none()
+    };
+    reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(6))
+        .user_agent(BROWSER_UA)
+        .redirect(policy)
+        .build()
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+async fn speed_latency(url: String, probes: u32) -> Vec<f64> {
+    speed::latency(&speed_client(false), &url, probes.clamp(1, 10)).await
+}
+
+#[tauri::command]
+async fn speed_down(app: tauri::AppHandle, urls: Vec<String>, seconds: f64) -> Option<f64> {
+    speed::download(&speed_client(true), &urls, seconds.clamp(1.0, 30.0), |v| {
+        let _ = app.emit("speed-tick", v);
+    })
+    .await
+}
+
+#[tauri::command]
+async fn speed_up(
+    app: tauri::AppHandle,
+    url: String,
+    seconds: f64,
+    chunk_mb: Option<u32>,
+) -> Option<f64> {
+    let chunk = chunk_mb.unwrap_or(2).clamp(1, 8) as usize;
+    speed::upload(&speed_client(true), &url, seconds.clamp(2.0, 30.0), chunk, |v| {
+        let _ = app.emit("speed-tick", v);
+    })
+    .await
 }
 
 fn newer(latest: &str, current: &str) -> bool {
@@ -924,7 +1006,10 @@ pub fn run() {
             check_update,
             apply_update,
             net_info,
-            speed_servers
+            speed_servers,
+            speed_latency,
+            speed_down,
+            speed_up
         ])
         .run(tauri::generate_context!())
         .expect("QuotaCards failed to start");
