@@ -340,6 +340,21 @@ fn pid_alive(pid: u32) -> bool {
         .unwrap_or(false)
 }
 
+/// Clear Windows' DNS resolver cache. Standard VPN hygiene, and the fix for
+/// lookups that hang in the first seconds after connecting: answers cached
+/// before the tunnel existed (or while the fresh tunnel's own DNS was still
+/// warming, including failed ones) otherwise keep being served or retried.
+/// Best effort, hidden, detached; it never blocks the connect path.
+fn flush_dns_cache() {
+    use std::process::Stdio;
+    let _ = std::process::Command::new("ipconfig")
+        .arg("/flushdns")
+        .creation_flags(0x08000000)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+}
+
 fn stop_engine(engine: &tauri::State<Engine>) {
     let pid = engine.0.lock().unwrap().take();
     if let Some(p) = pid {
@@ -408,6 +423,9 @@ async fn tunnel_start(
         "connect {} mode={} apps={}",
         card.name, mode_label, list.len()
     ));
+    // Fresh DNS for the new session: entries from before the tunnel existed
+    // are what make the first lookups after connect hang.
+    flush_dns_cache();
     let child = vpn::spawn_engine().map_err(|e| e)?;
     let pid = child.id();
     // The handle must outlive this command (dropping kills the engine);
@@ -435,6 +453,9 @@ async fn tunnel_start(
         tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     }
     if up {
+        // Clear whatever the warmup window cached, failed lookups included,
+        // so the checks right after connect get fresh answers.
+        flush_dns_cache();
         Ok(CmdResult { ok: true, msg: format!("VPN on - {} carries the traffic.", card.name) })
     } else if pid_alive(pid) {
         // Alive but not routing yet: keep it running and let the status poll
@@ -454,6 +475,8 @@ async fn tunnel_start(
 async fn tunnel_stop(engine: tauri::State<'_, Engine>) -> Result<CmdResult, String> {
     vpn::app_log("stop from app");
     stop_engine(&engine);
+    // Drop the tunnel's DNS answers so normal resolution resumes cleanly.
+    flush_dns_cache();
     Ok(CmdResult { ok: true, msg: "VPN off.".into() })
 }
 
