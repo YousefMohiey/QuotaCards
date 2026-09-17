@@ -1,6 +1,6 @@
 [package]
 name = "quotacards-tauri"
-version = "0.2.10"
+version = "0.2.9"
 edition = "2021"
 
 [lib]

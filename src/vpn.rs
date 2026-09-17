@@ -193,14 +193,17 @@ pub fn resolve_server_ips(host: &str) -> Result<Vec<String>, String> {
 }
 
 /// Destination networks of the game's VOICE infrastructure: Vivox and the
-/// hosting companies its media ran on. These are the ranges every working
-/// community "voice fix" for Egypt/MENA routes, and Riot itself has pointed
-/// users at traceroutes to 74.201.103.x when voice misbehaved. They are
-/// matched WITHOUT process scoping or sniffing, so they also catch the flows
-/// where the game talks to a voice server by raw IP on a port nobody
-/// published. Live-tested: from Egypt the direct path to 74.201.103.25
-/// times out while the same connection through the tunnel answers in ms.
-const VOICE_CIDRS: [&str; 7] = [
+/// hosting companies its media ran on. This list matches the route lines of
+/// the working community OpenVPN config for Egypt (user-supplied
+/// "Valorant1.ovpn", which labels these exact ranges "Valorant Voice Chat
+/// IPs"), and Riot itself has pointed users at traceroutes to 74.201.103.x
+/// when voice misbehaved. They are matched WITHOUT process scoping or
+/// sniffing, so they also catch the flows where the game talks to a voice
+/// server by raw IP on a port nobody published. Live-tested: from Egypt the
+/// direct path to 74.201.103.25 times out while the same connection through
+/// the tunnel answers in ms.
+const VOICE_CIDRS: [&str; 8] = [
+    "20.0.0.0/8",
     "63.251.140.0/24",
     "69.25.0.0/16",
     "70.42.0.0/16",
@@ -741,6 +744,7 @@ mod tests {
             r["outbound"] == "proxy"
                 && r["ip_cidr"].as_array().map_or(false, |a| {
                     a.iter().any(|x| x.as_str() == Some("74.201.0.0/16"))
+                        && a.iter().any(|x| x.as_str() == Some("20.0.0.0/8"))
                 })
         }));
         // The sniff action must precede the domain rule, or a sniffed domain
