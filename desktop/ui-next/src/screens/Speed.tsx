@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ChevronRight, Gamepad2, History, Play, Square, Tv, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SpeedBars } from "@/components/SpeedBars"
 import { useApp } from "@/state/app"
 import { useI18n, type StrKey } from "@/lib/i18n"
-import { measureDownload, measurePing, measureUpload, CF_PING_URL, CF_UP_URL, cfDownUrl } from "@/lib/speedtest"
+import { measureDownload, measurePing, measureUpload } from "@/lib/speedtest"
+import { CLOUDFLARE, loadPool, pickFastest, type SpeedServer } from "@/lib/speedservers"
 import { isTauri, netInfo } from "@/lib/ipc"
 import { cn } from "@/lib/utils"
 
@@ -52,18 +53,6 @@ export type RunUrls = {
   ping: string
   down: (bytes: number) => string
   up: string
-}
-
-export function runUrls(server: TestServer, host: string): RunUrls {
-  if (server === "own" && host) {
-    const base = `https://${host}`
-    return {
-      ping: `${base}/speed/down?bytes=1&r=${Math.random()}`,
-      down: (bytes: number) => `${base}/speed/down?bytes=${bytes}&r=${Math.random()}`,
-      up: `${base}/speed/up?r=${Math.random()}`,
-    }
-  }
-  return { ping: CF_PING_URL, down: cfDownUrl, up: CF_UP_URL }
 }
 
 /** Exit IP plus provider for the speed page. Both services are HTTPS and
@@ -136,13 +125,27 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
   const [hint, setHint] = useState("")
   const [history, setHistory] = useState<Run[]>(() => loadHistory())
   const [netInfo, setNetInfo] = useState<NetInfo | null>(null)
+  const [pool, setPool] = useState<SpeedServer[]>([CLOUDFLARE])
+  const [picked, setPicked] = useState<SpeedServer | null>(null)
 
   const abort = useRef<AbortController | null>(null)
   const gate = useRef(0)
 
   const running = phase === "ping" || phase === "download" || phase === "upload"
   const kind = card?.card_type === "Streamerz" ? "Streamerz" : "Gamerz"
-  const urls = useMemo(() => runUrls("cloudflare", ""), [])
+  // Which server the run goes to. Loaded on arrival and picked by round trip,
+  // like a speed test does, so the reading uses the nearest host instead of a
+  // fixed one; Cloudflare stays in the pool as the always-available entry.
+  useEffect(() => {
+    const ctl = new AbortController()
+    void loadPool(ctl.signal).then(async (pool) => {
+      if (ctl.signal.aborted) return
+      setPool(pool)
+      const best = await pickFastest(pool, ctl.signal)
+      if (!ctl.signal.aborted) setPicked(best)
+    })
+    return () => ctl.abort()
+  }, [])
 
   // The exit address, resolved on arrival so the facts are on screen before a
   // run, not only after one. A failed lookup gets one quiet retry: the first
@@ -182,7 +185,7 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     setSamples((prev) => [...prev.slice(-(BARS_MEMORY - 1)), v])
   }
 
-  const runPing = async (host: string, signal: AbortSignal) => {
+  const runPing = async (srv: SpeedServer, signal: AbortSignal) => {
     setPhase("ping")
     setCaption(t("pingTitle"))
     setUnit("ms")
@@ -190,9 +193,9 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     setSamples([])
     setHint(t("pingHint"))
     try {
-      const r = await measurePing(host, PING_PROBES, {
+      const r = await measurePing("net", PING_PROBES, {
         signal,
-        pingUrl: urls.ping,
+        pingUrl: srv.ping,
         onPing: (ms) => push(ms),
       })
       setResult((prev) => ({ ...prev, ping: r.ping, jitter: r.jitter }))
@@ -205,7 +208,7 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     }
   }
 
-  const runThroughput = async (direction: "down" | "up", host: string, signal: AbortSignal) => {
+  const runThroughput = async (direction: "down" | "up", srv: SpeedServer, signal: AbortSignal) => {
     setPhase(direction === "down" ? "download" : "upload")
     setCaption(direction === "down" ? t("chDown") : t("chUp"))
     setUnit("Mbps")
@@ -214,11 +217,11 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     setHint(direction === "down" ? t("downHint") : t("upHint"))
     try {
       const fn = direction === "down" ? measureDownload : measureUpload
-      const mbps = await fn(host, {
+      const mbps = await fn("net", {
         seconds: PHASE_SECONDS,
         signal,
         onTick: (v) => push(v),
-        ...(direction === "down" ? { downUrl: urls.down } : { upUrl: urls.up }),
+        ...(direction === "down" ? { downUrl: srv.down } : { upUrl: srv.up }),
       })
       setResult((prev) => (direction === "down" ? { ...prev, down: mbps } : { ...prev, up: mbps }))
       setValue(mbps)
@@ -242,13 +245,22 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
 
   const run = async (which: "all" | "ping" | "down" | "up") => {
     if (running) return
-    const host = "net"
     abort.current?.abort()
     const ctl = new AbortController()
     abort.current = ctl
     const s = ctl.signal
     const acc: Result = { ...result }
-    const label = "Cloudflare"
+
+    // A run always has a server: if the arrival pick has not landed yet (slow
+    // network, first second after launch), pick now rather than defaulting.
+    let server = picked
+    if (!server) {
+      server = await pickFastest(pool, s)
+      if (s.aborted) return
+      setPicked(server)
+    }
+    const label = server.label
+
     setNetInfo(null)
     void resolveNetInfo(s).then((info) => {
       if (!s.aborted) setNetInfo(info)
@@ -256,7 +268,7 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     // Each phase reports back here so the history line reflects the run that
     // just happened, not whatever the tiles happened to hold before.
     if (which === "all" || which === "ping") {
-      const p = await runPing(host, s)
+      const p = await runPing(server, s)
       if (p) {
         acc.ping = p.ping
         acc.jitter = p.jitter
@@ -264,12 +276,12 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
       if (s.aborted) return
     }
     if (which === "all" || which === "down") {
-      const d = await runThroughput("down", host, s)
+      const d = await runThroughput("down", server, s)
       if (d !== null) acc.down = d
       if (s.aborted) return
     }
     if (which === "all" || which === "up") {
-      const u = await runThroughput("up", host, s)
+      const u = await runThroughput("up", server, s)
       if (u !== null) acc.up = u
       if (s.aborted) return
     }
@@ -320,9 +332,15 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
             <div className="text-[10.5px] font-medium tracking-[0.08em] text-txt3 uppercase">
               {t("targetServer")}
             </div>
-            <div className="mt-1 truncate text-[14.5px] font-semibold text-txt">Cloudflare</div>
-            <div className="mt-0.5 truncate text-[12px] text-txt2">speed.cloudflare.com</div>
-            <div className="truncate text-[11.5px] text-txt3">Cloudflare, Inc.</div>
+            <div className="mt-1 truncate text-[14.5px] font-semibold text-txt" dir="auto">
+              {(picked ?? CLOUDFLARE).label}
+            </div>
+            <div className="mt-0.5 truncate text-[12px] text-txt2" dir="auto">
+              {(picked ?? CLOUDFLARE).host}
+            </div>
+            <div className="truncate text-[11.5px] text-txt3" dir="auto">
+              {(picked ?? CLOUDFLARE).detail}
+            </div>
           </div>
         </div>
 

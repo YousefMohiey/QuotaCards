@@ -716,6 +716,27 @@ async fn net_info() -> Option<NetInfo> {
     None
 }
 
+/// The public speed-test server list, fetched backend-side: the list endpoint
+/// sends no CORS headers (its own site reads it same-origin), so the webview
+/// cannot read it directly.
+#[tauri::command]
+async fn speed_servers() -> Option<String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .user_agent("QuotaCards")
+        .build()
+        .ok()?;
+    let r = client
+        .get("https://librespeed.org/backend-servers/servers.php")
+        .send()
+        .await
+        .ok()?;
+    if !r.status().is_success() {
+        return None;
+    }
+    r.text().await.ok()
+}
+
 fn newer(latest: &str, current: &str) -> bool {
     // Numeric dot-part compare, no semver crate needed.
     let p = |s: &str| {
@@ -902,7 +923,8 @@ pub fn run() {
             resolve_host,
             check_update,
             apply_update,
-            net_info
+            net_info,
+            speed_servers
         ])
         .run(tauri::generate_context!())
         .expect("QuotaCards failed to start");

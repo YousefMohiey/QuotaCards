@@ -39,6 +39,9 @@ export const isTauri = (): boolean =>
 /** Exit-address facts for the speed page, resolved backend-side. */
 export const netInfo = (): Promise<NetInfo | null> => call<NetInfo | null>("net_info")
 
+/** The public speed-test server list as raw JSON (CORS-free, backend-side). */
+export const speedServers = (): Promise<string | null> => call<string | null>("speed_servers")
+
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (isTauri()) return invoke<T>(cmd, args)
   return mockCall<T>(cmd, args)
