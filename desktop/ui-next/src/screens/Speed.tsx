@@ -6,7 +6,7 @@ import { useApp } from "@/state/app"
 import { useI18n, type StrKey } from "@/lib/i18n"
 import { measureDownload, measurePing, measureUpload } from "@/lib/speedtest"
 import { CLOUDFLARE, loadPool, pickFastest, type SpeedServer } from "@/lib/speedservers"
-import { isTauri, netInfo, onSpeedTick, speedDown, speedLatency, speedUp } from "@/lib/ipc"
+import { isTauri, netInfo, onSpeedPhase, onSpeedTick, speedDown, speedLatency, speedUp, speedtestCli, speedtestCliReady, type CliSpeed } from "@/lib/ipc"
 import { cn } from "@/lib/utils"
 
 const PING_PROBES = 8
@@ -17,6 +17,10 @@ const BARS_MEMORY = 96
  *  the browser-side measurer reports, for the backend path. */
 const meanAbsDelta = (xs: number[]): number =>
   xs.length < 2 ? 0 : xs.slice(1).reduce((a, v, i) => a + Math.abs(v - xs[i]), 0) / (xs.length - 1)
+
+/** "we · Giza" for the server the official client picked. */
+const cliLabel = (c: CliSpeed): string =>
+  [c.server_name, c.server_location].filter(Boolean).join(" · ").trim()
 
 type Phase = "idle" | "ping" | "download" | "upload" | "done"
 type Result = { ping: number | null; jitter: number | null; down: number | null; up: number | null }
@@ -298,6 +302,81 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     void resolveNetInfo(s).then((info) => {
       if (!s.aborted) setNetInfo(info)
     })
+
+    // The official speedtest.net client runs the whole test itself: its own
+    // server selection (which is how the reading ends up comparable to the
+    // website's, provider-hosted servers included) and its own timing. It
+    // reports live Mbps as it goes, so the bars animate the same way. The
+    // built-in measurer stays as the fallback when the CLI is unavailable,
+    // and single-tile reruns keep using it too.
+    if (isTauri() && which === "all") {
+      const ready = await speedtestCliReady().catch(() => false)
+      if (s.aborted) return
+      if (ready) {
+        setPhase("ping")
+        setCaption(t("pingTitle"))
+        setUnit("ms")
+        setValue(0)
+        setSamples([])
+        setHint(t("pingHint"))
+        const offPhase = await onSpeedPhase((p) => {
+          if (s.aborted) return
+          if (p === "download") {
+            setPhase("download")
+            setCaption(t("chDown"))
+            setUnit("Mbps")
+            setValue(0)
+            setSamples([])
+          } else if (p === "upload") {
+            setPhase("upload")
+            setCaption(t("chUp"))
+            setUnit("Mbps")
+            setValue(0)
+            setSamples([])
+          }
+        })
+        const offTick = await onSpeedTick((v) => {
+          if (!s.aborted) {
+            push(v)
+            setValue(v)
+          }
+        })
+        let cli: CliSpeed | null = null
+        try {
+          cli = await speedtestCli()
+        } finally {
+          offPhase()
+          offTick()
+        }
+        if (s.aborted) return
+        if (cli && (cli.down_mbps !== null || cli.up_mbps !== null)) {
+          const next: Result = {
+            ping: cli.ping_ms ?? null,
+            jitter: cli.jitter_ms ?? null,
+            down: cli.down_mbps ?? null,
+            up: cli.up_mbps ?? null,
+          }
+          setResult(next)
+          remember(next, cliLabel(cli) || label)
+          if (cli.server_name) {
+            setPicked({
+              id: "ookla-cli",
+              label: cliLabel(cli),
+              detail: [cli.server_country, cli.isp].filter(Boolean).join(" · "),
+              host: cli.server_host || "speedtest.net",
+              ping: "",
+              downUrls: [],
+              up: "",
+            })
+          }
+          setPhase("done")
+          setValue(next.down ?? next.up ?? 0)
+          setSamples([])
+          return
+        }
+      }
+    }
+
     // Each phase reports back here so the history line reflects the run that
     // just happened, not whatever the tiles happened to hold before.
     if (which === "all" || which === "ping") {

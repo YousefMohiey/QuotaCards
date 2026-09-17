@@ -20,6 +20,7 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_updater::UpdaterExt;
 
 pub mod speed;
+pub mod ookla;
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -819,6 +820,34 @@ async fn speed_up(
     .await
 }
 
+/// Whether the bundled official client is fetched and runnable. The first
+/// call downloads it once and caches it under the app data dir.
+#[tauri::command]
+async fn speedtest_cli_ready() -> bool {
+    ookla::ensure_binary().await.is_some()
+}
+
+/// One full test through the official Ookla client. Live progress arrives as
+/// `speed-phase` and `speed-tick` events.
+#[tauri::command]
+async fn speedtest_cli(app: tauri::AppHandle) -> Option<ookla::CliResult> {
+    let exe = ookla::ensure_binary().await?;
+    let a1 = app.clone();
+    let on_phase: std::sync::Arc<dyn Fn(&str) + Send + Sync> =
+        std::sync::Arc::new(move |p: &str| {
+            let _ = a1.emit("speed-phase", p.to_string());
+        });
+    let a2 = app.clone();
+    let on_tick: std::sync::Arc<dyn Fn(f64) + Send + Sync> =
+        std::sync::Arc::new(move |v: f64| {
+            let _ = a2.emit("speed-tick", v);
+        });
+    tauri::async_runtime::spawn_blocking(move || ookla::run(&exe, on_phase, on_tick))
+        .await
+        .ok()
+        .flatten()
+}
+
 fn newer(latest: &str, current: &str) -> bool {
     // Numeric dot-part compare, no semver crate needed.
     let p = |s: &str| {
@@ -1009,7 +1038,9 @@ pub fn run() {
             speed_servers,
             speed_latency,
             speed_down,
-            speed_up
+            speed_up,
+            speedtest_cli_ready,
+            speedtest_cli
         ])
         .run(tauri::generate_context!())
         .expect("QuotaCards failed to start");

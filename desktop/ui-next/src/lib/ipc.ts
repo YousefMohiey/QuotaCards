@@ -59,6 +59,33 @@ export async function onSpeedTick(cb: (mbps: number) => void): Promise<() => voi
   return listen<number>("speed-tick", (e) => cb(e.payload))
 }
 
+/** Which half of the official client's run is active ("download"/"upload"). */
+export async function onSpeedPhase(cb: (phase: string) => void): Promise<() => void> {
+  if (!isTauri()) return () => {}
+  const { listen } = await import("@tauri-apps/api/event")
+  return listen<string>("speed-phase", (e) => cb(e.payload))
+}
+
+/** What the official speedtest.net client reports for one run. */
+export type CliSpeed = {
+  ping_ms: number | null
+  jitter_ms: number | null
+  down_mbps: number | null
+  up_mbps: number | null
+  server_name: string | null
+  server_location: string | null
+  server_country: string | null
+  server_host: string | null
+  isp: string | null
+  result_url: string | null
+}
+
+/** True once the client binary is fetched and usable (first call downloads it). */
+export const speedtestCliReady = (): Promise<boolean> => call<boolean>("speedtest_cli_ready")
+
+/** One full test through the official client, with live speed-phase/tick events. */
+export const speedtestCli = (): Promise<CliSpeed | null> => call<CliSpeed | null>("speedtest_cli")
+
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (isTauri()) return invoke<T>(cmd, args)
   return mockCall<T>(cmd, args)
