@@ -300,11 +300,15 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
       return mbps
     } catch (e) {
       if (!signal.aborted) {
-        // The reason matters: "http 403" or "connect" tells the next look at
-        // this exactly which step failed, instead of a silent dash. It is kept
-        // in a ref too, because the next phase overwrites the hint and the
-        // final screen must still show why nothing came back.
-        const why = e instanceof Error && e.message && e.message !== "no throughput" ? e.message : t("noReply")
+        // Tauri rejects with a plain string, so surfacing only Error.message
+        // hides exactly the failure that needs seeing. Show whatever came.
+        const msg =
+          typeof e === "string"
+            ? e
+            : e instanceof Error
+              ? e.message
+              : ""
+        const why = msg && msg !== "no throughput" ? msg : t("noReply")
         failNote.current = why
         setHint(why)
       }

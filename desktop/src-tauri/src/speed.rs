@@ -137,9 +137,9 @@ pub async fn download(
         }
         let mut got_any = false;
         loop {
-            // A stream that goes quiet for three seconds is dead, not slow: a
-            // stalled read must not hang the phase forever behind the window
-            // check.
+            // A stream that goes quiet for three seconds is dead, not slow.
+            // Belt and braces with the client's own read timeout: a stalled
+            // read must never hang the phase behind the window check.
             let next = match tokio::time::timeout(Duration::from_secs(3), resp.chunk()).await {
                 Ok(r) => r,
                 Err(_) => {

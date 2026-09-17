@@ -787,6 +787,9 @@ fn speed_client(follow: bool) -> reqwest::Client {
     };
     reqwest::Client::builder()
         .connect_timeout(std::time::Duration::from_secs(6))
+        // No single read may stall forever: a download or upload phase must be
+        // able to give up and report why.
+        .read_timeout(std::time::Duration::from_secs(4))
         .user_agent(BROWSER_UA)
         .redirect(policy)
         // HTTP/1.1 for the measurement: these endpoints serve bytes and acks,
