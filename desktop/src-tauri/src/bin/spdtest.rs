@@ -26,12 +26,12 @@ fn main() {
 
         let down = speed::download(
             &client,
-            &[format!("{base}/random2000x2000.jpg")],
+            &[format!("{base}/random2000x2000.jpg"), format!("{base}/random1000x1000.jpg")],
             8.0,
             |v| print!("\r  down tick {:7.1} Mbps", v),
         )
         .await;
-        println!("\ndown: {down:?} Mbps");
+        println!("\ndown: {:?} Mbps {}", down.mbps, down.note);
 
         let up = speed::upload(
             &client,
@@ -41,6 +41,6 @@ fn main() {
             |v| print!("\r  up tick   {:7.1} Mbps", v),
         )
         .await;
-        println!("\nup: {up:?} Mbps");
+        println!("\nup: {:?} Mbps {}", up.mbps, up.note);
     });
 }

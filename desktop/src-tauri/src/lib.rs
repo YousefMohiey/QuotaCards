@@ -799,7 +799,7 @@ async fn speed_latency(url: String, probes: u32) -> Vec<f64> {
 }
 
 #[tauri::command]
-async fn speed_down(app: tauri::AppHandle, urls: Vec<String>, seconds: f64) -> Option<f64> {
+async fn speed_down(app: tauri::AppHandle, urls: Vec<String>, seconds: f64) -> speed::SpeedOut {
     speed::download(&speed_client(true), &urls, seconds.clamp(1.0, 30.0), |v| {
         let _ = app.emit("speed-tick", v);
     })
@@ -812,7 +812,7 @@ async fn speed_up(
     url: String,
     seconds: f64,
     chunk_mb: Option<u32>,
-) -> Option<f64> {
+) -> speed::SpeedOut {
     let chunk = chunk_mb.unwrap_or(2).clamp(1, 8) as usize;
     speed::upload(&speed_client(true), &url, seconds.clamp(2.0, 30.0), chunk, |v| {
         let _ = app.emit("speed-tick", v);

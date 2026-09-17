@@ -99,7 +99,9 @@ function fromOokla(e: OoklaEntry): SpeedServer | null {
     detail: [country, km !== null ? `${km} km` : ""].filter(Boolean).join(" · "),
     host: displayHost(base),
     ping: `${base}/latency.txt`,
-    downUrls: [`${base}/random2000x2000.jpg`],
+    // Two sizes: not every server carries the 2000x2000 file and some answer
+    // an empty 200 for it, so the run cycles to the one that serves bytes.
+    downUrls: [`${base}/random2000x2000.jpg`, `${base}/random1000x1000.jpg`],
     up: `${base}/upload.php`,
   }
 }

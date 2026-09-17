@@ -268,6 +268,7 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     setHint(direction === "down" ? t("downHint") : t("upHint"))
     try {
       let mbps: number | null
+      let reason = ""
       if (isTauri()) {
         // Backend measurement: streams are counted after arrival and upload
         // chunks are timed to the server's ack, which is the difference
@@ -276,10 +277,12 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
           if (!signal.aborted) push(v)
         })
         try {
-          mbps =
+          const out =
             direction === "down"
               ? await speedDown(srv.downUrls, PHASE_SECONDS)
               : await speedUp(srv.up, PHASE_SECONDS)
+          mbps = out?.mbps ?? null
+          if (mbps === null && out?.note) reason = out.note
         } finally {
           off()
         }
@@ -290,12 +293,17 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
             ? await measureDownload("net", { ...opts, downUrl: () => srv.downUrls[0] })
             : await measureUpload("net", { ...opts, upUrl: srv.up })
       }
-      if (mbps === null) throw new Error("no throughput")
+      if (mbps === null) throw new Error(reason || "no throughput")
       setResult((prev) => (direction === "down" ? { ...prev, down: mbps } : { ...prev, up: mbps }))
       setValue(mbps)
       return mbps
-    } catch {
-      if (!signal.aborted) setHint(t("noReply"))
+    } catch (e) {
+      if (!signal.aborted) {
+        // The reason matters: "http 403" or "connect" tells the next look at
+        // this exactly which step failed, instead of a silent dash.
+        const why = e instanceof Error && e.message && e.message !== "no throughput" ? e.message : t("noReply")
+        setHint(why)
+      }
       return null
     }
   }
