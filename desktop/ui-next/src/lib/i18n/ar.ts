@@ -36,6 +36,7 @@ export const ar = {
   "targetCustom": "دومين مخصص…",
   "targetInternet": "الإنترنت",
   "targetServer": "السيرفر",
+  "findingServer": "جارٍ العثور على أقرب خادم",
   "appsAll": "جميع التطبيقات",
   "appsEmpty": "لا توجد تطبيقات بهذا الاسم.",
   "appsEmptyFallback": "لم يتم اختيار أي تطبيق، سيتم الاتصال بالجهاز بالكامل.",

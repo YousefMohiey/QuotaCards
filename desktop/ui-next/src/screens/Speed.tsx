@@ -136,6 +136,12 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
   const [netInfo, setNetInfo] = useState<NetInfo | null>(null)
   const [pool, setPool] = useState<SpeedServer[]>([CLOUDFLARE])
   const [picked, setPicked] = useState<SpeedServer | null>(null)
+  // True while the server list is loading and the nearest one is being found,
+  // so the panel can say so instead of showing Cloudflare as if it were the
+  // answer. Also gates the official client: it is fetched once at arrival,
+  // never in the middle of a run.
+  const [picking, setPicking] = useState(true)
+  const [cliReady, setCliReady] = useState(false)
 
   const abort = useRef<AbortController | null>(null)
   const gate = useRef(0)
@@ -147,13 +153,38 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
   // fixed one; Cloudflare stays in the pool as the always-available entry.
   useEffect(() => {
     const ctl = new AbortController()
-    void loadPool(ctl.signal).then(async (pool) => {
-      if (ctl.signal.aborted) return
-      setPool(pool)
-      const best = await pickFastest(pool, ctl.signal)
-      if (!ctl.signal.aborted) setPicked(best)
-    })
+    void loadPool(ctl.signal)
+      .then(async (pool) => {
+        if (ctl.signal.aborted) return
+        setPool(pool)
+        const best = await pickFastest(pool, ctl.signal)
+        if (!ctl.signal.aborted) setPicked(best)
+      })
+      .catch(() => {
+        /* the Cloudflare entry is always a valid answer */
+      })
+      .finally(() => {
+        if (!ctl.signal.aborted) setPicking(false)
+      })
     return () => ctl.abort()
+  }, [])
+
+  // Fetch the official client once, in the background, so pressing Start never
+  // waits on a download. If it never arrives, Start runs the built-in
+  // measurement instead.
+  useEffect(() => {
+    let alive = true
+    if (!isTauri()) return
+    void speedtestCliReady()
+      .then((ok) => {
+        if (alive) setCliReady(ok)
+      })
+      .catch(() => {
+        if (alive) setCliReady(false)
+      })
+    return () => {
+      alive = false
+    }
   }, [])
 
   // The exit address, resolved on arrival so the facts are on screen before a
@@ -306,13 +337,12 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     // The official speedtest.net client runs the whole test itself: its own
     // server selection (which is how the reading ends up comparable to the
     // website's, provider-hosted servers included) and its own timing. It
-    // reports live Mbps as it goes, so the bars animate the same way. The
-    // built-in measurer stays as the fallback when the CLI is unavailable,
-    // and single-tile reruns keep using it too.
-    if (isTauri() && which === "all") {
-      const ready = await speedtestCliReady().catch(() => false)
-      if (s.aborted) return
-      if (ready) {
+    // reports live Mbps as it goes, so the bars animate the same way. Anything
+    // about it failing, missing, or throwing falls through to the built-in
+    // measurer below; nothing here may leave the run stuck.
+    if (isTauri() && which === "all" && cliReady) {
+      let cli: CliSpeed | null = null
+      try {
         setPhase("ping")
         setCaption(t("pingTitle"))
         setUnit("ms")
@@ -341,40 +371,45 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
             setValue(v)
           }
         })
-        let cli: CliSpeed | null = null
         try {
           cli = await speedtestCli()
         } finally {
           offPhase()
           offTick()
         }
-        if (s.aborted) return
-        if (cli && (cli.down_mbps !== null || cli.up_mbps !== null)) {
-          const next: Result = {
-            ping: cli.ping_ms ?? null,
-            jitter: cli.jitter_ms ?? null,
-            down: cli.down_mbps ?? null,
-            up: cli.up_mbps ?? null,
-          }
-          setResult(next)
-          remember(next, cliLabel(cli) || label)
-          if (cli.server_name) {
-            setPicked({
-              id: "ookla-cli",
-              label: cliLabel(cli),
-              detail: [cli.server_country, cli.isp].filter(Boolean).join(" · "),
-              host: cli.server_host || "speedtest.net",
-              ping: "",
-              downUrls: [],
-              up: "",
-            })
-          }
-          setPhase("done")
-          setValue(next.down ?? next.up ?? 0)
-          setSamples([])
-          return
-        }
+      } catch {
+        cli = null
       }
+      if (s.aborted) return
+      if (cli && (cli.down_mbps !== null || cli.up_mbps !== null)) {
+        const next: Result = {
+          ping: cli.ping_ms ?? null,
+          jitter: cli.jitter_ms ?? null,
+          down: cli.down_mbps ?? null,
+          up: cli.up_mbps ?? null,
+        }
+        setResult(next)
+        remember(next, cliLabel(cli) || label)
+        if (cli.server_name) {
+          setPicked({
+            id: "ookla-cli",
+            label: cliLabel(cli),
+            detail: [cli.server_country, cli.isp].filter(Boolean).join(" · "),
+            host: cli.server_host || "speedtest.net",
+            ping: "",
+            downUrls: [],
+            up: "",
+          })
+        }
+        setPhase("done")
+        setValue(next.down ?? next.up ?? 0)
+        setSamples([])
+        return
+      }
+      // The client ran but produced nothing usable: fall through to the
+      // built-in measurement rather than showing an idle screen.
+      setPhase("idle")
+      setCaption(t("idle"))
     }
 
     // Each phase reports back here so the history line reflects the run that
@@ -444,15 +479,23 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
             <div className="text-[10.5px] font-medium tracking-[0.08em] text-txt3 uppercase">
               {t("targetServer")}
             </div>
-            <div className="mt-1 truncate text-[14.5px] font-semibold text-txt" dir="auto">
-              {(picked ?? CLOUDFLARE).label}
-            </div>
-            <div className="mt-0.5 truncate text-[12px] text-txt2" dir="auto">
-              {(picked ?? CLOUDFLARE).host}
-            </div>
-            <div className="truncate text-[11.5px] text-txt3" dir="auto">
-              {(picked ?? CLOUDFLARE).detail}
-            </div>
+            {picking ? (
+              <div className="mt-1 animate-pulse truncate text-[14.5px] font-semibold text-txt3" dir="auto">
+                {t("findingServer")}
+              </div>
+            ) : (
+              <>
+                <div className="mt-1 truncate text-[14.5px] font-semibold text-txt" dir="auto">
+                  {(picked ?? CLOUDFLARE).label}
+                </div>
+                <div className="mt-0.5 truncate text-[12px] text-txt2" dir="auto">
+                  {(picked ?? CLOUDFLARE).host}
+                </div>
+                <div className="truncate text-[11.5px] text-txt3" dir="auto">
+                  {(picked ?? CLOUDFLARE).detail}
+                </div>
+              </>
+            )}
           </div>
         </div>
 

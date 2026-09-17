@@ -33,6 +33,7 @@ export const en = {
   "targetCustom": "Custom domain…",
   "targetInternet": "Internet",
   "targetServer": "Server",
+  "findingServer": "Finding the nearest server",
   "appsAll": "All apps",
   "appsEmpty": "No applications found.",
   "appsEmptyFallback": "No apps picked, connecting the whole device.",

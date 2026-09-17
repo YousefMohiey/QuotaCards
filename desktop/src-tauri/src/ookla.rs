@@ -292,7 +292,25 @@ pub fn run(
             }
         }));
     }
-    let status = child.wait().ok()?;
+    let status = {
+        // Watchdog: a wedged CLI (dead network, a hung checkin) must not leave
+        // the app waiting forever. Kill it after 90 seconds and report what the
+        // parser saw, so the caller can fall back to the built-in measurement.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(90);
+        loop {
+            match child.try_wait() {
+                Ok(Some(st)) => break Some(st),
+                Ok(None) => {
+                    if std::time::Instant::now() > deadline {
+                        let _ = child.kill();
+                        break child.wait().ok();
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                }
+                Err(_) => break None,
+            }
+        }
+    };
     for t in readers {
         let _ = t.join();
     }
@@ -303,7 +321,8 @@ pub fn run(
             ..Default::default()
         });
     let result = out.finish();
-    if !status.success() && result.down_mbps.is_none() {
+    let ok = status.map(|s| s.success()).unwrap_or(false);
+    if !ok && result.down_mbps.is_none() {
         return None;
     }
     Some(result)
