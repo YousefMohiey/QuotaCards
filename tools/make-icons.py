@@ -19,7 +19,7 @@ import struct
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageEnhance, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 MASTER = ROOT / "res" / "app-icon-src.png"
@@ -92,36 +92,25 @@ def hand_drawn_16() -> Image.Image:
 
     Rasterizing the full art at 16x16 has been tried at several zooms and
     judged at true size by extracting the frame back out of the built exe:
-    every filtered downscale reads as a smudge there. What works is the
-    reduced portrait below: a lifted tile with a lit top edge (the master's
-    tile is near-black and vanishes on a dark desktop), a 2px ring with a
-    ~6px hole, and a deliberate blue tail. Colors sampled from the master.
+    every filtered downscale reads as a smudge there. So this is a reduced
+    portrait of the family - rounded tile with a soft rim and top-light, a
+    2px ring with a small counter, and the blue tail with the same white
+    outline the larger frames carry. It is drawn at 3x and softened with
+    LANCZOS so its edge style matches the rest of the set instead of
+    reading as flat pixel art next to them.
     """
-    S = 16
+    K = 3
+    S = 16 * K
     im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    px = im.load()
-    tile = (29, 34, 44)
-    edge = (48, 56, 70)
-    white = (240, 242, 246)
-    blue = (19, 98, 229)
-    for y in range(S):
-        for x in range(S):
-            outside = (x in (0, 15) and y in (0, 1, 14, 15)) or (y in (0, 15) and x in (0, 1, 14, 15))
-            if outside:
-                continue
-            c = tile
-            if y == 1 and 2 <= x <= 13:
-                c = edge
-            px[x, y] = (*c, 255)
-    for y in range(S):
-        for x in range(S):
-            dx, dy = x - 7.5, y - 7.5
-            r = (dx * dx + dy * dy) ** 0.5
-            if 3.4 <= r <= 5.2:
-                px[x, y] = (*white, 255)
-    for x, y in [(11, 10), (11, 11), (12, 11), (12, 12), (12, 13), (13, 13)]:
-        px[x, y] = (*blue, 255)
-    return im
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle([1, 1, S - 2, S - 2], radius=10 * K, fill=(9, 10, 13, 255),
+                        outline=(34, 38, 46, 255), width=K)
+    d.ellipse([10 * K, 10 * K, 37 * K - 1, 37 * K - 1], outline=(240, 242, 246, 255), width=5 * K)
+    # the family's tail is outlined in white; wider white underlay, blue on top
+    d.line([(30 * K, 29 * K), (38 * K, 38 * K)], fill=(240, 242, 246, 255), width=7 * K)
+    d.line([(30 * K, 29 * K), (38 * K, 38 * K)], fill=(19, 98, 229, 255), width=5 * K)
+    d.line([(10 * K, 4 * K), (38 * K, 4 * K)], fill=(48, 54, 66, 255), width=2 * K)
+    return im.resize((16, 16), Image.LANCZOS)
 
 
 def render(master: Image.Image, size: int) -> Image.Image:
