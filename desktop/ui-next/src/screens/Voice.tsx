@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
 // nothing technical reaches this page.
 export function Voice() {
   const { t } = useI18n()
-  const { card } = useApp()
+  const { card, appsMode, apps, transport } = useApp()
   const [running, setRunning] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState("")
@@ -42,20 +42,32 @@ export function Voice() {
     setMsg("")
     try {
       if (on) {
-        const r = await api.stop()
+        // Turning the helper off must not disturb the rest of the session:
+        // a merged session restarts with the same setup minus the voice
+        // rules, a voice-only session just stops.
+        const merged = localStorage.getItem("qc-voice-merged") === "1"
+        if (merged && card) {
+          const r = await api.start(card.uuid, appsMode, apps, transport, false)
+          if (!r.ok) setMsg(r.msg)
+        } else {
+          const r = await api.stop()
+          setRunning(false)
+          if (!r.ok) setMsg(r.msg)
+        }
         localStorage.removeItem("qc-voice-active")
-        setRunning(false)
-        if (!r.ok) setMsg(r.msg)
+        localStorage.removeItem("qc-voice-merged")
       } else {
         if (!card) {
           setMsg(t("needCard"))
           return
         }
-        // allow-mode with the Riot processes; the engine turns that into the
-        // voice-only rule set. The page never mentions any of it.
-        const r = await api.start(card.uuid, "allow", [], "vless", true)
+        // A running session keeps its configuration and gains the voice
+        // rules; with nothing running this starts a voice-only session.
+        const merged = running
+        const r = await api.start(card.uuid, merged ? appsMode : "allow", merged ? apps : [], transport, true)
         if (r.ok) {
           localStorage.setItem("qc-voice-active", "1")
+          localStorage.setItem("qc-voice-merged", merged ? "1" : "0")
           setRunning(true)
         } else {
           setMsg(r.msg)

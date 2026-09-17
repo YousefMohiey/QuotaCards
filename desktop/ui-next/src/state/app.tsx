@@ -252,13 +252,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         write("qc-card", uuid)
       }
       await api.probeServer()
-      // A normal connect supersedes any voice-only session flag.
+      // The voice helper rides along in the same session when it is on, so
+      // the normal VPN and the voice routing live in one tunnel.
+      let voiceOn = false
       try {
-        localStorage.removeItem("qc-voice-active")
+        voiceOn = localStorage.getItem("qc-voice-active") === "1"
       } catch {
         /* file:// */
       }
-      const r = await api.start(uuid, mode, apps, transport)
+      const r = await api.start(uuid, mode, apps, transport, voiceOn)
       setStatus(r.msg)
       if (!r.ok) {
         setPhase("idle")

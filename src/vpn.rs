@@ -215,7 +215,10 @@ pub fn write_tun_config(
             excludes.push(cidr);
         }
     }
-    let apps_only = apps_mode == "allow" && !apps.is_empty();
+    // allow mode with no list is normally a mistake, but the voice-only
+    // session uses exactly that shape: keep its finals per-app so only the
+    // voice channels ride the tunnel. Whole-device ("all") is untouched.
+    let apps_only = apps_mode == "allow" && (!apps.is_empty() || voice);
     let apps_except = apps_mode == "block" && !apps.is_empty();
     let per_app = apps_only || apps_except;
     // unique adapter name per connect: a force-killed run can leave a ghost
@@ -237,21 +240,31 @@ pub fn write_tun_config(
         {"source_ip_cidr": ["224.0.0.0/3", "ff00::/8"], "action": "reject"},
         {"protocol": "dns", "action": "hijack-dns"}
     ]);
-    if voice {
+    if per_app {
         let rules = route_rules.as_array_mut().unwrap();
-        // The Riot voice channels: STUN (UDP 3478-3480) and the voice ports
-        // (8393-8400) plus the Vivox front ends. Rules run top to bottom, so
-        // the voice rules sit above the catch-all that keeps the rest of the
-        // game on the user's own connection.
+        // allow: the listed apps ride the tunnel. block: the listed apps skip it.
+        let target = if apps_only { "proxy" } else { "direct" };
+        let (paths, names): (Vec<&String>, Vec<&String>) =
+            apps.iter().partition(|a| a.contains('\\') || a.contains('/'));
+        // process rules first: a terminal early rule must not swallow them
+        if !names.is_empty() {
+            rules.insert(0, serde_json::json!({"process_name": names, "outbound": target}));
+        }
+        if !paths.is_empty() {
+            rules.insert(0, serde_json::json!({"process_path": paths, "outbound": target}));
+        }
+    }
+    if voice {
+        // Voice rules go on top of whatever routing the session already has,
+        // so the normal VPN and the voice helper run in the same tunnel: the
+        // voice ports of the Riot processes ride it, the rest of each listed
+        // app keeps following the mode's own rules.
+        let rules = route_rules.as_array_mut().unwrap();
         let riot = serde_json::json!([
             "VALORANT-Win64-Shipping.exe",
             "VALORANT.exe",
             "RiotClientServices.exe"
         ]);
-        rules.insert(
-            0,
-            serde_json::json!({"process_name": riot, "outbound": "direct"}),
-        );
         rules.insert(
             0,
             serde_json::json!({
@@ -277,19 +290,6 @@ pub fn write_tun_config(
                 "outbound": "proxy"
             }),
         );
-    } else if per_app {
-        let rules = route_rules.as_array_mut().unwrap();
-        // allow: the listed apps ride the tunnel. block: the listed apps skip it.
-        let target = if apps_only { "proxy" } else { "direct" };
-        let (paths, names): (Vec<&String>, Vec<&String>) =
-            apps.iter().partition(|a| a.contains('\\') || a.contains('/'));
-        // process rules first: a terminal early rule must not swallow them
-        if !names.is_empty() {
-            rules.insert(0, serde_json::json!({"process_name": names, "outbound": target}));
-        }
-        if !paths.is_empty() {
-            rules.insert(0, serde_json::json!({"process_path": paths, "outbound": target}));
-        }
     }
     let dns_rules = if voice {
         serde_json::json!([
@@ -641,8 +641,9 @@ mod tests {
 
     #[test]
     fn voice_config_routes_only_voice() {
-        let _g = LOCK.lock().unwrap();
-        let list: Vec<String> = vec!["VALORANT-Win64-Shipping.exe".to_string()];
+        let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // The voice-only session: no app list, just the helper.
+        let list: Vec<String> = vec![];
         let p = write_tun_config(
             "00000000-test",
             crate::config::DEFAULT_HOST,
@@ -659,12 +660,17 @@ mod tests {
         // sing-box 1.14 accepts ranges only through port_range)
         assert_eq!(rules[0]["port_range"][0], "3478:3480");
         assert_eq!(rules[0]["outbound"], "proxy");
-        // the game itself falls through to the user's own connection
-        assert!(rules.iter().any(|r| {
-            r["outbound"] == "direct" && r["process_name"].as_array().map_or(false, |a| !a.is_empty())
-        }));
-        // the whole-PC default stays direct so only voice is carried
+        // no catch-all app rule is written for the Riot processes: the game
+        // follows route.final, which stays direct so only voice is carried
         assert_eq!(v["route"]["final"], "direct");
+        // no generic Riot rule exists either: without port_range or
+        // domain_suffix the only rules that could proxy the game are absent
+        assert!(!rules.iter().any(|r| {
+            r["outbound"] == "proxy"
+                && r.get("port_range").is_none()
+                && r.get("domain_suffix").is_none()
+                && r["process_name"].as_array().map_or(false, |a| a.len() == 3)
+        }));
         // vivox resolves through the tunnel, not the local resolver
         let dns = v["dns"]["rules"].as_array().unwrap();
         assert!(dns.iter().any(|r| r["domain_suffix"][0] == "vivox.com"));
@@ -674,6 +680,46 @@ mod tests {
         if engine_dir().join("sing-box.exe").exists() {
             check_config().expect("engine accepts the voice config");
         }
+    }
+
+    #[test]
+    fn voice_merges_with_a_normal_session() {
+        let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // Normal per-app session (picked apps) with the voice helper on: the
+        // caller's app rule and the voice rules must coexist in one config.
+        let v = cfg_voice("allow", &["chrome.exe"], true);
+        let rules = v["route"]["rules"].as_array().unwrap();
+        // voice rules on top
+        assert_eq!(rules[0]["port_range"][0], "3478:3480");
+        // the normal app rule is still present
+        assert!(rules.iter().any(|r| {
+            r["process_name"].as_array().map_or(false, |a| {
+                a.iter().any(|x| x.as_str() == Some("chrome.exe"))
+            })
+        }));
+        // allow-mode finals stay: everything else direct
+        assert_eq!(v["route"]["final"], "direct");
+        // whole-device session plus the helper: everything rides the tunnel
+        let v2 = cfg_voice("all", &[], true);
+        assert_eq!(v2["route"]["final"], "proxy");
+        assert_eq!(v2["route"]["rules"].as_array().unwrap()[0]["port_range"][0], "3478:3480");
+        if engine_dir().join("sing-box.exe").exists() {
+            check_config().expect("engine accepts the merged config");
+        }
+    }
+
+    fn cfg_voice(mode: &str, apps: &[&str], voice: bool) -> serde_json::Value {
+        let list: Vec<String> = apps.iter().map(|s| s.to_string()).collect();
+        let p = write_tun_config(
+            "00000000-test",
+            crate::config::DEFAULT_HOST,
+            "example.com",
+            mode,
+            &list,
+            voice,
+        )
+        .expect("config");
+        serde_json::from_str(&std::fs::read_to_string(p).expect("read")).expect("json")
     }
 
     #[test]

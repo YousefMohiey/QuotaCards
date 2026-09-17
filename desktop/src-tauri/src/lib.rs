@@ -386,20 +386,11 @@ async fn tunnel_start(
         return Ok(CmdResult { ok: false, msg: "Run QuotaCards as administrator, then connect.".into() });
     }
     let voice_on = voice.unwrap_or(false);
-    // Voice mode is fixed: only the Riot processes are captured, and inside
-    // the engine only their voice channels ride the tunnel.
-    let (mode, list) = if voice_on {
-        (
-            "allow".to_string(),
-            vec![
-                "VALORANT-Win64-Shipping.exe".to_string(),
-                "VALORANT.exe".to_string(),
-                "RiotClientServices.exe".to_string(),
-            ],
-        )
-    } else {
-        (apps_mode.unwrap_or_default(), apps.unwrap_or_default())
-    };
+    // The session keeps whatever normal configuration the app was using and
+    // the voice rules are added inside it, so the normal VPN and the voice
+    // helper run in the same tunnel at once.
+    let mode = apps_mode.unwrap_or_default();
+    let list = apps.unwrap_or_default();
     vpn::ensure_engine().map_err(|e| e)?;
     vpn::write_tun_config(&card.uuid, &host, &card.sni, &mode, &list, voice_on).map_err(|e| e)?;
     vpn::check_config().map_err(|e| e)?;
