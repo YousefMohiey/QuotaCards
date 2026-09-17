@@ -502,19 +502,30 @@ fn tun_octets() -> (u64, u64) {
             (*table).Table.as_ptr(),
             (*table).NumEntries as usize,
         );
-        // A force-killed run can leave a ghost adapter carrying the same
-        // name as the live one, and a ghost reports zeros forever. Take the
-        // busiest match instead of the first.
+        // The session's own adapter name is written next to the config when
+        // the engine starts. Matching it exactly matters: other products'
+        // wintun adapters and ghosts of force-killed runs share the vague
+        // words in their description, and the old "busiest match" pick could
+        // report the wrong adapter's traffic entirely.
+        let want = std::fs::read_to_string(vpn::engine_dir().join("tun-ifname.txt"))
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
         let mut best = (0u64, 0u64);
         for row in rows {
             let alias = String::from_utf16_lossy(&row.Alias);
             let desc = String::from_utf16_lossy(&row.Description);
             let alias = alias.trim_end_matches('\0');
             let desc = desc.trim_end_matches('\0');
-            let ours = alias.starts_with("QuotaCards")
-                || desc.contains("QuotaCards")
-                || desc.to_ascii_lowercase().contains("wintun")
-                || desc.to_ascii_lowercase().contains("sing-box");
+            let ours = match &want {
+                Some(w) => alias == w.as_str(),
+                None => {
+                    alias.starts_with("QuotaCards")
+                        || desc.contains("QuotaCards")
+                        || desc.to_ascii_lowercase().contains("wintun")
+                        || desc.to_ascii_lowercase().contains("sing-box")
+                }
+            };
             if ours && row.InOctets + row.OutOctets > best.0 + best.1 {
                 best = (row.InOctets, row.OutOctets);
             }

@@ -316,7 +316,7 @@ pub fn write_tun_config(
             "tag": "tun-in",
             "interface_name": if_name,
             "mtu": 9000,
-            "address": [format!("{TUN_IP}/28")],
+            "address": [format!("{TUN_IP}/28"), "fdfe:dcba:9876::1/126".to_string()],
             "auto_route": true,
             "strict_route": true,
             "stack": tun_stack,
@@ -352,6 +352,10 @@ pub fn write_tun_config(
         serde_json::to_string_pretty(&cfg).map_err(|e| format!("config: {e}"))?,
     )
     .map_err(|e| format!("write config: {e}"))?;
+    // Remember which adapter belongs to this session. The traffic counter has
+    // to match it by its exact name: other products' wintun adapters and
+    // ghosts of force-killed runs share the vague words in their description.
+    let _ = std::fs::write(p.with_file_name("tun-ifname.txt"), &if_name);
     Ok(p)
 }
 
