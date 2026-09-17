@@ -70,7 +70,17 @@ export function Voice() {
           localStorage.setItem("qc-voice-merged", merged ? "1" : "0")
           setRunning(true)
         } else {
-          setMsg(r.msg)
+          // A cold start can report failure a moment before the engine is
+          // actually routing: check once more and adopt it when it came up.
+          await new Promise((res) => window.setTimeout(res, 2500))
+          const st = await api.status().catch(() => null)
+          if (st?.running) {
+            localStorage.setItem("qc-voice-active", "1")
+            localStorage.setItem("qc-voice-merged", merged ? "1" : "0")
+            setRunning(true)
+          } else {
+            setMsg(r.msg)
+          }
         }
       }
     } catch (e) {

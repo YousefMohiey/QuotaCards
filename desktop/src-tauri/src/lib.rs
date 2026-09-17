@@ -414,14 +414,35 @@ async fn tunnel_start(
     // the PID file + tracked pid own the lifecycle from here.
     std::mem::forget(child);
     *engine.0.lock().unwrap() = Some(pid);
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-    // A stop during settle clears the pid: drop our engine, report stopped.
-    if *engine.0.lock().unwrap() != Some(pid) {
-        vpn::request_graceful_stop(pid);
-        return Ok(CmdResult { ok: false, msg: "Stopped.".into() });
+    // Wait for the tun to actually carry traffic. A cold wintun adapter can
+    // take several seconds to publish its routes, and a fixed short sleep
+    // made the first connect of a session fail while the engine was healthy;
+    // pressing again only worked because the driver was warm by then.
+    let mut up = false;
+    for _ in 0..40 {
+        if *engine.0.lock().unwrap() != Some(pid) {
+            // A stop during settle clears the pid: drop our engine, report stopped.
+            vpn::request_graceful_stop(pid);
+            return Ok(CmdResult { ok: false, msg: "Stopped.".into() });
+        }
+        if !pid_alive(pid) {
+            break;
+        }
+        if vpn::tun_routes_present() {
+            up = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     }
-    if pid_alive(pid) && vpn::tun_routes_present() {
+    if up {
         Ok(CmdResult { ok: true, msg: format!("VPN on - {} carries the traffic.", card.name) })
+    } else if pid_alive(pid) {
+        // Alive but not routing yet: keep it running and let the status poll
+        // adopt it once the routes land, instead of killing a healthy engine.
+        Ok(CmdResult {
+            ok: false,
+            msg: "The tunnel is still starting - give it a few seconds or connect again.".into(),
+        })
     } else {
         *engine.0.lock().unwrap() = None;
         vpn::engine_cleanup();

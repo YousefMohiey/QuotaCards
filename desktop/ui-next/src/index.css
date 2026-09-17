@@ -31,8 +31,8 @@
 
   /* Surfaces: charcoal-navy ladder, window base up through panels to
      controls. Separation comes from tone steps plus silver hairlines. */
-  --bg: #0b0e14;
-  --side: #0e1320;
+  --bg: #10141c;
+  --side: #131a29;
   --panel: #111826;
   --panel-hover: #161e30;
   --field: #1a2338;
@@ -155,7 +155,7 @@
   }
   body {
     @apply text-foreground antialiased;
-    background: #0b0e14;
+    background: #10141c;
     margin: 0;
     font-size: 13.5px;
     line-height: 1.45;
@@ -210,7 +210,7 @@
    legibility rules live in the `liquid-glass-ui` skill.
    --------------------------------------------------------------------------- */
 :root {
-  --glass-fill: rgb(11 14 20 / 0.55);
+  --glass-fill: rgb(16 20 28 / 0.55);
   --glass-line: rgb(255 255 255 / 0.12);
   --glass-top: rgb(255 255 255 / 0.1);
   --glass-blur: blur(20px) saturate(150%);
@@ -281,14 +281,14 @@
 
 /* Sidebar: same pane, cooler and quieter, so content stays the focus. */
 .glass-side {
-  background: rgb(11 14 20 / 0.72);
+  background: rgb(16 20 28 / 0.72);
   backdrop-filter: blur(26px) saturate(150%);
   border-inline-end: 1px solid var(--glass-line);
 }
 
 /* Sheets: heavier blur, never heavier opacity than this or the scene dies. */
 .glass-dialog {
-  background: rgb(13 18 28 / 0.85) !important;
+  background: rgb(18 24 36 / 0.85) !important;
   backdrop-filter: blur(30px) saturate(150%);
   border: 1px solid var(--glass-line);
   box-shadow: 0 30px 80px rgb(0 0 0 / 0.5);
@@ -296,7 +296,7 @@
 
 /* Small surfaces: lighter frost so stacked glass never turns muddy. */
 .glass-tile {
-  background: rgb(15 21 35 / 0.5);
+  background: rgb(20 27 43 / 0.5);
   backdrop-filter: blur(16px) saturate(140%);
   border: 1px solid rgb(255 255 255 / 0.1);
 }
@@ -305,7 +305,7 @@
 [data-slot="select-content"],
 [data-slot="dropdown-menu-content"],
 [data-slot="popover-content"] {
-  background-color: rgb(13 18 28 / 0.9) !important;
+  background-color: rgb(18 24 36 / 0.9) !important;
   backdrop-filter: blur(24px) saturate(150%);
   border-color: var(--glass-line);
 }

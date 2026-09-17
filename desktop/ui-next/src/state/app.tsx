@@ -132,12 +132,21 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           /* private mode */
         }
         // An engine can outlive the window (tray close, crash re-open):
-        // pick the live state back up instead of showing "ready".
+        // pick the live state back up instead of showing "ready". A session
+        // that is only carrying the voice helper leaves the Home dial off.
         const tunnel = await api.status().catch(() => null)
         if (alive && tunnel?.running) {
-          setVpnOn(true)
-          setPhase("on")
-          setSessionStart(Date.now())
+          let merged = true
+          try {
+            merged = localStorage.getItem("qc-voice-merged") === "1"
+          } catch {
+            /* file:// */
+          }
+          if (merged) {
+            setVpnOn(true)
+            setPhase("on")
+            setSessionStart(Date.now())
+          }
         }
       } catch {
         /* the UI still renders, every action reports its own error */
@@ -306,6 +315,32 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     // slide-back lands; clearing it early is what made data vanish mid-move.
     setVpnOn(false)
     try {
+      // The voice helper is its own tunnel: disconnecting drops the normal
+      // VPN and leaves the helper running on its own when it is on.
+      let voiceOn = false
+      try {
+        voiceOn = localStorage.getItem("qc-voice-active") === "1"
+      } catch {
+        /* file:// */
+      }
+      const helperCard = voiceOn ? cards.find((c) => c.uuid === cardUuid) : undefined
+      if (helperCard) {
+        const rv = await api.start(helperCard.uuid, "allow", [], transport, true)
+        if (rv.ok) {
+          try {
+            localStorage.setItem("qc-voice-merged", "0")
+          } catch {
+            /* file:// */
+          }
+          setStatus("")
+          setSessionStart(null)
+          setRx(0)
+          setTx(0)
+          setConnected(false)
+          setPhase("idle")
+          return
+        }
+      }
       const r = await api.stop()
       if (!r.ok) {
         setStatus(r.msg)
@@ -338,7 +373,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setTx(0)
     setConnected(false)
     setPhase("idle")
-  }, [])
+  }, [cards, cardUuid, transport])
 
   const toggle = useCallback(() => {
     if (busyRef.current) return
