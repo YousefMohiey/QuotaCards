@@ -46,6 +46,9 @@ export const speedServers = (): Promise<string | null> => call<string | null>("s
 export const speedLatency = (url: string, probes: number): Promise<number[]> =>
   call<number[]>("speed_latency", { url, probes })
 
+/** Whether the server works end to end (redirects followed), not just answers. */
+export const speedReach = (url: string): Promise<boolean> => call<boolean>("speed_reach", { url })
+
 /** Result of one throughput measurement: Mbps, or why it measured nothing. */
 export type SpeedOut = { mbps: number | null; note: string }
 

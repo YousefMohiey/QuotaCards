@@ -789,6 +789,9 @@ fn speed_client(follow: bool) -> reqwest::Client {
         .connect_timeout(std::time::Duration::from_secs(6))
         .user_agent(BROWSER_UA)
         .redirect(policy)
+        // HTTP/1.1 for the measurement: these endpoints serve bytes and acks,
+        // and h1 avoids HTTP/2 flow-control stalls through the odd middlebox.
+        .http1_only()
         .build()
         .unwrap_or_default()
 }
@@ -796,6 +799,16 @@ fn speed_client(follow: bool) -> reqwest::Client {
 #[tauri::command]
 async fn speed_latency(url: String, probes: u32) -> Vec<f64> {
     speed::latency(&speed_client(false), &url, probes.clamp(1, 10)).await
+}
+
+/// Whether a server can actually be used end to end: the probe follows
+/// redirects, because several provider hosts answer their own name with a 307
+/// to an Ookla hostname, and a machine that cannot resolve or reach that
+/// second name fails on every download and upload while a plain ping still
+/// works. Candidates that cannot complete the full path are not offered.
+#[tauri::command]
+async fn speed_reach(url: String) -> bool {
+    !speed::latency(&speed_client(true), &url, 1).await.is_empty()
 }
 
 #[tauri::command]
@@ -1037,6 +1050,7 @@ pub fn run() {
             net_info,
             speed_servers,
             speed_latency,
+            speed_reach,
             speed_down,
             speed_up,
             speedtest_cli_ready,

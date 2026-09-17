@@ -137,7 +137,17 @@ pub async fn download(
         }
         let mut got_any = false;
         loop {
-            match resp.chunk().await {
+            // A stream that goes quiet for three seconds is dead, not slow: a
+            // stalled read must not hang the phase forever behind the window
+            // check.
+            let next = match tokio::time::timeout(Duration::from_secs(3), resp.chunk()).await {
+                Ok(r) => r,
+                Err(_) => {
+                    last_note = String::from("down: stream stalled");
+                    break;
+                }
+            };
+            match next {
                 Ok(Some(chunk)) => {
                     got_any = true;
                     bytes += chunk.len() as u64;
@@ -208,7 +218,20 @@ pub async fn upload(
     let mut last_note = String::from("up: no chunk completed");
     while start.elapsed().as_secs_f64() < window {
         let t0 = Instant::now();
-        let resp = client.post(bust(url)).body(body.clone()).send().await;
+        // Same rule as the download: a POST that neither completes nor errors
+        // within ten seconds is a stall, and the phase must move on.
+        let sent = tokio::time::timeout(
+            Duration::from_secs(10),
+            client.post(bust(url)).body(body.clone()).send(),
+        )
+        .await;
+        let resp = match sent {
+            Ok(r) => r,
+            Err(_) => {
+                last_note = String::from("up: send stalled");
+                break;
+            }
+        };
         let secs = t0.elapsed().as_secs_f64();
         match resp {
             Ok(r) if r.status().is_success() => {

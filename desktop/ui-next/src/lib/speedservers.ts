@@ -16,7 +16,7 @@
  * verified set so it still behaves.
  */
 import { CF_PING_URL, CF_UP_URL } from "./speedtest"
-import { isTauri, speedLatency, speedServers } from "./ipc"
+import { isTauri, speedLatency, speedReach, speedServers } from "./ipc"
 
 export type SpeedServer = {
   id: string
@@ -169,12 +169,24 @@ async function rtt(url: string, outer: AbortSignal): Promise<number | null> {
 }
 
 /**
- * Lowest round trip wins. In the app the probes run through the backend (a
- * webview cannot read most of these hosts); in the preview they run here.
+ * Lowest round trip wins, among servers that can actually complete the whole
+ * path. In the app the probes run through the backend (a webview cannot read
+ * most of these hosts); in the preview they run here.
  */
 export async function pickFastest(pool: SpeedServer[], signal: AbortSignal): Promise<SpeedServer> {
-  const candidates = pool.slice(0, 9)
-  if (candidates.length <= 1) return pool[0] ?? CLOUDFLARE
+  const shortlist = pool.slice(0, 9)
+  if (shortlist.length <= 1) return pool[0] ?? CLOUDFLARE
+
+  let candidates = shortlist
+  if (isTauri()) {
+    // Reachability first: a host whose redirect target is unreachable answers
+    // a ping but measures nothing, and picking it is a dead end for the run.
+    const reachable = await Promise.all(
+      shortlist.map((s) => speedReach(s.ping).catch(() => false)),
+    )
+    const usable = shortlist.filter((_, i) => reachable[i])
+    candidates = usable.length ? usable : [CLOUDFLARE]
+  }
 
   const scored: { s: SpeedServer; ms: number | null }[] = []
   if (isTauri()) {

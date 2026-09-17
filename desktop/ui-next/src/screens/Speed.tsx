@@ -145,6 +145,7 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
 
   const abort = useRef<AbortController | null>(null)
   const gate = useRef(0)
+  const failNote = useRef("")
 
   const running = phase === "ping" || phase === "download" || phase === "upload"
   const kind = card?.card_type === "Streamerz" ? "Streamerz" : "Gamerz"
@@ -300,8 +301,11 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     } catch (e) {
       if (!signal.aborted) {
         // The reason matters: "http 403" or "connect" tells the next look at
-        // this exactly which step failed, instead of a silent dash.
+        // this exactly which step failed, instead of a silent dash. It is kept
+        // in a ref too, because the next phase overwrites the hint and the
+        // final screen must still show why nothing came back.
         const why = e instanceof Error && e.message && e.message !== "no throughput" ? e.message : t("noReply")
+        failNote.current = why
         setHint(why)
       }
       return null
@@ -475,10 +479,20 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     if (used.id !== server.id && (acc.down !== null || acc.up !== null)) {
       setPicked(used)
     }
+    const gotThroughput = acc.down !== null || acc.up !== null
     setPhase("done")
-    setValue(acc.down ?? acc.up ?? acc.ping ?? 0)
-    if (acc.down !== null || acc.up !== null || which === "ping") {
+    if (gotThroughput || which === "ping") {
+      // The big readout shows what was just measured. It must not fall back to
+      // the ping value on a failed run: that is how "Up 12.2" happened, with
+      // the upload dead and the ping number left standing under an Up caption.
+      setValue(which === "ping" ? acc.ping ?? 0 : acc.down ?? acc.up ?? 0)
       remember(acc, used.label || label)
+    } else {
+      setValue(0)
+      setCaption(t("idle"))
+      // Leave the reason on screen: it is the only thing that tells the user
+      // (and the next debugging pass) which step died.
+      setHint(failNote.current || t("noReply"))
     }
   }
 
