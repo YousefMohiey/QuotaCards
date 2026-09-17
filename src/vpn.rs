@@ -264,7 +264,7 @@ pub fn write_tun_config(
             0,
             serde_json::json!({
                 "process_name": riot,
-                "port": ["8393:8400"],
+                "port_range": ["8393:8400"],
                 "outbound": "proxy"
             }),
         );
@@ -273,7 +273,7 @@ pub fn write_tun_config(
             serde_json::json!({
                 "process_name": riot,
                 "network": "udp",
-                "port": ["3478:3480"],
+                "port_range": ["3478:3480"],
                 "outbound": "proxy"
             }),
         );
@@ -655,8 +655,9 @@ mod tests {
         let v: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(p).expect("read")).expect("json");
         let rules = v["route"]["rules"].as_array().unwrap();
-        // the voice port rule leads and rides the tunnel
-        assert_eq!(rules[0]["port"][0], "3478:3480");
+        // the voice port rule leads and rides the tunnel (port_range, not port:
+        // sing-box 1.14 accepts ranges only through port_range)
+        assert_eq!(rules[0]["port_range"][0], "3478:3480");
         assert_eq!(rules[0]["outbound"], "proxy");
         // the game itself falls through to the user's own connection
         assert!(rules.iter().any(|r| {
@@ -667,6 +668,12 @@ mod tests {
         // vivox resolves through the tunnel, not the local resolver
         let dns = v["dns"]["rules"].as_array().unwrap();
         assert!(dns.iter().any(|r| r["domain_suffix"][0] == "vivox.com"));
+        // The engine's own decoder is the only authority on the grammar: a
+        // rule shape it rejects kills the session at connect time. This is
+        // exactly the check that was missing when "port" was used for ranges.
+        if engine_dir().join("sing-box.exe").exists() {
+            check_config().expect("engine accepts the voice config");
+        }
     }
 
     #[test]
