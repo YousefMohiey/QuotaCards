@@ -45,7 +45,6 @@ type Value = {
   revokeCardOptimistic: (uuid: string) => Promise<CmdResult>
   ensurePresetCard: (p: PresetKind) => Promise<CmdResult>
   copyCard: (uuid: string) => Promise<CmdResult>
-  copyLog: () => Promise<CmdResult>
   pickCard: (uuid: string) => void
   preset: PresetKind
   setPreset: (p: PresetKind) => void
@@ -570,7 +569,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   )
 
   const copyCard = useCallback((uuid: string) => api.copyCard(uuid), [])
-  const copyLog = useCallback(() => api.copyLog(), [])
 
   const value: Value = {
     ready,
@@ -599,7 +597,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     revokeCardOptimistic,
     ensurePresetCard,
     copyCard,
-    copyLog,
     pickCard,
     preset,
     setPreset,

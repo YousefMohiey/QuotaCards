@@ -71,7 +71,6 @@ export const ar = {
   "connected": "متصل",
   "connecting": "جارٍ الاتصال…",
   "copy": "نسخ",
-  "copyLog": "نسخ السجل",
   "customDomain": "دومين مخصص…",
   "customDomainOpt": "دومين مخصص…",
   "disconnect": "قطع الاتصال",

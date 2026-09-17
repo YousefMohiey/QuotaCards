@@ -1,4 +1,4 @@
-import { Copy, RefreshCw } from "lucide-react"
+import { RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Panel, Row, GroupLabel, PageTitle } from "@/components/Row"
 import { Segmented } from "@/components/Segmented"
@@ -8,7 +8,7 @@ import { displayHost } from "@/lib/format"
 
 export function Settings() {
   const { t, lang, setLang } = useI18n()
-  const { update, updateState, checkUpdates, applyUpdate, serverIp, cards, copyLog } = useApp()
+  const { update, updateState, checkUpdates, applyUpdate, serverIp, cards } = useApp()
 
   const updateText =
     updateState === "checking"
@@ -60,17 +60,6 @@ export function Settings() {
                 {updateText}
               </span>
             </div>
-          </Row>
-
-          <Row label={t("copyLog")}>
-            <Button
-              variant="secondary"
-              className="h-9 gap-2 rounded-[10px] px-3.5 text-[13px]"
-              onClick={() => void copyLog()}
-            >
-              <Copy className="size-4" aria-hidden />
-              {t("copyLog")}
-            </Button>
           </Row>
         </Panel>
       </section>

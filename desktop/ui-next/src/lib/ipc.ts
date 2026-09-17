@@ -112,7 +112,6 @@ export const api = {
   status: () => call<TunnelState>("tunnel_status"),
   traffic: () => call<TrafficState>("tunnel_traffic"),
   log: () => call<string>("tunnel_log"),
-  copyLog: () => call<CmdResult>("tunnel_copy_log"),
   apps: () => call<string>("tunnel_apps"),
   resolveHost: (host: string) => call<string>("resolve_host", { host }),
   probeTunnel: () => call<CmdResult>("tunnel_probe"),

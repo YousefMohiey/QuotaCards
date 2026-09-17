@@ -68,7 +68,6 @@ export const en = {
   "connected": "Connected",
   "connecting": "Connecting…",
   "copy": "Copy",
-  "copyLog": "Copy log",
   "customDomain": "custom domain…",
   "customDomainOpt": "Custom domain…",
   "disconnect": "Disconnect",
