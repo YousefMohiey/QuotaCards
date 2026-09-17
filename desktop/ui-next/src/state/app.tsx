@@ -296,8 +296,27 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setPhase("on")
       // Success messages (like the reachable line) stay out of the UI;
       // only a failed probe gets to speak.
-      if (probe && !probe.ok && probe.msg) setStatus(probe.msg)
-      else setStatus("")
+      if (probe && !probe.ok && probe.msg) {
+        const failMsg = probe.msg
+        setStatus(failMsg)
+        // One shot is not a verdict: this probe can land while the fresh
+        // tunnel's first name lookups are still cold, and the single
+        // failure used to sit under the dial for the whole session on a
+        // machine that was actually fine. Retry quietly; a later answer
+        // retires the message.
+        const gen = teardownRef.current
+        void (async () => {
+          for (let i = 0; i < 3; i++) {
+            await new Promise((res) => setTimeout(res, 4000 + i * 4000))
+            if (teardownRef.current !== gen || !vpnRef.current) return
+            const again = await api.probeTunnel().catch(() => null)
+            if (again?.ok) {
+              setStatus((s) => (s === failMsg ? "" : s))
+              return
+            }
+          }
+        })()
+      } else setStatus("")
     } catch (e) {
       setStatus(String(e))
       setPhase("idle")

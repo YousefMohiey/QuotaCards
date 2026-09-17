@@ -33,14 +33,26 @@ export function Hero() {
       return
     }
     let alive = true
-    api
-      .resolveHost(serverIp)
-      .then((ip) => {
-        if (alive) setServerAddr(ip)
-      })
-      .catch(() => {})
+    let timer: number | undefined
+    // The first lookup through a fresh tunnel can be cold, and a single
+    // miss used to leave this tile showing the raw name for the rest of
+    // the session. Keep asking for a bit before settling for the name.
+    const attempt = (n: number) => {
+      api
+        .resolveHost(serverIp)
+        .then((ip) => {
+          if (!alive) return
+          if (ip) setServerAddr(ip)
+          else if (n < 5) timer = window.setTimeout(() => attempt(n + 1), 3000)
+        })
+        .catch(() => {
+          if (alive && n < 5) timer = window.setTimeout(() => attempt(n + 1), 3000)
+        })
+    }
+    attempt(0)
     return () => {
       alive = false
+      if (timer) window.clearTimeout(timer)
     }
   }, [connected, serverIp])
 
