@@ -8,7 +8,7 @@
 
 use quotacards::{
     config::{AppConfig, Card, EMBED_KEY, DEFAULT_HOST, DEFAULT_PORT, DEFAULT_USER},
-    server, vpn,
+    server, updater, vpn,
 };
 use std::sync::Mutex;
 use tauri::Manager;
@@ -937,56 +937,96 @@ fn newer(latest: &str, current: &str) -> bool {
     p(latest) > p(current)
 }
 
+/// Short git hash of the build this binary came from (stamped in by
+/// build.rs), or "dev" when git was not available at build time.
+const BUILD_STAMP: &str = env!("QC_BUILD");
+
+/// Everything up to date: the shape the UI already renders as "latest".
+fn up_to_date(current: &str) -> UpdateInfo {
+    UpdateInfo {
+        available: false,
+        url: String::new(),
+        latest: current.to_string(),
+        notes: String::new(),
+        current: current.to_string(),
+    }
+}
+
+/// The updater handle. QC_FEED_URL repoints it at a local feed so the
+/// check and install paths can be exercised without publishing a release.
+fn updater(app: &tauri::AppHandle) -> Result<tauri_plugin_updater::Updater, String> {
+    let mut builder = app.updater_builder();
+    if let Ok(raw) = std::env::var("QC_FEED_URL") {
+        let raw = raw.trim();
+        if !raw.is_empty() {
+            let url = reqwest::Url::parse(raw).map_err(|e| format!("bad QC_FEED_URL: {e}"))?;
+            builder = builder
+                .endpoints(vec![url])
+                .map_err(|e| format!("bad QC_FEED_URL: {e}"))?;
+        }
+    }
+    builder
+        .build()
+        .map_err(|e| format!("updater unavailable: {e}"))
+}
+
 #[tauri::command]
 async fn check_update(app: tauri::AppHandle) -> Result<UpdateInfo, String> {
     const REPO: &str = "YousefMohiey/QuotaCards";
-    let current = env!("CARGO_PKG_VERSION").to_string();
-    let found = app
-        .updater()
-        .map_err(|e| format!("updater unavailable: {e}"))?
+    let current = app.package_info().version.to_string();
+    let found = updater(&app)?
         .check()
         .await
         .map_err(|e| format!("check failed: {e}"))?;
     match found {
-        Some(u) => Ok(UpdateInfo {
-            available: newer(&u.version, &current),
-            url: format!("https://github.com/{REPO}/releases/tag/v{}", u.version),
-            latest: u.version,
-            // First line of the release notes, so the update notice can say
-            // what the build actually is (a hotfix reads as one) instead of
-            // only a version number.
-            notes: u
-                .body
-                .as_deref()
-                .and_then(|b| b.lines().next())
-                .map(|l| {
-                    // Keep the sidebar notice to one tidy line: cut long
-                    // notes at a word boundary and trim trailing punctuation
-                    // so it never ends on a dangling "and,".
-                    let l = l.trim();
-                    if l.chars().count() <= 44 {
-                        return l.to_string();
-                    }
-                    let mut cut: String = l.chars().take(44).collect();
-                    if let Some(i) = cut.rfind(' ') {
-                        cut.truncate(i);
-                    }
-                    while cut.ends_with([',', '.', ';', ':', ' ']) {
-                        cut.pop();
-                    }
-                    cut.push('…');
-                    cut
-                })
-                .unwrap_or_default(),
-            current,
-        }),
-        None => Ok(UpdateInfo {
-            available: false,
-            url: String::new(),
-            latest: current.clone(),
-            notes: String::new(),
-            current,
-        }),
+        Some(u) => {
+            // An equal version number is a re-release: it is only real
+            // when the feed carries a build stamp other than this one.
+            let available = if u.version == current {
+                updater::offer_equal_version(
+                    u.raw_json.get("build").and_then(|v| v.as_str()),
+                    BUILD_STAMP,
+                )
+            } else {
+                newer(&u.version, &current)
+            };
+            if !available {
+                return Ok(up_to_date(&current));
+            }
+            Ok(UpdateInfo {
+                available: true,
+                url: format!("https://github.com/{REPO}/releases/tag/v{}", u.version),
+                latest: u.version,
+                // First line of the release notes, so the update notice can say
+                // what the build actually is (a hotfix reads as one) instead of
+                // only a version number.
+                notes: u
+                    .body
+                    .as_deref()
+                    .and_then(|b| b.lines().next())
+                    .map(|l| {
+                        // Keep the sidebar notice to one tidy line: cut long
+                        // notes at a word boundary and trim trailing punctuation
+                        // so it never ends on a dangling "and,".
+                        let l = l.trim();
+                        if l.chars().count() <= 44 {
+                            return l.to_string();
+                        }
+                        let mut cut: String = l.chars().take(44).collect();
+                        if let Some(i) = cut.rfind(' ') {
+                            cut.truncate(i);
+                        }
+                        while cut.ends_with([',', '.', ';', ':', ' ']) {
+                            cut.pop();
+                        }
+                        cut.push('…');
+                        cut
+                    })
+                    .unwrap_or_default(),
+                current,
+            })
+        }
+        None => Ok(up_to_date(&current)),
     }
 }
 
@@ -996,17 +1036,27 @@ async fn check_update(app: tauri::AppHandle) -> Result<UpdateInfo, String> {
 /// `update-progress` events with a `pct` field.
 #[tauri::command]
 async fn apply_update(app: tauri::AppHandle) -> Result<String, String> {
-    {
-        let eng = app.state::<Engine>();
-        stop_engine(&eng);
-    }
-    let update = app
-        .updater()
-        .map_err(|e| format!("updater unavailable: {e}"))?
+    let current = app.package_info().version.to_string();
+    let update = updater(&app)?
         .check()
         .await
         .map_err(|e| format!("check failed: {e}"))?
         .ok_or_else(|| "Already on the latest build.".to_string())?;
+    // Same guard as the check: an equal version number with a feed build
+    // stamp that is missing, empty or identical to this build is not an
+    // update, so refuse before the installer touches anything.
+    if update.version == current
+        && !updater::offer_equal_version(
+            update.raw_json.get("build").and_then(|v| v.as_str()),
+            BUILD_STAMP,
+        )
+    {
+        return Err("This build is already current.".to_string());
+    }
+    {
+        let eng = app.state::<Engine>();
+        stop_engine(&eng);
+    }
     let prog = app.clone();
     update
         .download_and_install(
@@ -1042,7 +1092,14 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        // The updater also sees a build re-released under the SAME version
+        // number; check_update and apply_update then decide by the feed's
+        // build stamp whether that build is actually new to this PC.
+        .plugin(
+            tauri_plugin_updater::Builder::new()
+                .default_version_comparator(|current, remote| remote.version >= current)
+                .build(),
+        )
         .manage(State(Mutex::new(AppConfig::default())))
         .manage(Engine(Mutex::new(None)))
         .setup(|app| {
@@ -1186,5 +1243,22 @@ mod tests {
     fn tun_octets_never_panics() {
         let (rx, tx) = super::tun_octets();
         println!("tun_octets -> {rx}/{tx}");
+    }
+
+    /// Same-version re-release rule: covered by unit tests in the shared
+    /// crate (`quotacards::updater`), because this crate's lib test exe
+    /// cannot start on this toolchain (no Common-Controls 6 manifest on
+    /// test targets, comctl32 v6 import in the updater code).
+
+    /// build.rs must always embed a stamp: a short hash or the "dev"
+    /// fallback, never an empty string.
+    #[test]
+    fn build_stamp_is_embedded() {
+        let stamp = super::BUILD_STAMP;
+        assert!(
+            stamp == "dev" || (!stamp.is_empty() && stamp.chars().all(|c| c.is_ascii_hexdigit())),
+            "unexpected QC_BUILD value: {stamp:?}"
+        );
+        println!("QC_BUILD = {stamp}");
     }
 }

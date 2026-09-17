@@ -61,6 +61,12 @@ The PC downloads the NSIS installer and applies it (signed feed, `TAURI_SIGNING_
 The phone downloads the APK and hands it to the system installer. The feed asset must be named
 exactly `latest.json`.
 
+Every build carries a stamp (`QC_BUILD` from `build.rs`: the short git hash, or `dev` when git
+was not available), and `latest.json` repeats it as a top-level `build` field. The PC compares
+the two, so a re-released build that keeps the SAME version number is still offered, once per
+new stamp; a feed without a stamp, and any `dev` local build, never gets a same-version offer.
+The publish scripts write the field automatically, so nothing is set by hand.
+
 **Speed test.** Client-side, modelled on LibreSpeed: timed tiny requests for latency and
 jitter, a rolling-window download that adapts chunk size, and a streamed upload. Endpoints are
 on the owner's server (`/speed/down`, `/speed/up`) plus public ping targets (Cloudflare 1.1.1.1,
@@ -199,7 +205,9 @@ python tools/make-icons.py   # ALL_VERIFIED means every frame is correct
 2. Build the installer and the APK.
 3. Publish the GitHub release with four assets: the setup exe, its `.sig`, `latest.json`, and
    `QuotaCards-mobile-signed.apk`. Ship both platforms at the same version or the phone will be
-   offered a release with no APK.
+   offered a release with no APK. Commit and push the bump before creating the release: the tag
+   follows the remote default branch, and the installer's `QC_BUILD` stamp should be the
+   published commit.
 4. Verify by fetching the exact URL the apps fetch:
    `curl -sL https://github.com/YousefMohiey/QuotaCards/releases/latest/download/latest.json`
    and confirming the version is the new one.
@@ -270,7 +278,7 @@ that matter most:
 
 ## 11. Current state (as of this handoff)
 
-- Latest release: **v0.2.5** (installer, APK, feed), published and live.
+- Latest release: **v0.3.0** (installer, APK, feed), published and live.
 - `master` also carries a full polish pass on the desktop UI that is **not** in v0.2.5: one
   token layer, quieter sidebar, tighter Home, list-style routing page, refined Cards, compact
   modals, and a slightly larger Speed reading. That pass is what the next release should carry.

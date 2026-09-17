@@ -56,7 +56,10 @@ Windows, run from git-bash. The toolchain this project was developed against:
   `android/tauri-app/src-tauri/{tauri.conf.json,Cargo.toml}`. Bump all four together.
 - **Releases**: bump, build the installer and the APK, then publish the GitHub release with the
   updater feed. The feed asset must be named exactly `latest.json`; the app reads
-  `releases/latest/download/latest.json`. Ship both platforms at the same version.
+  `releases/latest/download/latest.json`. Ship both platforms at the same version. The feed also
+  carries a `build` stamp (short git hash, written by the publish scripts) so a re-release under
+  the same version number still reaches installed apps; commit the bump before creating the
+  release (the tag follows the remote default branch).
 - **Secrets** (keystore, updater key and passwords, the server private key in
   `%APPDATA%/quotacards/config.json`) never enter the repo and never get printed.
 - **Commit author for this repository is `YousefMohiey`.** Do not add agent or assistant

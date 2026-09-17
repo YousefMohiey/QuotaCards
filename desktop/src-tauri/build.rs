@@ -4,15 +4,34 @@
 use std::{env, fs, path::PathBuf};
 
 fn main() {
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    // repo root two levels up: desktop/src-tauri -> desktop -> root
+    let root = manifest_dir.join("..").join("..");
+
+    // Build identity for the updater: a hotfix re-released under the same
+    // version number differs only by build, so the app compares this stamp
+    // against the feed's "build" field. Falls back to "dev" (git missing,
+    // not a checkout), and a dev build is never offered a same-version
+    // update because it has no identity to compare.
+    let stamp = std::process::Command::new("git")
+        .args(["rev-parse", "--short", "HEAD"])
+        .current_dir(&root)
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "dev".to_string());
+    println!("cargo:rustc-env=QC_BUILD={stamp}");
+    // A new commit moves HEAD, so the stamp must be re-read then.
+    println!("cargo:rerun-if-changed=../../.git/HEAD");
+
     tauri_build::build();
 
     let target = env::var("TARGET").unwrap_or_default();
     if !target.contains("windows") {
         return;
     }
-    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    // repo root two levels up: desktop/src-tauri -> desktop -> root
-    let root = manifest_dir.join("..").join("..");
     let out = PathBuf::from(env::var("OUT_DIR").unwrap());
     let rc = out.join("quotacards.rc");
     let res = out.join("quotacards.res");
