@@ -1,6 +1,7 @@
 [package]
 name = "quotacards-desktop"
-version = "0.2.6"
+version = "0.2.7"
+default-run = "quotacards"
 edition = "2021"
 
 [lib]
