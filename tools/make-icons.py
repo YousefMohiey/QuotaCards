@@ -27,8 +27,8 @@ MASTER = ROOT / "res" / "app-icon-src.png"
 SIZES = [16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 128, 256]
 # size -> unsharp (radius, percent); None = no sharpening
 SHARPEN = {
-    16: (0.6, 130), 20: (0.6, 125), 24: (0.6, 120), 30: (0.6, 110),
-    32: (0.6, 105), 36: (0.6, 100), 40: (0.6, 80), 48: (0.6, 80),
+    16: (0.7, 150), 20: (0.7, 140), 24: (0.65, 130), 30: (0.6, 115),
+    32: (0.6, 108), 36: (0.6, 100), 40: (0.6, 80), 48: (0.6, 80),
     60: (0.5, 60), 64: (0.5, 55), 72: (0.5, 45), 80: (0.5, 40),
     96: (0.5, 25), 128: None, 256: None,
 }
@@ -36,14 +36,18 @@ SHARPEN = {
 # get a contrast and saturation lift: the downscale averages the thin ring into
 # the dark tile and the mark goes muddy exactly where it is smallest.
 SMALL_LIFT = {16, 20, 24, 30, 32, 36}
+# These numbers were re-tuned against the current master art: 16px was judged
+# against neighbouring variants by magnified comparison, and the Q reads while
+# the tile stays visible. Re-check the same way whenever res/app-icon-src.png
+# is replaced.
 # The smallest frames also get the mark magnified in place (glyph only, tile
 # untouched) so the stroke and its counter both survive the raster, plus a
 # graduated brightness lift: the master's tile is near-black, and at 16px on a
 # dark Explorer background the square would otherwise vanish into the window,
 # leaving a faint ring that reads as a smudge. Growing the bright pixels
 # themselves is still off limits - that turned the ring into a white blob.
-MARK_ZOOM = {16: 1.22, 20: 1.18, 24: 1.12}
-TILE_LIFT = {16: 1.35, 20: 1.22, 24: 1.1}
+MARK_ZOOM = {16: 1.42, 20: 1.34, 24: 1.22}
+TILE_LIFT = {16: 1.55, 20: 1.38, 24: 1.2}
 
 
 def mark_mask(im: Image.Image) -> Image.Image:
@@ -120,8 +124,8 @@ def render(master: Image.Image, size: int) -> Image.Image:
                         bmask.crop((sx, sy, sx + w, sy + h)),
                     )
         if size in SMALL_LIFT:
-            rgb = ImageEnhance.Contrast(rgb).enhance(1.08)
-            rgb = ImageEnhance.Color(rgb).enhance(1.1)
+            rgb = ImageEnhance.Contrast(rgb).enhance(1.15)
+            rgb = ImageEnhance.Color(rgb).enhance(1.12)
         rgb = rgb.filter(
             ImageFilter.UnsharpMask(radius=radius, percent=percent, threshold=1)
         ).convert("RGBA")
