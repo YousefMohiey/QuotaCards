@@ -378,7 +378,15 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
         setHint(t("pingHint"))
         const offPhase = await onSpeedPhase((p) => {
           if (s.aborted) return
-          if (p === "download") {
+          if (p === "select") {
+            // The client is picking its server: show that instead of a dead
+            // screen for the several seconds it takes.
+            setPhase("ping")
+            setCaption(t("findingServer"))
+            setUnit("Mbps")
+            setValue(0)
+            setSamples([])
+          } else if (p === "download") {
             setPhase("download")
             setCaption(t("chDown"))
             setUnit("Mbps")

@@ -10,10 +10,15 @@
 //! Mbps for the bars, the result block gives the final numbers, the server
 //! and ISP lines, and the speedtest.net result URL.
 
-use std::io::{BufRead, BufReader};
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
+
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use serde::Serialize;
 
@@ -119,6 +124,14 @@ impl Parsed {
     /// wrong download.)
     fn feed(&mut self, line: &str, on_tick: &mut dyn FnMut(&str, f64)) {
         let t = line.trim();
+        // The client announces its server selection before any measurement;
+        // the UI shows a "finding the server" state for that stretch instead
+        // of a dead screen.
+        if t.starts_with("Selecting server") || t.starts_with("Selecting best server") {
+            // NaN marks "phase only, no tick": the value stays where it was.
+            on_tick("select", f64::NAN);
+            return;
+        }
         let is_down = t.starts_with("Download:");
         let is_up = t.starts_with("Upload:");
         if is_down || is_up {
@@ -233,17 +246,22 @@ pub fn run(
     on_phase: Arc<dyn Fn(&str) + Send + Sync>,
     on_tick: Arc<dyn Fn(f64) + Send + Sync>,
 ) -> Option<CliResult> {
-    let mut child = Command::new(exe)
-        .args([
-            "--accept-license",
-            "--accept-gdpr",
-            "--progress=yes",
-            "--progress-update-interval=250",
-        ])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .ok()?;
+    let mut cmd = Command::new(exe);
+    cmd.args([
+        "--accept-license",
+        "--accept-gdpr",
+        "--progress=yes",
+        "--progress-update-interval=100",
+    ])
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped());
+    #[cfg(windows)]
+    {
+        // The CLI is a console program: without this flag Windows opens a
+        // terminal window for it every time a test runs.
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    let mut child = cmd.spawn().ok()?;
 
     let parsed = Arc::new(Mutex::new(Parsed::default()));
     let mut readers = Vec::new();
@@ -258,16 +276,26 @@ pub fn run(
         let on_phase = Arc::clone(&on_phase);
         let on_tick = Arc::clone(&on_tick);
         readers.push(std::thread::spawn(move || {
+            // Read raw bytes, not lines: the CLI rewrites its progress line in
+            // place with a carriage return and only emits a newline when the
+            // phase ends. Waiting for a newline holds every tick back until the
+            // end, which is exactly how "the numbers arrive after they are
+            // already calculated" happened.
             let mut reader = BufReader::new(stream);
-            let mut buf = Vec::new();
+            let mut buf = [0u8; 4096];
+            let mut carry = String::new();
             loop {
-                buf.clear();
-                // Progress rewrites the line in place with \r, so split on both.
-                match reader.read_until(b'\n', &mut buf) {
+                match reader.read(&mut buf) {
                     Ok(0) => break,
-                    Ok(_) => {
-                        let text = String::from_utf8_lossy(&buf);
-                        for part in text.split(['\r', '\n']) {
+                    Ok(n) => {
+                        let text = String::from_utf8_lossy(&buf[..n]);
+                        carry.push_str(&text);
+                        // Keep the last partial segment for the next read.
+                        let mut parts: Vec<String> =
+                            carry.split(['\r', '\n']).map(|s| s.to_string()).collect();
+                        let tail = parts.pop().unwrap_or_default();
+                        carry = tail;
+                        for part in &parts {
                             if part.trim().is_empty() {
                                 continue;
                             }
@@ -283,11 +311,33 @@ pub fn run(
                                 on_phase(&p);
                             }
                             if let Some(v) = tick {
-                                on_tick(v);
+                                if !v.is_nan() {
+                                    on_tick(v);
+                                }
                             }
                         }
                     }
                     Err(_) => break,
+                }
+            }
+            // Whatever the last partial segment held.
+            let last = carry.trim().to_string();
+            if !last.is_empty() {
+                let mut guard = parsed.lock().unwrap();
+                let mut phase: Option<String> = None;
+                let mut tick: Option<f64> = None;
+                guard.feed(&last, &mut |p, v| {
+                    phase = Some(p.to_string());
+                    tick = Some(v);
+                });
+                drop(guard);
+                if let Some(p) = phase {
+                    on_phase(&p);
+                }
+                if let Some(v) = tick {
+                    if !v.is_nan() {
+                        on_tick(v);
+                    }
                 }
             }
         }));
