@@ -43,14 +43,19 @@ fn mbps(bytes: u64, secs: f64) -> f64 {
 }
 
 /// Round trips to `url`, one per probe, in milliseconds. Failed probes are
-/// dropped, so an empty Vec means the endpoint is unusable.
+/// dropped, so an empty Vec means the endpoint is unusable. A failing host
+/// stops the series: eight probes against an unreachable server would spend
+/// eight connect timeouts before the caller can move on.
 pub async fn latency(client: &Client, url: &str, probes: u32) -> Vec<f64> {
     let mut out = Vec::new();
     for _ in 0..probes {
         let t0 = Instant::now();
-        if let Ok(resp) = client.get(bust(url)).send().await {
-            let _ = resp.bytes().await;
-            out.push(t0.elapsed().as_secs_f64() * 1000.0);
+        match client.get(bust(url)).send().await {
+            Ok(resp) => {
+                let _ = resp.bytes().await;
+                out.push(t0.elapsed().as_secs_f64() * 1000.0);
+            }
+            Err(_) => break,
         }
     }
     out

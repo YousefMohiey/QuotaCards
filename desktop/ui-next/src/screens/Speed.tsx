@@ -414,26 +414,64 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
 
     // Each phase reports back here so the history line reflects the run that
     // just happened, not whatever the tiles happened to hold before.
-    if (which === "all" || which === "ping") {
-      const p = await runPing(server, s)
-      if (p) {
-        acc.ping = p.ping
-        acc.jitter = p.jitter
+    //
+    // If the picked server turns out to answer nothing (a provider host that
+    // blocks or drops traffic from wherever the tunnel exits, for example),
+    // the run does not end there: it moves down the pool and finishes on
+    // Cloudflare, which answers from anywhere. Only a run that produced a
+    // throughput is written to the history.
+    const candidates: SpeedServer[] = []
+    const addCandidate = (srv?: SpeedServer | null) => {
+      if (srv && !candidates.some((c) => c.id === srv.id)) candidates.push(srv)
+    }
+    addCandidate(server)
+    // Cloudflare second: if the provider host is unreachable from wherever the
+    // network currently exits (a tunnel in another country, a blocked port),
+    // this is the one that still answers, so the run ends with real numbers
+    // instead of an empty screen.
+    addCandidate(CLOUDFLARE)
+    for (const srv of pool.slice(0, 4)) addCandidate(srv)
+
+    let used = server
+    for (let attempt = 0; attempt < candidates.length && attempt < 3; attempt++) {
+      const srv = candidates[attempt]
+      used = srv
+      if (attempt > 0) {
+        setSamples([])
+        setValue(0)
       }
-      if (s.aborted) return
+      if (which === "all" || which === "ping") {
+        const p = await runPing(srv, s)
+        if (p) {
+          acc.ping = p.ping
+          acc.jitter = p.jitter
+        }
+        if (s.aborted) return
+      }
+      if (which === "all" || which === "down") {
+        const d = await runThroughput("down", srv, s)
+        if (d !== null) acc.down = d
+        if (s.aborted) return
+      }
+      if (which === "all" || which === "up") {
+        const u = await runThroughput("up", srv, s)
+        if (u !== null) acc.up = u
+        if (s.aborted) return
+      }
+      const gotThroughput = acc.down !== null || acc.up !== null
+      if (gotThroughput || which !== "all") break
+      // Nothing came back: report it and try the next server in the pool.
+      if (attempt === 0) setHint(t("srvRetry"))
     }
-    if (which === "all" || which === "down") {
-      const d = await runThroughput("down", server, s)
-      if (d !== null) acc.down = d
-      if (s.aborted) return
-    }
-    if (which === "all" || which === "up") {
-      const u = await runThroughput("up", server, s)
-      if (u !== null) acc.up = u
-      if (s.aborted) return
+
+    if (used.id !== server.id && (acc.down !== null || acc.up !== null)) {
+      setPicked(used)
     }
     setPhase("done")
-    remember(acc, label)
+    setValue(acc.down ?? acc.up ?? acc.ping ?? 0)
+    if (acc.down !== null || acc.up !== null || which === "ping") {
+      remember(acc, used.label || label)
+    }
   }
 
   const stop = () => {

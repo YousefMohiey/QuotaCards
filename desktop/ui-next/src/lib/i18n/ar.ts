@@ -37,6 +37,7 @@ export const ar = {
   "targetInternet": "الإنترنت",
   "targetServer": "السيرفر",
   "findingServer": "جارٍ العثور على أقرب خادم",
+  "srvRetry": "لم يستجب هذا الخادم، جارٍ تجربة خادم آخر",
   "appsAll": "جميع التطبيقات",
   "appsEmpty": "لا توجد تطبيقات بهذا الاسم.",
   "appsEmptyFallback": "لم يتم اختيار أي تطبيق، سيتم الاتصال بالجهاز بالكامل.",

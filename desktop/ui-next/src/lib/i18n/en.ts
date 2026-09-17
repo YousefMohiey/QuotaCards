@@ -34,6 +34,7 @@ export const en = {
   "targetInternet": "Internet",
   "targetServer": "Server",
   "findingServer": "Finding the nearest server",
+  "srvRetry": "That server did not answer, trying another",
   "appsAll": "All apps",
   "appsEmpty": "No applications found.",
   "appsEmptyFallback": "No apps picked, connecting the whole device.",
