@@ -197,12 +197,16 @@ pub fn resolve_server_ips(host: &str) -> Result<Vec<String>, String> {
 /// `apps_mode` picks the per-app routing: "allow" sends ONLY the listed
 /// process names through the tunnel, "block" sends everything EXCEPT them,
 /// anything else routes the whole PC.
+/// `voice` adds the VALORANT voice rules: only the voice/STUN ports and the
+/// Vivox endpoints of the listed Riot processes ride the tunnel, everything
+/// else (the game's own traffic included) stays direct.
 pub fn write_tun_config(
     uuid: &str,
     host: &str,
     sni: &str,
     apps_mode: &str,
     apps: &[String],
+    voice: bool,
 ) -> Result<PathBuf, String> {
     let mut excludes = resolve_server_ips(host)?;
     for ip in [PROXY_DOH_IP, DIRECT_DNS] {
@@ -233,7 +237,47 @@ pub fn write_tun_config(
         {"source_ip_cidr": ["224.0.0.0/3", "ff00::/8"], "action": "reject"},
         {"protocol": "dns", "action": "hijack-dns"}
     ]);
-    if per_app {
+    if voice {
+        let rules = route_rules.as_array_mut().unwrap();
+        // The Riot voice channels: STUN (UDP 3478-3480) and the voice ports
+        // (8393-8400) plus the Vivox front ends. Rules run top to bottom, so
+        // the voice rules sit above the catch-all that keeps the rest of the
+        // game on the user's own connection.
+        let riot = serde_json::json!([
+            "VALORANT-Win64-Shipping.exe",
+            "VALORANT.exe",
+            "RiotClientServices.exe"
+        ]);
+        rules.insert(
+            0,
+            serde_json::json!({"process_name": riot, "outbound": "direct"}),
+        );
+        rules.insert(
+            0,
+            serde_json::json!({
+                "process_name": riot,
+                "domain_suffix": ["vivox.com", "voice.riotgames.com"],
+                "outbound": "proxy"
+            }),
+        );
+        rules.insert(
+            0,
+            serde_json::json!({
+                "process_name": riot,
+                "port": ["8393:8400"],
+                "outbound": "proxy"
+            }),
+        );
+        rules.insert(
+            0,
+            serde_json::json!({
+                "process_name": riot,
+                "network": "udp",
+                "port": ["3478:3480"],
+                "outbound": "proxy"
+            }),
+        );
+    } else if per_app {
         let rules = route_rules.as_array_mut().unwrap();
         // allow: the listed apps ride the tunnel. block: the listed apps skip it.
         let target = if apps_only { "proxy" } else { "direct" };
@@ -247,6 +291,16 @@ pub fn write_tun_config(
             rules.insert(0, serde_json::json!({"process_path": paths, "outbound": target}));
         }
     }
+    let dns_rules = if voice {
+        serde_json::json!([
+            {"domain": [host], "server": "direct-dns"},
+            // Riot's voice domains resolve through the tunnel: the direct
+            // resolver in Egypt is exactly the thing that fails for them.
+            {"domain_suffix": ["vivox.com", "voice.riotgames.com"], "server": "proxy-dns"}
+        ])
+    } else {
+        serde_json::json!([{"domain": [host], "server": "direct-dns"}])
+    };
     let cfg = serde_json::json!({
         "log": {"level": "warning"},
         "dns": {
@@ -254,7 +308,7 @@ pub fn write_tun_config(
                 {"type": "https", "tag": "proxy-dns", "server": PROXY_DOH_IP, "detour": "proxy"},
                 {"type": "udp", "tag": "direct-dns", "server": DIRECT_DNS}
             ],
-            "rules": [{"domain": [host], "server": "direct-dns"}],
+            "rules": dns_rules,
             "final": dns_final
         },
         "inbounds": [{
@@ -579,9 +633,40 @@ mod tests {
             "example.com",
             mode,
             &list,
+            false,
         )
         .expect("config");
         serde_json::from_str(&std::fs::read_to_string(p).expect("read")).expect("json")
+    }
+
+    #[test]
+    fn voice_config_routes_only_voice() {
+        let _g = LOCK.lock().unwrap();
+        let list: Vec<String> = vec!["VALORANT-Win64-Shipping.exe".to_string()];
+        let p = write_tun_config(
+            "00000000-test",
+            crate::config::DEFAULT_HOST,
+            "example.com",
+            "allow",
+            &list,
+            true,
+        )
+        .expect("config");
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(p).expect("read")).expect("json");
+        let rules = v["route"]["rules"].as_array().unwrap();
+        // the voice port rule leads and rides the tunnel
+        assert_eq!(rules[0]["port"][0], "3478:3480");
+        assert_eq!(rules[0]["outbound"], "proxy");
+        // the game itself falls through to the user's own connection
+        assert!(rules.iter().any(|r| {
+            r["outbound"] == "direct" && r["process_name"].as_array().map_or(false, |a| !a.is_empty())
+        }));
+        // the whole-PC default stays direct so only voice is carried
+        assert_eq!(v["route"]["final"], "direct");
+        // vivox resolves through the tunnel, not the local resolver
+        let dns = v["dns"]["rules"].as_array().unwrap();
+        assert!(dns.iter().any(|r| r["domain_suffix"][0] == "vivox.com"));
     }
 
     #[test]

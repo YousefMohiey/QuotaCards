@@ -252,6 +252,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         write("qc-card", uuid)
       }
       await api.probeServer()
+      // A normal connect supersedes any voice-only session flag.
+      try {
+        localStorage.removeItem("qc-voice-active")
+      } catch {
+        /* file:// */
+      }
       const r = await api.start(uuid, mode, apps, transport)
       setStatus(r.msg)
       if (!r.ok) {

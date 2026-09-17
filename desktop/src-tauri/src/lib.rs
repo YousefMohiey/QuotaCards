@@ -364,6 +364,7 @@ async fn tunnel_start(
     apps_mode: Option<String>,
     apps: Option<Vec<String>>,
     transport: Option<String>,
+    voice: Option<bool>,
 ) -> Result<CmdResult, String> {
     let (host, card) = {
         let state = app.state::<State>();
@@ -384,13 +385,28 @@ async fn tunnel_start(
     if !vpn::is_elevated() {
         return Ok(CmdResult { ok: false, msg: "Run QuotaCards as administrator, then connect.".into() });
     }
-    let mode = apps_mode.unwrap_or_default();
-    let list = apps.unwrap_or_default();
+    let voice_on = voice.unwrap_or(false);
+    // Voice mode is fixed: only the Riot processes are captured, and inside
+    // the engine only their voice channels ride the tunnel.
+    let (mode, list) = if voice_on {
+        (
+            "allow".to_string(),
+            vec![
+                "VALORANT-Win64-Shipping.exe".to_string(),
+                "VALORANT.exe".to_string(),
+                "RiotClientServices.exe".to_string(),
+            ],
+        )
+    } else {
+        (apps_mode.unwrap_or_default(), apps.unwrap_or_default())
+    };
     vpn::ensure_engine().map_err(|e| e)?;
-    vpn::write_tun_config(&card.uuid, &host, &card.sni, &mode, &list).map_err(|e| e)?;
+    vpn::write_tun_config(&card.uuid, &host, &card.sni, &mode, &list, voice_on).map_err(|e| e)?;
     vpn::check_config().map_err(|e| e)?;
     stop_engine(&engine);
-    let mode_label = if mode == "allow" && !list.is_empty() {
+    let mode_label = if voice_on {
+        "voice"
+    } else if mode == "allow" && !list.is_empty() {
         "apps"
     } else if mode == "block" && !list.is_empty() {
         "except"

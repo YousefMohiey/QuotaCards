@@ -4,6 +4,7 @@ import { Sidebar, type Tab } from "@/components/Sidebar"
 import { Home } from "@/screens/Home"
 import { Cards } from "@/screens/Cards"
 import { Speed } from "@/screens/Speed"
+import { Voice } from "@/screens/Voice"
 import { SpeedHistory } from "@/screens/SpeedHistory"
 import { SpeedResult } from "@/screens/SpeedResult"
 import { Settings } from "@/screens/Settings"
@@ -16,7 +17,7 @@ export default function App() {
   // makes each screen linkable and lets the preview harness open one cold.
   const [tab, setTab] = useState<Tab>(() => {
     const h = (typeof location !== "undefined" ? location.hash.slice(1) : "") as Tab
-    return (["home", "cards", "speed", "history", "result", "apps", "settings"] as Tab[]).includes(h) ? h : "home"
+    return (["home", "cards", "speed", "voice", "history", "result", "apps", "settings"] as Tab[]).includes(h) ? h : "home"
   })
   // The stored run opened in the result view, if any.
   const [resultAt, setResultAt] = useState<number | null>(null)
@@ -39,7 +40,7 @@ export default function App() {
   useEffect(() => {
     const onHash = () => {
       const h = location.hash.slice(1) as Tab
-      if ((["home", "cards", "speed", "history", "result", "apps", "settings"] as Tab[]).includes(h)) setTab(h)
+      if ((["home", "cards", "speed", "voice", "history", "result", "apps", "settings"] as Tab[]).includes(h)) setTab(h)
     }
     window.addEventListener("hashchange", onHash)
     return () => window.removeEventListener("hashchange", onHash)
@@ -69,6 +70,7 @@ export default function App() {
                 {tab === "home" && <Home onOpenApps={() => go("apps")} />}
                 {tab === "cards" && <Cards />}
                 {tab === "speed" && <Speed onOpenHistory={() => go("history")} />}
+                {tab === "voice" && <Voice />}
                 {tab === "history" && <SpeedHistory onBack={() => go("speed")} onOpenResult={openResult} />}
                 {tab === "result" && <SpeedResult runAt={resultAt} onBack={() => go("history")} />}
                 {tab === "settings" && <Settings />}

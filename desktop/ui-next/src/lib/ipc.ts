@@ -106,8 +106,8 @@ export const api = {
     call<CmdResult>("import_card", { uuid, name, kind, sni }),
   revokeCard: (uuid: string) => call<CmdResult>("revoke_card", { uuid }),
   copyCard: (uuid: string) => call<CmdResult>("copy_card", { uuid }),
-  start: (uuid: string, appsMode: string, apps: string[], transport: string) =>
-    call<CmdResult>("tunnel_start", { uuid, appsMode, apps, transport }),
+  start: (uuid: string, appsMode: string, apps: string[], transport: string, voice?: boolean) =>
+    call<CmdResult>("tunnel_start", { uuid, appsMode, apps, transport, voice }),
   stop: () => call<CmdResult>("tunnel_stop"),
   status: () => call<TunnelState>("tunnel_status"),
   traffic: () => call<TrafficState>("tunnel_traffic"),
