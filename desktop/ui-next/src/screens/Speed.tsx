@@ -273,10 +273,17 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
       if (isTauri()) {
         // Backend measurement: streams are counted after arrival and upload
         // chunks are timed to the server's ack, which is the difference
-        // between a real number and a buffer-inflated one.
-        const off = await onSpeedTick((v) => {
-          if (!signal.aborted) push(v)
-        })
+        // between a real number and a buffer-inflated one. The live-tick
+        // listener is best effort: if it cannot be registered (a refused
+        // permission, an older runtime), the phase still measures.
+        let off: () => void = () => {}
+        try {
+          off = await onSpeedTick((v) => {
+            if (!signal.aborted) push(v)
+          })
+        } catch {
+          off = () => {}
+        }
         try {
           const out =
             direction === "down"
@@ -285,7 +292,11 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
           mbps = out?.mbps ?? null
           if (mbps === null && out?.note) reason = out.note
         } finally {
-          off()
+          try {
+            off()
+          } catch {
+            /* nothing to detach */
+          }
         }
       } else {
         const opts = { seconds: PHASE_SECONDS, signal, onTick: (v: number) => push(v) }
@@ -380,13 +391,13 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
             setValue(0)
             setSamples([])
           }
-        })
+        }).catch(() => () => {})
         const offTick = await onSpeedTick((v) => {
           if (!s.aborted) {
             push(v)
             setValue(v)
           }
-        })
+        }).catch(() => () => {})
         try {
           cli = await speedtestCli()
         } finally {

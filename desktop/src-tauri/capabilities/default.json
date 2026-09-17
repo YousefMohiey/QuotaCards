@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Core permissions the app needs beyond its own commands. The speed page listens for speed-tick and speed-phase events from the backend; without the event permission that listen is refused and a measurement phase dies before it runs.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten"
+  ]
+}
