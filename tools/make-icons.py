@@ -27,7 +27,7 @@ MASTER = ROOT / "res" / "app-icon-src.png"
 SIZES = [16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 128, 256]
 # size -> unsharp (radius, percent); None = no sharpening
 SHARPEN = {
-    16: (0.7, 150), 20: (0.7, 140), 24: (0.65, 130), 30: (0.6, 115),
+    16: (0.8, 170), 20: (0.7, 140), 24: (0.65, 130), 30: (0.6, 115),
     32: (0.6, 108), 36: (0.6, 100), 40: (0.6, 80), 48: (0.6, 80),
     60: (0.5, 60), 64: (0.5, 55), 72: (0.5, 45), 80: (0.5, 40),
     96: (0.5, 25), 128: None, 256: None,
@@ -46,8 +46,8 @@ SMALL_LIFT = {16, 20, 24, 30, 32, 36}
 # dark Explorer background the square would otherwise vanish into the window,
 # leaving a faint ring that reads as a smudge. Growing the bright pixels
 # themselves is still off limits - that turned the ring into a white blob.
-MARK_ZOOM = {16: 1.42, 20: 1.34, 24: 1.22}
-TILE_LIFT = {16: 1.55, 20: 1.38, 24: 1.2}
+MARK_ZOOM = {16: 1.58, 20: 1.34, 24: 1.22}
+TILE_LIFT = {16: 1.70, 20: 1.38, 24: 1.2}
 
 
 def mark_mask(im: Image.Image) -> Image.Image:
@@ -86,10 +86,51 @@ def source_master() -> Image.Image:
     return canvas
 
 
+
+def hand_drawn_16() -> Image.Image:
+    """The 16px frame is drawn by hand, not downscaled.
+
+    Rasterizing the full art at 16x16 has been tried at several zooms and
+    judged at true size by extracting the frame back out of the built exe:
+    every filtered downscale reads as a smudge there. What works is the
+    reduced portrait below: a lifted tile with a lit top edge (the master's
+    tile is near-black and vanishes on a dark desktop), a 2px ring with a
+    ~6px hole, and a deliberate blue tail. Colors sampled from the master.
+    """
+    S = 16
+    im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    px = im.load()
+    tile = (29, 34, 44)
+    edge = (48, 56, 70)
+    white = (240, 242, 246)
+    blue = (19, 98, 229)
+    for y in range(S):
+        for x in range(S):
+            outside = (x in (0, 15) and y in (0, 1, 14, 15)) or (y in (0, 15) and x in (0, 1, 14, 15))
+            if outside:
+                continue
+            c = tile
+            if y == 1 and 2 <= x <= 13:
+                c = edge
+            px[x, y] = (*c, 255)
+    for y in range(S):
+        for x in range(S):
+            dx, dy = x - 7.5, y - 7.5
+            r = (dx * dx + dy * dy) ** 0.5
+            if 3.4 <= r <= 5.2:
+                px[x, y] = (*white, 255)
+    for x, y in [(11, 10), (11, 11), (12, 11), (12, 12), (12, 13), (13, 13)]:
+        px[x, y] = (*blue, 255)
+    return im
+
+
 def render(master: Image.Image, size: int) -> Image.Image:
     """Plain downscale plus the small-frame treatment: a graduated tile lift,
     the mark magnified in place at the smallest sizes, and a tuned unsharp.
-    The master art carries its own tile edge, so nothing here redraws it."""
+    The master art carries its own tile edge, so nothing here redraws it.
+    16px is the exception: it is drawn by hand (see hand_drawn_16)."""
+    if size == 16:
+        return hand_drawn_16()
     im = master.resize((size, size), Image.LANCZOS)
     spec = SHARPEN.get(size)
     if spec:
@@ -124,8 +165,12 @@ def render(master: Image.Image, size: int) -> Image.Image:
                         bmask.crop((sx, sy, sx + w, sy + h)),
                     )
         if size in SMALL_LIFT:
-            rgb = ImageEnhance.Contrast(rgb).enhance(1.15)
-            rgb = ImageEnhance.Color(rgb).enhance(1.12)
+            # 16px is judged at TRUE size by extracting the frame back out of
+            # the built exe: a plain downscale there is a smudge, so it gets
+            # the strongest mark zoom and lift of the set.
+            ct, co = (1.22, 1.15) if size == 16 else (1.15, 1.12)
+            rgb = ImageEnhance.Contrast(rgb).enhance(ct)
+            rgb = ImageEnhance.Color(rgb).enhance(co)
         rgb = rgb.filter(
             ImageFilter.UnsharpMask(radius=radius, percent=percent, threshold=1)
         ).convert("RGBA")
