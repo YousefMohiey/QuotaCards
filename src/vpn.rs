@@ -291,6 +291,16 @@ pub fn write_tun_config(
             }),
         );
     }
+    {
+        // IPv6 is captured by the tun (so it cannot leak around the VPN) but
+        // never carried: the exit has no usable v6 path, and a new v6 flow
+        // sent into it blackholes without any fallback, which is exactly how
+        // Discord voice calls and screen shares broke while existing v4 flows
+        // kept working. Rejecting v6 makes apps fall back to v4 politely.
+        // This must sit above every other rule, voice rules included.
+        let rules = route_rules.as_array_mut().unwrap();
+        rules.insert(0, serde_json::json!({"ip_version": 6, "action": "reject"}));
+    }
     let dns_rules = if voice {
         serde_json::json!([
             {"domain": [host], "server": "direct-dns"},
@@ -309,7 +319,8 @@ pub fn write_tun_config(
                 {"type": "udp", "tag": "direct-dns", "server": DIRECT_DNS}
             ],
             "rules": dns_rules,
-            "final": dns_final
+            "final": dns_final,
+            "strategy": "ipv4_only"
         },
         "inbounds": [{
             "type": "tun",
@@ -660,10 +671,13 @@ mod tests {
         let v: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(p).expect("read")).expect("json");
         let rules = v["route"]["rules"].as_array().unwrap();
-        // the voice port rule leads and rides the tunnel (port_range, not port:
+        // IPv6 is rejected above everything: captured so it cannot leak,
+        // never carried, so new v6 flows fall back to v4 instead of dying.
+        assert_eq!(rules[0]["ip_version"], 6);
+        assert_eq!(rules[0]["action"], "reject");
+        // the voice port rule rides the tunnel (port_range, not port:
         // sing-box 1.14 accepts ranges only through port_range)
-        assert_eq!(rules[0]["port_range"][0], "3478:3480");
-        assert_eq!(rules[0]["outbound"], "proxy");
+        assert!(rules.iter().any(|r| r["port_range"][0] == "3478:3480" && r["outbound"] == "proxy"));
         // no catch-all app rule is written for the Riot processes: the game
         // follows route.final, which stays direct so only voice is carried
         assert_eq!(v["route"]["final"], "direct");
@@ -693,8 +707,9 @@ mod tests {
         // caller's app rule and the voice rules must coexist in one config.
         let v = cfg_voice("allow", &["chrome.exe"], true);
         let rules = v["route"]["rules"].as_array().unwrap();
-        // voice rules on top
-        assert_eq!(rules[0]["port_range"][0], "3478:3480");
+        // voice rules on top, under the v6 reject
+        assert_eq!(rules[0]["ip_version"], 6);
+        assert!(rules.iter().any(|r| r["port_range"][0] == "3478:3480"));
         // the normal app rule is still present
         assert!(rules.iter().any(|r| {
             r["process_name"].as_array().map_or(false, |a| {
@@ -706,7 +721,7 @@ mod tests {
         // whole-device session plus the helper: everything rides the tunnel
         let v2 = cfg_voice("all", &[], true);
         assert_eq!(v2["route"]["final"], "proxy");
-        assert_eq!(v2["route"]["rules"].as_array().unwrap()[0]["port_range"][0], "3478:3480");
+        assert!(v2["route"]["rules"].as_array().unwrap().iter().any(|r| r["port_range"][0] == "3478:3480"));
         if engine_dir().join("sing-box.exe").exists() {
             check_config().expect("engine accepts the merged config");
         }
@@ -731,8 +746,13 @@ mod tests {
         let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let v = cfg("allow", &["chrome.exe"]);
         let rules = v["route"]["rules"].as_array().unwrap();
-        assert_eq!(rules[0]["process_name"][0], "chrome.exe");
-        assert_eq!(rules[0]["outbound"], "proxy");
+        // the IPv6 reject leads, the picked app follows
+        assert_eq!(rules[0]["ip_version"], 6);
+        assert_eq!(rules[0]["action"], "reject");
+        assert!(rules.iter().any(|r| {
+            r["outbound"] == "proxy"
+                && r["process_name"].as_array().map_or(false, |a| a[0].as_str() == Some("chrome.exe"))
+        }));
         assert_eq!(v["route"]["final"], "direct");
         assert_eq!(v["inbounds"][0]["stack"], "gvisor");
     }
@@ -742,11 +762,16 @@ mod tests {
         let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let v = cfg("block", &["chrome.exe", "C:\\Tools\\game.exe"]);
         let rules = v["route"]["rules"].as_array().unwrap();
-        // path rule lands first, then the name rule: both target direct
-        assert_eq!(rules[0]["outbound"], "direct");
-        assert_eq!(rules[0]["process_path"][0], "C:\\Tools\\game.exe");
-        assert_eq!(rules[1]["outbound"], "direct");
-        assert_eq!(rules[1]["process_name"][0], "chrome.exe");
+        // path rule and name rule both target direct, under the v6 reject
+        assert_eq!(rules[0]["ip_version"], 6);
+        assert!(rules.iter().any(|r| {
+            r["outbound"] == "direct"
+                && r["process_path"].as_array().map_or(false, |a| a[0].as_str() == Some("C:\\Tools\\game.exe"))
+        }));
+        assert!(rules.iter().any(|r| {
+            r["outbound"] == "direct"
+                && r["process_name"].as_array().map_or(false, |a| a[0].as_str() == Some("chrome.exe"))
+        }));
         assert_eq!(v["route"]["final"], "proxy");
         assert_eq!(v["inbounds"][0]["stack"], "gvisor");
         // the real engine must accept it (no engine on disk → skip the check)
