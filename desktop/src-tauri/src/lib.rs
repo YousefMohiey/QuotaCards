@@ -696,6 +696,7 @@ struct UpdateInfo {
     latest: String,
     available: bool,
     url: String,
+    notes: String,
 }
 
 /// Exit address plus provider for the speed page, resolved in Rust so no
@@ -951,12 +952,39 @@ async fn check_update(app: tauri::AppHandle) -> Result<UpdateInfo, String> {
             available: newer(&u.version, &current),
             url: format!("https://github.com/{REPO}/releases/tag/v{}", u.version),
             latest: u.version,
+            // First line of the release notes, so the update notice can say
+            // what the build actually is (a hotfix reads as one) instead of
+            // only a version number.
+            notes: u
+                .body
+                .as_deref()
+                .and_then(|b| b.lines().next())
+                .map(|l| {
+                    // Keep the sidebar notice to one tidy line: cut long
+                    // notes at a word boundary and trim trailing punctuation
+                    // so it never ends on a dangling "and,".
+                    let l = l.trim();
+                    if l.chars().count() <= 44 {
+                        return l.to_string();
+                    }
+                    let mut cut: String = l.chars().take(44).collect();
+                    if let Some(i) = cut.rfind(' ') {
+                        cut.truncate(i);
+                    }
+                    while cut.ends_with([',', '.', ';', ':', ' ']) {
+                        cut.pop();
+                    }
+                    cut.push('…');
+                    cut
+                })
+                .unwrap_or_default(),
             current,
         }),
         None => Ok(UpdateInfo {
             available: false,
             url: String::new(),
             latest: current.clone(),
+            notes: String::new(),
             current,
         }),
     }

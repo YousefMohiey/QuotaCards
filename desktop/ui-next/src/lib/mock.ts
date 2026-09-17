@@ -73,7 +73,7 @@ export async function mockCall<T>(cmd: string, args?: Record<string, unknown>): 
     case "check_update":
       // Preview shows the "update ready" state so the reminder is visible;
       // the real check only reports available when GitHub says so.
-      return { current: "0.2.5", latest: "0.2.6", available: true, url: "#" } as UpdateInfo as T
+      return { current: "0.2.5", latest: "0.2.6", available: true, url: "#", notes: "Hotfix: Valorant voice audio" } as UpdateInfo as T
     case "apply_update":
       return "Up to date." as T
     default:

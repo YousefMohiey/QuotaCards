@@ -16,7 +16,7 @@ export function Settings() {
       : updateState === "latest" && update
         ? t("upLatest").replace("{v}", update.latest)
         : updateState === "available" && update
-          ? t("upCur").replace("{v}", update.current)
+          ? t("upOut").replace("{v}", update.latest)
           : updateState === "error"
             ? t("upFail")
             : t("upCur").replace("{v}", update?.current ?? "0.2.4")

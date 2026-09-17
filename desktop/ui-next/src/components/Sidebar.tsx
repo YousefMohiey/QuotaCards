@@ -55,7 +55,9 @@ export function Sidebar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
                 <span className="block truncate text-[11.5px] font-medium text-brand-strong" dir="auto">
                   {t("updRemind")} · v{update.latest}
                 </span>
-                <span className="block truncate text-[10.5px] text-txt3">{t("updRemindSub")}</span>
+                <span className="block truncate text-[10.5px] text-txt3" dir="auto">
+                  {update.notes || t("updRemindSub")}
+                </span>
               </span>
             </motion.button>
           )}

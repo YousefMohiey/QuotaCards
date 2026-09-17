@@ -30,7 +30,7 @@ export type UiState = {
 
 export type TunnelState = { running: boolean; error: string }
 export type TrafficState = { rx: number; tx: number }
-export type UpdateInfo = { current: string; latest: string; available: boolean; url: string }
+export type UpdateInfo = { current: string; latest: string; available: boolean; url: string; notes: string }
 export type NetInfo = { ip: string; isp: string; place: string }
 
 export const isTauri = (): boolean =>
