@@ -192,6 +192,24 @@ pub fn resolve_server_ips(host: &str) -> Result<Vec<String>, String> {
     Ok(ips)
 }
 
+/// Destination networks of the game's VOICE infrastructure: Vivox and the
+/// hosting companies its media ran on. These are the ranges every working
+/// community "voice fix" for Egypt/MENA routes, and Riot itself has pointed
+/// users at traceroutes to 74.201.103.x when voice misbehaved. They are
+/// matched WITHOUT process scoping or sniffing, so they also catch the flows
+/// where the game talks to a voice server by raw IP on a port nobody
+/// published. Live-tested: from Egypt the direct path to 74.201.103.25
+/// times out while the same connection through the tunnel answers in ms.
+const VOICE_CIDRS: [&str; 7] = [
+    "63.251.140.0/24",
+    "69.25.0.0/16",
+    "70.42.0.0/16",
+    "74.201.0.0/16",
+    "85.0.0.0/8",
+    "188.42.0.0/16",
+    "216.52.0.0/16",
+];
+
 /// Full TUN client config for one card. Self-signed server cert → insecure
 /// (same trust as the share links); SNI stamp preserved.
 /// `apps_mode` picks the per-app routing: "allow" sends ONLY the listed
@@ -246,27 +264,38 @@ pub fn write_tun_config(
         let target = if apps_only { "proxy" } else { "direct" };
         let (paths, names): (Vec<&String>, Vec<&String>) =
             apps.iter().partition(|a| a.contains('\\') || a.contains('/'));
-        // process rules first: a terminal early rule must not swallow them
+        // Insert just BELOW the sniff action: a rule that sits above a sniff
+        // rule is evaluated before anything has been sniffed, so it could
+        // never match on domain. Ports and process names do not care.
         if !names.is_empty() {
-            rules.insert(0, serde_json::json!({"process_name": names, "outbound": target}));
+            rules.insert(1, serde_json::json!({"process_name": names, "outbound": target}));
         }
         if !paths.is_empty() {
-            rules.insert(0, serde_json::json!({"process_path": paths, "outbound": target}));
+            rules.insert(1, serde_json::json!({"process_path": paths, "outbound": target}));
         }
     }
     if voice {
         // Voice rules go on top of whatever routing the session already has,
-        // so the normal VPN and the voice helper run in the same tunnel: the
-        // voice ports of the Riot processes ride it, the rest of each listed
-        // app keeps following the mode's own rules.
+        // so the normal VPN and the voice helper run in the same tunnel. They
+        // are inserted just below the sniff action, never at index 0: a rule
+        // above a sniff rule is evaluated before anything has been sniffed
+        // and can never match on domain (that bug shipped once).
         let rules = route_rules.as_array_mut().unwrap();
         let riot = serde_json::json!([
             "VALORANT-Win64-Shipping.exe",
             "VALORANT.exe",
             "RiotClientServices.exe"
         ]);
+        // The voice infrastructure NETWORKS come first: this works for every
+        // port and for flows where the client talks to a bare IP (the common
+        // case today; the old name-based voice endpoints no longer resolve).
         rules.insert(
-            0,
+            1,
+            serde_json::json!({"ip_cidr": VOICE_CIDRS.to_vec(), "outbound": "proxy"}),
+        );
+        // Name-based fallback, for any future name-based voice endpoint.
+        rules.insert(
+            1,
             serde_json::json!({
                 "process_name": riot,
                 "domain_suffix": ["vivox.com", "voice.riotgames.com"],
@@ -274,7 +303,7 @@ pub fn write_tun_config(
             }),
         );
         rules.insert(
-            0,
+            1,
             serde_json::json!({
                 "process_name": riot,
                 "port_range": ["8393:8400"],
@@ -282,7 +311,7 @@ pub fn write_tun_config(
             }),
         );
         rules.insert(
-            0,
+            1,
             serde_json::json!({
                 "process_name": riot,
                 "network": "udp",
@@ -301,11 +330,11 @@ pub fn write_tun_config(
         // destination or the client's own bound port.
         for range in ["54000:54012", "27016:27024"] {
             rules.insert(
-                0,
+                1,
                 serde_json::json!({"network": "udp", "port_range": [range], "outbound": "proxy"}),
             );
             rules.insert(
-                0,
+                1,
                 serde_json::json!({"network": "udp", "source_port_range": [range], "outbound": "proxy"}),
             );
         }
@@ -323,8 +352,9 @@ pub fn write_tun_config(
     let dns_rules = if voice {
         serde_json::json!([
             {"domain": [host], "server": "direct-dns"},
-            // Riot's voice domains resolve through the tunnel: the direct
-            // resolver in Egypt is exactly the thing that fails for them.
+            // Voice connections are IP-based now, so the CIDR rules carry the
+            // real traffic; these suffix rules keep any name-based voice flow
+            // resolving through the tunnel rather than the local resolver.
             {"domain_suffix": ["vivox.com", "voice.riotgames.com"], "server": "proxy-dns"}
         ])
     } else {
@@ -704,6 +734,20 @@ mod tests {
         assert!(rules.iter().any(|r| r["source_port_range"][0] == "27016:27024" && r["outbound"] == "proxy"));
         assert!(rules.iter().any(|r| r["port_range"][0] == "54000:54012" && r["outbound"] == "proxy"));
         assert!(rules.iter().any(|r| r["source_port_range"][0] == "54000:54012" && r["outbound"] == "proxy"));
+        // The voice infrastructure NETWORKS ride the tunnel on every port and
+        // protocol; live-tested from Egypt: the direct path to a voice IP
+        // times out while the same connection succeeds through the tunnel.
+        assert!(rules.iter().any(|r| {
+            r["outbound"] == "proxy"
+                && r["ip_cidr"].as_array().map_or(false, |a| {
+                    a.iter().any(|x| x.as_str() == Some("74.201.0.0/16"))
+                })
+        }));
+        // The sniff action must precede the domain rule, or a sniffed domain
+        // can never match and the rule is dead weight (shipped once already).
+        let sniff_at = rules.iter().position(|r| r["action"] == "sniff").unwrap();
+        let dom_at = rules.iter().position(|r| r["domain_suffix"].is_array()).unwrap();
+        assert!(sniff_at < dom_at, "domain rule at {dom_at} above sniff at {sniff_at}");
         // no catch-all app rule is written for the Riot processes: the game
         // follows route.final, which stays direct so only voice is carried
         assert_eq!(v["route"]["final"], "direct");
@@ -736,6 +780,7 @@ mod tests {
         // voice rules on top, under the v6 reject
         assert_eq!(rules[0]["ip_version"], 6);
         assert!(rules.iter().any(|r| r["port_range"][0] == "3478:3480"));
+        assert!(rules.iter().any(|r| r["ip_cidr"].as_array().map_or(false, |a| !a.is_empty())));
         // the normal app rule is still present
         assert!(rules.iter().any(|r| {
             r["process_name"].as_array().map_or(false, |a| {
