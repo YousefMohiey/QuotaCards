@@ -290,6 +290,25 @@ pub fn write_tun_config(
                 "outbound": "proxy"
             }),
         );
+        // Riot publishes the voice media ranges per region: UDP 27016-27024
+        // in NA/EU and UDP 54000-54012 in AP/SE. These carry the actual
+        // audio. The first version of this feature routed only signaling and
+        // STUN, so the media kept taking the direct path and voice stayed
+        // bad. They are matched WITHOUT process scoping (the ranges are
+        // exclusive to the voice engine, and UDP process matching is the
+        // flakier half of sing-box's feature set) and on BOTH sides of the
+        // flow, because the published range can show up as either the
+        // destination or the client's own bound port.
+        for range in ["54000:54012", "27016:27024"] {
+            rules.insert(
+                0,
+                serde_json::json!({"network": "udp", "port_range": [range], "outbound": "proxy"}),
+            );
+            rules.insert(
+                0,
+                serde_json::json!({"network": "udp", "source_port_range": [range], "outbound": "proxy"}),
+            );
+        }
     }
     {
         // IPv6 is captured by the tun (so it cannot leak around the VPN) but
@@ -678,6 +697,13 @@ mod tests {
         // the voice port rule rides the tunnel (port_range, not port:
         // sing-box 1.14 accepts ranges only through port_range)
         assert!(rules.iter().any(|r| r["port_range"][0] == "3478:3480" && r["outbound"] == "proxy"));
+        // The published voice MEDIA ranges ride the tunnel in both forms:
+        // EU voice is UDP 27016-27024, AP/SE is 54000-54012, matched without
+        // process scoping and on either side of the flow.
+        assert!(rules.iter().any(|r| r["port_range"][0] == "27016:27024" && r["outbound"] == "proxy"));
+        assert!(rules.iter().any(|r| r["source_port_range"][0] == "27016:27024" && r["outbound"] == "proxy"));
+        assert!(rules.iter().any(|r| r["port_range"][0] == "54000:54012" && r["outbound"] == "proxy"));
+        assert!(rules.iter().any(|r| r["source_port_range"][0] == "54000:54012" && r["outbound"] == "proxy"));
         // no catch-all app rule is written for the Riot processes: the game
         // follows route.final, which stays direct so only voice is carried
         assert_eq!(v["route"]["final"], "direct");
