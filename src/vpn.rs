@@ -197,7 +197,7 @@ pub fn ensure_engine() -> Result<String, String> {
     let dl = run_hidden(
         "curl",
         &[
-            "-L", "--max-time", "180", "-A", "QuotaCards", "-o",
+            "-L", "--max-time", "180", "-A", "QuotaVPN", "-o",
             &zip.to_string_lossy(), &url,
         ],
     )
@@ -225,7 +225,7 @@ pub fn ensure_engine() -> Result<String, String> {
     let dl = run_hidden(
         "curl",
         &[
-            "-L", "--max-time", "120", "-A", "QuotaCards", "-o",
+            "-L", "--max-time", "120", "-A", "QuotaVPN", "-o",
             &wzip.to_string_lossy(), WINTUN_URL,
         ],
     )
@@ -335,7 +335,7 @@ pub fn write_tun_config(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.subsec_nanos())
         .unwrap_or(0);
-    let if_name = format!("QuotaCards{:04x}", nanos & 0xffff);
+    let if_name = format!("QuotaVPN{:04x}", nanos & 0xffff);
     // TUN addresses: first candidates this machine is not already using.
     // Plenty of PCs hold 172.19.x (or the old ULA) already - Hyper-V, Docker,
     // WSL, a ghost adapter from a force-killed run - and the engine then
@@ -637,7 +637,7 @@ pub fn claim_instance() -> Option<u32> {
     let me = std::process::id();
     if let Ok(txt) = std::fs::read_to_string(&p) {
         if let Ok(pid) = txt.trim().parse::<u32>() {
-            if pid != me && process_is_quotacards(pid) {
+            if pid != me && process_is_our_app(pid) {
                 return Some(pid);
             }
         }
@@ -656,14 +656,14 @@ pub fn release_instance() {
     }
 }
 
-fn process_is_quotacards(pid: u32) -> bool {
+fn process_is_our_app(pid: u32) -> bool {
     let out = match run_hidden("tasklist", &["/FI", &format!("PID eq {pid}")]) {
         Ok(o) => o,
         Err(_) => return false,
     };
     let t = String::from_utf8_lossy(&out.stdout).to_lowercase();
     t.lines().any(|l| {
-        l.contains("quotacards")
+        (l.contains("quotacards") || l.contains("quotavpn"))
             && l.split_whitespace().any(|w| w.parse::<u32>().ok() == Some(pid))
     })
 }

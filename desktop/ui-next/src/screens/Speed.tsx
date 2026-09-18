@@ -54,7 +54,7 @@ export function loadHistory(): Run[] {
 }
 
 /** Where a run measures against. Cloudflare's speed endpoints are the public
-    reference (that is the site's own API, CORS-open); the QuotaCards server
+    reference (that is the site's own API, CORS-open); the QuotaVPN server
     option measures the card's own path through the tunnel. */
 export type TestServer = "cloudflare" | "own"
 

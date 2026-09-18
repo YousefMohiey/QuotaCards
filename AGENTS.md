@@ -1,4 +1,4 @@
-# QuotaCards - notes for coding agents
+# QuotaVPN - notes for coding agents
 
 The long-form handoff (system map, flows, code map, build and release, traps) is in
 `docs/HANDOFF.md`. Read it before changing anything structural.
@@ -34,7 +34,7 @@ Windows, run from git-bash. The toolchain this project was developed against:
   verify through a release build. Copy `WebView2Loader.dll` next to the exe to run it.
 - Installer: from `desktop/`, `node ../android/tauri-cli-npm/node_modules/@tauri-apps/cli/tauri.js build --bundles nsis --target x86_64-pc-windows-gnu`
   with `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` set and NSIS on PATH.
-  Produces `bundle/nsis/QuotaCards_<version>_x64-setup.exe` plus its `.sig`.
+  Produces `bundle/nsis/QuotaVPN_<version>_x64-setup.exe` plus its `.sig`.
 - Phone: `bash tools/build-apk.sh` (needs `ANDROID_HOME`, and `cygpath` before any native SDK `.exe`).
 - Icons: `python tools/make-icons.py`. It trims the master to its content box and verifies every frame;
   run it after touching `res/app-icon-src.png` only.

@@ -1,4 +1,4 @@
-//! QuotaCards desktop backend (Tauri + WebView).
+//! QuotaVPN desktop backend (Tauri + WebView).
 //!
 //! Same UI and server core as the phone app. The tunnel here is the
 //! built-in sing-box + wintun engine (whole-PC TUN), driven by the
@@ -418,7 +418,7 @@ async fn tunnel_start(
         _ => return Ok(CmdResult { ok: false, msg: "Game and WireGuard are phone-only - Standard carries the traffic.".into() }),
     }
     if !vpn::is_elevated() {
-        return Ok(CmdResult { ok: false, msg: "Run QuotaCards as administrator, then connect.".into() });
+        return Ok(CmdResult { ok: false, msg: "Run QuotaVPN as administrator, then connect.".into() });
     }
     let voice_on = voice.unwrap_or(false);
     // The session keeps whatever normal configuration the app was using and
@@ -564,7 +564,9 @@ fn tun_octets() -> (u64, u64) {
                 Some(w) => alias == w.as_str(),
                 None => {
                     alias.starts_with("QuotaCards")
+                        || alias.starts_with("QuotaVPN")
                         || desc.contains("QuotaCards")
+                        || desc.contains("QuotaVPN")
                         || desc.to_ascii_lowercase().contains("wintun")
                         || desc.to_ascii_lowercase().contains("sing-box")
                 }
@@ -620,7 +622,7 @@ async fn tunnel_apps() -> Result<String, String> {
         "fontdrvhost.exe", "backgroundtaskhost.exe", "runtimebroker.exe",
         "searchindexer.exe", "searchhost.exe", "startmenuexperiencehost.exe",
         "shellexperiencehost.exe", "applicationframehost.exe", "systemsettings.exe",
-        "lockapp.exe", "widgets.exe", "msedgewebview2.exe", "quotacards.exe",
+        "lockapp.exe", "widgets.exe", "msedgewebview2.exe", "quotacards.exe", "quotavpn.exe",
         "tasklist.exe",
     ];
     let out = std::process::Command::new("tasklist.exe")
@@ -742,7 +744,7 @@ fn join_place(city: Option<&str>, country: Option<&str>) -> String {
 async fn net_info() -> Option<NetInfo> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(8))
-        .user_agent("QuotaCards")
+        .user_agent("QuotaVPN")
         .build()
         .ok()?;
 
@@ -1132,7 +1134,7 @@ pub fn run() {
             *app.state::<State>().0.lock().unwrap() = cfg;
             // Tray: the app lives here. Closing the window only hides it;
             // Quit from this menu is the real exit (engine stopped first).
-            let show = MenuItem::with_id(app, "show", "Show QuotaCards", true, None::<&str>)?;
+            let show = MenuItem::with_id(app, "show", "Show QuotaVPN", true, None::<&str>)?;
             let check = MenuItem::with_id(app, "check", "Check for updates", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &check, &quit])?;
@@ -1147,7 +1149,7 @@ pub fn run() {
             let handle = app.handle().clone();
             TrayIconBuilder::with_id("main")
                 .icon(icon)
-                .tooltip("QuotaCards")
+                .tooltip("QuotaVPN")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_tray_icon_event(|tray, event| {
@@ -1228,7 +1230,7 @@ pub fn run() {
             speedtest_cli
         ])
         .run(tauri::generate_context!())
-        .expect("QuotaCards failed to start");
+        .expect("QuotaVPN failed to start");
 }
 
 #[cfg(all(test, windows))]

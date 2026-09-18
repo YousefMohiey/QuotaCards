@@ -1,4 +1,4 @@
-# QuotaCards handoff
+# QuotaVPN handoff
 
 Read this first, then `docs/STATUS.md` for the live state and `AGENTS.md` for the short
 version of the working rules. This document is the long version: what the product is, how
@@ -7,7 +7,7 @@ and every trap already paid for once.
 
 ## 1. What this is
 
-QuotaCards is a VPN client for Windows and Android, plus the server tooling behind it. It
+QuotaVPN (formerly QuotaCards; repo, server hostname and package names still say QuotaCards) is a VPN client for Windows and Android, plus the server tooling behind it. It
 exists because the owner's ISP (WE, Egypt, VDSL 35b) sells separate "gaming" and "streaming"
 quota buckets, and a normal VPN spends the wrong one. The app shapes its traffic so the
 carrier classifies it into the bucket the card is meant to spend.
@@ -187,7 +187,7 @@ node ../android/tauri-cli-npm/node_modules/@tauri-apps/cli/tauri.js build \
 ```
 
 with `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` exported, and NSIS on
-PATH. Produces `bundle/nsis/QuotaCards_<version>_x64-setup.exe` plus its `.sig`.
+PATH. Produces `bundle/nsis/QuotaVPN_<version>_x64-setup.exe` plus its `.sig`.
 
 **Phone**
 

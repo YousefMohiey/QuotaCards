@@ -29,7 +29,7 @@ export function Sidebar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
           <img src="/icon.png" alt="" aria-hidden className="size-14 shrink-0" />
           <div className="min-w-0">
             <div className="flex items-baseline gap-3">
-              <span className="truncate text-[15px] font-semibold text-txt">QuotaCards</span>
+              <span className="truncate text-[15px] font-semibold text-txt">QuotaVPN</span>
               {version && <span className="shrink-0 text-[10.5px] text-txt3">v{version}</span>}
             </div>
           </div>
