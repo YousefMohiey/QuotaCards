@@ -23,8 +23,13 @@ fn main() {
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "dev".to_string());
     println!("cargo:rustc-env=QC_BUILD={stamp}");
-    // A new commit moves HEAD, so the stamp must be re-read then.
+    // Re-read the stamp whenever either side of the ref moves: the HEAD file
+    // changes on checkouts, while a commit only advances the branch ref under
+    // refs/heads (cargo watches a directory recursively). Watching HEAD alone
+    // kept the PREVIOUS commit's stamp in a rebuild after a commit, and a
+    // stale stamp makes the updater re-offer the same release forever.
     println!("cargo:rerun-if-changed=../../.git/HEAD");
+    println!("cargo:rerun-if-changed=../../.git/refs/heads");
 
     tauri_build::build();
 
