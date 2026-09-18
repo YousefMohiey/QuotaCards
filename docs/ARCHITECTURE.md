@@ -16,8 +16,14 @@ tunnel path: UI -> TunnelPlugin (Kotlin) -> TunnelService (VpnService)
   -> libbox.aar (sing-box 1.14) -> TUN (gvisor, auto-route, strict)
 ```
 
-Desktop (`src/main.rs`, Windows egui) reuses the same crate and drives
-its own TUN via pinned sing-box + wintun (`src/vpn.rs`).
+Desktop (`desktop/`, Tauri) reuses the same crate and drives its own TUN
+via pinned sing-box + wintun (`src/vpn.rs`). Its tunnel address is picked
+per connect, first free candidate of 172.19.0.1 / 172.20.0.1 / 172.21.0.1 /
+172.22.0.1 / 10.18.0.1 / 10.19.0.1: a hardcoded address collides with ghost
+adapters and with Hyper-V / Docker / WSL on some PCs, and the engine then
+dies with "set ipv4 address: The object already exists". The picked address
+is written to `tun-ip.txt` beside the config so route checks and cleanup
+follow it.
 
 ## Config builder (`android_tun_config`, src-tauri lib.rs)
 

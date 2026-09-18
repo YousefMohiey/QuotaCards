@@ -40,6 +40,71 @@ pub fn tunnel_gen() -> u64 {
     TUN_GEN.load(std::sync::atomic::Ordering::SeqCst)
 }
 pub const TUN_IP: &str = "172.19.0.1";
+/// Candidate tunnel addresses, classic first. The engine refuses to start
+/// ("configure tun interface: set ipv4 address: The object already exists")
+/// when the address or its /28 prefix already exists on the machine: a ghost
+/// adapter from a force-killed run, or Hyper-V / Docker / WSL / another VPN
+/// on the same range. A taken candidate is skipped, not failed on.
+pub const TUN_IP_CANDIDATES: [&str; 6] = [
+    "172.19.0.1",
+    "172.20.0.1",
+    "172.21.0.1",
+    "172.22.0.1",
+    "10.18.0.1",
+    "10.19.0.1",
+];
+
+/// First tunnel address this machine is not already using. The route table
+/// and the adapter list are both scanned: a ghost adapter shows in ipconfig,
+/// its prefix route in the route table, and either blocks the engine's
+/// set-ipv4-address step with "The object already exists".
+fn pick_tun_ip() -> String {
+    let routes = run_hidden("route", &["print", "-4"])
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+    let adapters = run_hidden("ipconfig", &["/all"])
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+    pick_from_tables(&routes, &adapters)
+}
+
+/// The pick itself, split out so tests can feed it synthetic route/adapter
+/// tables: both blobs are scanned for every candidate.
+fn pick_from_tables(routes: &str, adapters: &str) -> String {
+    for cand in TUN_IP_CANDIDATES {
+        // Stem to the last octet: catches the address itself, its /28 prefix
+        // route and any default route through it.
+        let stem = match cand.rsplit_once('.') {
+            Some((s, _)) => s,
+            None => cand,
+        };
+        if routes.contains(&format!("{stem}.")) || adapters.contains(cand) {
+            continue;
+        }
+        return cand.to_string();
+    }
+    TUN_IP.to_string()
+}
+
+/// The TUN address of the last written config (no file yet: the classic
+/// constant), so route checks and cleanup follow the address actually used.
+pub fn current_tun_ip() -> String {
+    std::fs::read_to_string(engine_dir().join("tun-ip.txt"))
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| TUN_IP.to_string())
+}
+
+/// Addresses whose stale default routes cleanup must drop: the session's own
+/// plus the classic constant (ghosts of force-killed runs sit there).
+fn cleanup_tun_ips() -> Vec<String> {
+    let mut v = vec![current_tun_ip()];
+    if !v.iter().any(|ip| ip == TUN_IP) {
+        v.push(TUN_IP.to_string());
+    }
+    v
+}
 const DIRECT_DNS: &str = "8.8.8.8";
 const PROXY_DOH_IP: &str = "1.1.1.1";
 
@@ -249,6 +314,11 @@ pub fn write_tun_config(
         .map(|d| d.subsec_nanos())
         .unwrap_or(0);
     let if_name = format!("QuotaCards{:04x}", nanos & 0xffff);
+    // TUN address: first candidate this machine is not already using. Plenty
+    // of PCs hold 172.19.x already (Hyper-V, Docker, WSL, a ghost adapter
+    // from a force-killed run) and the engine then refuses to start with
+    // "The object already exists", so the address is never hardcoded.
+    let tun_ip = pick_tun_ip();
     // per-app routing matches by process, which needs the userspace stack
     // on Windows; whole-PC mode keeps the fast mixed stack.
     let tun_stack = if per_app { "gvisor" } else { "mixed" };
@@ -379,7 +449,7 @@ pub fn write_tun_config(
             "tag": "tun-in",
             "interface_name": if_name,
             "mtu": 9000,
-            "address": [format!("{TUN_IP}/28"), "fdfe:dcba:9876::1/126".to_string()],
+            "address": [format!("{tun_ip}/28"), "fdfe:dcba:9876::1/126".to_string()],
             "auto_route": true,
             "strict_route": true,
             "stack": tun_stack,
@@ -419,6 +489,9 @@ pub fn write_tun_config(
     // to match it by its exact name: other products' wintun adapters and
     // ghosts of force-killed runs share the vague words in their description.
     let _ = std::fs::write(p.with_file_name("tun-ifname.txt"), &if_name);
+    // Track the picked address the same way: cleanup and the route checks
+    // must follow the session's own address, not the one-time constant.
+    let _ = std::fs::write(p.with_file_name("tun-ip.txt"), &tun_ip);
     Ok(p)
 }
 
@@ -591,12 +664,13 @@ pub fn egress_ip_direct() -> Result<String, String> {
 
 /// Is any default route still pointing into our TUN interface?
 pub fn tun_routes_present() -> bool {
+    let ip = current_tun_ip();
     run_hidden("route", &["print", "-4"])
         .map(|o| {
             let t = String::from_utf8_lossy(&o.stdout);
             t.lines().any(|l| {
                 let l = l.trim_start();
-                l.starts_with("0.0.0.0") && l.contains(TUN_IP)
+                l.starts_with("0.0.0.0") && l.contains(ip.as_str())
             })
         })
         .unwrap_or(false)
@@ -636,10 +710,9 @@ pub fn engine_cleanup_keep(keep: Option<u32>) {
         if !tun_routes_present() {
             break;
         }
-        let _ = run_hidden(
-            "route",
-            &["delete", "0.0.0.0", "mask", "0.0.0.0", TUN_IP],
-        );
+        for ip in cleanup_tun_ips() {
+            let _ = run_hidden("route", &["delete", "0.0.0.0", "mask", "0.0.0.0", ip.as_str()]);
+        }
         std::thread::sleep(std::time::Duration::from_millis(250));
     }
     // slow wmic sweep only if something STILL holds the TUN (crash
@@ -677,10 +750,9 @@ fn engine_orphan_sweep(keep: Option<u32>) {
         if !tun_routes_present() {
             break;
         }
-        let _ = run_hidden(
-            "route",
-            &["delete", "0.0.0.0", "mask", "0.0.0.0", TUN_IP],
-        );
+        for ip in cleanup_tun_ips() {
+            let _ = run_hidden("route", &["delete", "0.0.0.0", "mask", "0.0.0.0", ip.as_str()]);
+        }
         std::thread::sleep(std::time::Duration::from_millis(250));
     }
 }
@@ -861,5 +933,54 @@ mod tests {
         let v = cfg("", &[]);
         assert_eq!(v["route"]["final"], "proxy");
         assert_eq!(v["inbounds"][0]["stack"], "mixed");
+    }
+
+    #[test]
+    fn tun_address_is_picked_and_tracked() {
+        let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let p = write_tun_config(
+            "00000000-test",
+            crate::config::DEFAULT_HOST,
+            "example.com",
+            "",
+            &[],
+            false,
+        )
+        .expect("config");
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&p).expect("read")).expect("json");
+        let addr = v["inbounds"][0]["address"][0]
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
+        let tracked = std::fs::read_to_string(p.with_file_name("tun-ip.txt"))
+            .expect("tun-ip.txt beside the config")
+            .trim()
+            .to_string();
+        // The config and the tracking file agree, the address comes from the
+        // candidate list, and the route checks read the same value back: a
+        // stale or hardcoded value would strand cleanup on the wrong address.
+        assert_eq!(addr, format!("{tracked}/28"));
+        assert!(TUN_IP_CANDIDATES.contains(&tracked.as_str()));
+        assert_eq!(current_tun_ip(), tracked);
+    }
+
+    #[test]
+    fn tun_ip_skips_addresses_the_machine_already_uses() {
+        // Free machine: the classic address stays.
+        assert_eq!(pick_from_tables("", ""), TUN_IP);
+        // Ghost adapter holds the address (shows in the adapter list).
+        let adapters =
+            "Ethernet adapter QuotaCards3a5f:\n   IPv4 Address. . . : 172.19.0.1(Preferred)";
+        assert_eq!(pick_from_tables("", adapters), "172.20.0.1");
+        // Only its prefix route remains (shows in the route table).
+        let routes = "172.19.0.0  255.255.255.240  On-link  172.19.0.1  281";
+        assert_eq!(pick_from_tables(routes, ""), "172.20.0.1");
+        // A default route through the address (crashed session) also counts.
+        let def = "0.0.0.0  0.0.0.0  On-link  172.19.0.1  281";
+        assert_eq!(pick_from_tables(def, ""), "172.20.0.1");
+        // Everything taken: fall back to the classic constant, never empty.
+        let all = TUN_IP_CANDIDATES.join("\n");
+        assert_eq!(pick_from_tables(&all, &all), TUN_IP);
     }
 }
