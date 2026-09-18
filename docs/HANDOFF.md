@@ -66,6 +66,12 @@ was not available), and `latest.json` repeats it as a top-level `build` field. T
 the two, so a re-released build that keeps the SAME version number is still offered, once per
 new stamp; a feed without a stamp, and any `dev` local build, never gets a same-version offer.
 The publish scripts write the field automatically, so nothing is set by hand.
+The rerun trigger covers both `.git/HEAD` and `.git/refs/heads`: a commit only advances the
+branch ref, so a build script that watched HEAD alone kept the previous commit's `QC_BUILD`.
+After any release build, confirm the short hash appears in
+`desktop/src-tauri/target/x86_64-pc-windows-gnu/release/quotacards.exe` (raw search; the
+`setup.exe` is compressed and shows nothing); touch `desktop/src-tauri/build.rs` to force a
+re-read in a dirty tree. A stale stamp makes every install re-offer the same release forever.
 
 **Speed test.** Client-side, modelled on LibreSpeed: timed tiny requests for latency and
 jitter, a rolling-window download that adapts chunk size, and a streamed upload. Endpoints are

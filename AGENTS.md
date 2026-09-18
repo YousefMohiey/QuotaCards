@@ -59,7 +59,9 @@ Windows, run from git-bash. The toolchain this project was developed against:
   `releases/latest/download/latest.json`. Ship both platforms at the same version. The feed also
   carries a `build` stamp (short git hash, written by the publish scripts) so a re-release under
   the same version number still reaches installed apps; commit the bump before creating the
-  release (the tag follows the remote default branch).
+  release (the tag follows the remote default branch). Confirm the stamp landed: the short hash
+  must appear in the built `release/quotacards.exe` (the setup exe is compressed). A stale
+  stamp makes every install re-offer the same release.
 - **Secrets** (keystore, updater key and passwords, the server private key in
   `%APPDATA%/quotacards/config.json`) never enter the repo and never get printed.
 - **Commit author for this repository is `YousefMohiey`.** Do not add agent or assistant
