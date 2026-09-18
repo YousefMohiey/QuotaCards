@@ -16,7 +16,7 @@
     <path d="M22 22 L52 52 L30 56 L12 34 Z" fill="#5b9cff"/>
   </g>
 
-  <text x="320" y="190" font-family="'Segoe UI', system-ui, sans-serif" font-size="72" font-weight="800" fill="#f3f4f6">QuotaCards</text>
+  <text x="320" y="190" font-family="'Segoe UI', system-ui, sans-serif" font-size="72" font-weight="800" fill="#f3f4f6">Quota<tspan fill="#8fb8ff">VPN</tspan></text>
   <text x="322" y="240" font-family="'Segoe UI', system-ui, sans-serif" font-size="27" fill="#9aa3b2">Quota-aware VPN for Windows and Android</text>
   <g font-family="'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="700">
     <rect x="322" y="272" width="136" height="46" rx="23" fill="#5b9cff" fill-opacity="0.16" stroke="#5b9cff" stroke-opacity="0.6"/>

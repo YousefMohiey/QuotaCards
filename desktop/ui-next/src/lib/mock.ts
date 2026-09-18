@@ -27,7 +27,7 @@ export async function mockCall<T>(cmd: string, args?: Record<string, unknown>): 
   const ok = (msg = ""): CmdResult => ({ ok: true, msg })
   switch (cmd) {
     case "get_state":
-      return { server_ip: "qc-speed.example.com", ssh_user: "ubuntu", ssh_port: 22, cards, version: "0.2.5" } as T
+      return { server_ip: "qc-speed.example.com", ssh_user: "ubuntu", ssh_port: 22, cards, version: "0.3.0" } as T
     case "probe_server":
       return ok("Server reachable.") as T
     case "generate_card": {
@@ -74,11 +74,13 @@ export async function mockCall<T>(cmd: string, args?: Record<string, unknown>): 
     case "tunnel_apps":
       return JSON.stringify(APPS.map((label) => ({ pkg: label.toLowerCase().replace(/\s+/g, "") + ".exe", label }))) as T
     case "resolve_host":
-      return "203.0.113.10" as T
-    case "check_update":
-      // Preview shows the "update ready" state so the reminder is visible;
-      // the real check only reports available when GitHub says so.
-      return { current: "0.2.5", latest: "0.2.6", available: true, url: "#", notes: "Hotfix: Valorant voice audio" } as UpdateInfo as T
+      return "197.44.211.84" as T
+    case "check_update": {
+      // The "update ready" reminder appears only when asked for (?upd=1);
+      // the real check reports available only when GitHub says so.
+      const wantUpd = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("upd") === "1"
+      return { current: "0.3.0", latest: "0.3.1", available: wantUpd, url: "#", notes: "Hotfix: Valorant voice audio" } as UpdateInfo as T
+    }
     case "apply_update":
       return "Up to date." as T
     default:

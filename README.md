@@ -1,85 +1,101 @@
-![QuotaCards banner](assets/banner.svg?v=4)
+![QuotaVPN banner](assets/banner.svg?v=5)
 
-[![Latest release](https://img.shields.io/github/v/release/YousefMohiey/QuotaCards)](https://github.com/YousefMohiey/QuotaCards/releases/latest)
-![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)
-![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white)
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+[![Latest release](https://img.shields.io/github/v/release/YousefMohiey/QuotaCards?color=4a86e8)](https://github.com/YousefMohiey/QuotaCards/releases/latest)
+![Windows 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0b0f18?logo=windows&logoColor=white)
+![Android](https://img.shields.io/badge/Android-0b0f18?logo=android&logoColor=3ddc84)
+![English + Arabic](https://img.shields.io/badge/UI-English%20%2B%20Arabic-0b0f18)
+![License: MIT](https://img.shields.io/badge/license-MIT-0b0f18)
 
-QuotaCards is a personal VPN built for ISPs that bill by quota buckets (gaming / streaming / general) decided from the TLS handshake. One Windows PC app plus one Android app, both driven by shareable VLESS cards. English and Arabic UI.
+**QuotaVPN** (formerly QuotaCards) is a personal VPN built for ISPs that sell your line in quota buckets. What a connection counts against is decided from the TLS handshake, so QuotaVPN makes your traffic ride the bucket you pick: your gaming or streaming package, or general quota. One Windows app, one Android app, full English and Arabic, and both update themselves from this repo.
+
+## Screenshots
+
+![Windows app, connected](assets/app-home.png)
+
+One tap connects. The profile tiles pick the quota class, the Server row picks the address, and the session counters run while you are on.
+
+![Server picker](assets/app-servers.png)
+
+Every profile carries its own server list: gaming domains for Gamerz, streaming domains for Streamerz, plus any custom server you want.
+
+![Arabic UI](assets/app-arabic.png)
+
+Arabic ships complete and formal. The layout keeps its shape, nothing mirrors.
 
 ## Download
 
-Grab the latest build from [Releases](https://github.com/YousefMohiey/QuotaCards/releases/latest):
+Latest build from [Releases](https://github.com/YousefMohiey/QuotaCards/releases/latest):
 
-- **Windows**: `QuotaCards_0.2.0_x64-setup.exe`. Run it once; afterwards
-  the app updates itself from here (Settings, Updates, one tap).
-- **Android**: `QuotaCards-mobile-signed.apk`. Sideload and install.
+- **Windows**: `QuotaVPN_<version>_x64-setup.exe`. Installs per user, no admin needed. After that the app updates itself: Settings, Updates, or the tray.
+- **Android**: the signed APK from the same page. Sideload it once, then it updates itself from here.
 
-Cards are plain `vless://` links, so they also work in NekoBox, v2rayNG, and anything else that speaks VLESS.
+Runs on Windows 10/11 and modern Android.
 
-## How quota routing works
+## How it works
 
-Every Standard/Game connection carries a TLS SNI from the package whitelist (Gamerz: EA, Epic, Riot, CoD, PUBG, Steam... / Streamerz: YouTube, Meta, X, Prime, Shahid, OSN+...). Same parameters as the well-known seller links (`fp=random`, `alpn=h3,h2,http/1.1`, `allowInsecure=1`).
+Your ISP classifies a connection from the TLS handshake at its start. QuotaVPN gives each connection an SNI from your package's own whitelist (Gamerz: EA, Riot, Call of Duty, PUBG, Steam and friends; Streamerz: YouTube, Meta, X, Prime Video, OSN+ and friends), so the session lands in the bucket you picked.
 
 | Mode | Transport | Counts from |
 |------|-----------|-------------|
-| Standard | VLESS TCP:443, SNI stamp, randomized handshake | Your package (gamerz/streamerz) |
-| Game | Hysteria2 UDP:443, same SNI | General quota (ISP reads SNI off TCP only) |
-| WireGuard | Raw UDP, no handshake stamp | General quota |
+| Standard | VLESS on TCP 443 with the class SNI | Your package (Gamerz / Streamerz) |
+| WireGuard | Raw UDP, no TLS handshake | General quota |
+| Hysteria2 | UDP 443 with the same SNI | General quota (ISPs read SNI off TCP only) |
 
-So: Standard for quota, Game/WireGuard for raw speed. Verified live against WE Egypt, Sept 2026.
+Standard spends your package class. WireGuard and Hysteria2 spend general quota and are the raw-speed options.
 
-## Windows app
-
-Native desktop layout with sidebar, same dark glass theme as the phone:
+## The Windows app
 
 - One-tap connect with live session time and up/down counters
-- Cards manager with centered dialogs, per-app routing picker
-- Speed screen: ping (Google, card domain, Quad9, 1.1.1.1) plus download/upload throughput against your own server
-- Kill switch on by nature: strict routing, no leak path
-- Self-updater: Settings, Updates, one tap downloads the signed setup,
-  installs it, and restarts - plus a tray Check entry doing the same
+- Two profiles, Gamerz and Streamerz, each with its own server list (and a custom server option)
+- Per-app routing: whole device, only these apps, or everything except
+- Speed screen: ping, download and upload against your own server, with history
+- Its own engine (sing-box + wintun): traffic goes through the tunnel or nowhere, no leak path
+- Signed updates: the app downloads the signed setup and installs it for you
 
-## Android app
+## The Android app
 
-- Whole-device tunnel (VpnService + sing-box engine), quick-settings tile
-- Per-app routing, Always-on compatible, swipe-away safe
-- Same cards, same quota logic, Arabic RTL
-- Built-in updates: Settings, Updates checks GitHub, downloads the new APK and opens the installer (one confirmation tap)
+- Whole-device tunnel (VpnService + sing-box), Quick Settings tile
+- Per-app routing, Always-on VPN compatible, swipe-away safe
+- Same profiles and server lists as the desktop, full Arabic
+- Updates itself from GitHub Releases
 
-## Server setup
+## Self-hosting the server
 
-You bring Ubuntu 22.04+ ARM/x64 with passwordless sudo (Oracle Always Free works). Two scripts in `embed/`:
+You bring Ubuntu 22.04+ (Oracle Always Free works). Two scripts in `embed/`:
 
-1. `qc-fresh.sh` - Xray (VLESS TCP/443) plus a restricted `qc-agent` key. Needs the app's embedded public key baked in before upload.
-2. `qc-net.sh` - Hysteria2 (UDP/443) plus WireGuard (UDP/51820, with a UDP/53 redirect for ISPs that filter the default port) plus helpers.
+1. `qc-fresh.sh` - Xray (VLESS TCP/443) plus a restricted `qc-agent` key
+2. `qc-net.sh` - Hysteria2 (UDP/443), WireGuard (UDP/51820, plus a UDP/53 fallback for ISPs that filter the default port) and helpers
 
-Open these on the instance subnet's security list (the list attached to *that* subnet, not an old one):
+Open these on the instance subnet's security list (the list attached to that subnet, not an old one):
 
 | Direction | Protocol | Port | Used by |
 |-----------|----------|------|---------|
 | In | TCP | 22 | setup SSH |
 | In | TCP | 443 | Standard |
-| In | UDP | 443 | Game |
+| In | UDP | 443 | Hysteria2 |
 | In | UDP | 51820 | WireGuard |
-| In | UDP | 53 | WireGuard alt |
+| In | UDP | 53 | WireGuard fallback |
 
-Point a DuckDNS (or any) name at the box and refresh it on a cron; the app resolves it on every connect. SSH stays key-only; the day-to-day key is forced to `qc-agent` (add/revoke/list clients only, no shell).
+Point a DuckDNS (or any) name at the box and refresh it on a cron; the app resolves it on every connect. SSH stays key-only, and the day-to-day key is restricted to adding, revoking and listing clients.
 
 ## Project layout
 
-- `desktop/ui/` - Windows UI (HTML/CSS/JS, EN + AR)
-- `desktop/src-tauri/` - Windows backend: whole-PC sing-box + wintun engine, live process list, updater
-- `android/tauri-app/ui/` - phone UI (HTML/CSS/JS, EN + AR)
-- `android/tauri-app/src-tauri/` - Rust bridge: card/server state, per-transport config builder
-- `android/tauri-plugin-qctunnel/` - Kotlin `VpnService`, libbox engine, tile, per-app picker
+- `desktop/ui-next/` - Windows UI (React 19 + Tailwind v4, EN + AR, the glass theme)
+- `desktop/src-tauri/` - Windows backend: whole-PC sing-box + wintun engine, live process list, tray, updater
+- `android/tauri-app/` - Android app: the shared Rust core with the phone UI
+- `android/tauri-plugin-qctunnel/` - Kotlin `VpnService`, libbox engine, Quick Settings tile, per-app picker
 - `src/` - Rust core shared by both apps
-- `embed/` - server scripts plus the local-only device key (`*.pem` is gitignored, never committed)
+- `embed/` - server scripts plus the restricted agent key (`*.pem` is gitignored, never committed)
+- `docs/` - handoff, architecture, status
 
-Build needs Rust stable, Node, plus Android SDK 35 / NDK 28 / JDK 23 for the APK. Release builds are `cargo build --release` (PC) and `tauri android build --apk` with `zipalign` + `apksigner` (phone). No tokens or passwords live in this repo; the DuckDNS token lives only in the server crontab.
+Building needs Rust stable and Node; the APK additionally needs Android SDK 35, NDK 28 and JDK 23. Windows release: `npm run build` in `desktop/ui-next` then a Tauri build with the signing env; Android release: `bash tools/build-apk.sh` (see `docs/HANDOFF.md`). No tokens or passwords live in this repo; the DuckDNS token lives only in the server crontab.
 
 ## Docs
 
-- `docs/HANDOFF.md` - full handoff: system map, flows, code map, build/release, traps
+- `docs/HANDOFF.md` - the full system map: flows, code map, build and release, traps
 - `docs/ARCHITECTURE.md` - how it is built, file by file
 - `docs/STATUS.md` - what works, known issues, roadmap
+
+## License
+
+MIT, see [LICENSE](LICENSE). Built by Yousef Mohiey.

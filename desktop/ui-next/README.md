@@ -1,32 +1,25 @@
-# React + TypeScript + Vite
+# QuotaVPN desktop UI (ui-next)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The Windows front end: React 19 + TypeScript + Vite, Tailwind v4, and the glass theme tokens in `src/index.css`. All user-facing strings live in `src/lib/i18n/` (English and formal Arabic).
 
-Currently, two official plugins are available:
+## Commands
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- `npm run dev` - dev server on port 1420 (the Tauri `devUrl`)
+- `npm run build` - type check plus production build into `dist/` (what the app bundles)
+- `npm run preview` - serve the built `dist/`
+- `npm run lint` - oxlint
 
-## React Compiler
+## Preview without the engine
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Outside Tauri every call falls back to `src/lib/mock.ts`, so the whole UI renders in a plain browser:
 
-## Expanding the Oxlint configuration
+- `?vpn=1` - connected state
+- `?upd=1` - update reminder visible
+- `#speed`, `#history`, `#apps`, `#settings` - cold-load a screen
+- `localStorage.setItem("qc-lang","ar")` then reload for Arabic
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Rules
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+- Reuse the components in `src/components/` and the tokens in `index.css`; never invent a new visual language per screen.
+- The searchable list picker is the house pattern for choosing things (no dropdowns).
+- English and Arabic both ship; keep formal MSA in Arabic copy.
