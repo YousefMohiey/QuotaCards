@@ -44,6 +44,7 @@ type Value = {
   revokeCard: (uuid: string) => Promise<CmdResult>
   revokeCardOptimistic: (uuid: string) => Promise<CmdResult>
   ensurePresetCard: (p: PresetKind) => Promise<CmdResult>
+  applyDomain: (sni: string) => Promise<CmdResult>
   copyCard: (uuid: string) => Promise<CmdResult>
   pickCard: (uuid: string) => void
   preset: PresetKind
@@ -535,6 +536,53 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  // Home domain switcher: point the active card (or the preset's card) at a
+  // new domain, creating the card when this account has none yet. The card id
+  // never changes, so nothing is registered or revoked server-side.
+  const applyDomain = useCallback(
+    async (sni: string) => {
+      const s = sni.trim()
+      if (!s) return { ok: false, msg: "" }
+      try {
+        let target = cardsRef.current.find((c) => c.uuid === cardUuidRef.current)
+        if (!target) target = cardsRef.current.find((c) => c.card_type === preset)
+        if (!target) {
+          const g = await api.generateCard(preset, preset, s)
+          if (!g.ok) {
+            setStatus(g.msg)
+            return g
+          }
+          const st = await api.state()
+          setServerIp(st.server_ip)
+          setCards(st.cards)
+          const created = st.cards.find((c) => c.card_type === preset)
+          if (!created) {
+            setStatus(g.msg)
+            return g
+          }
+          setCardUuid(created.uuid)
+          write("qc-card", created.uuid)
+          if (vpnOn) setStatus(t("domainReconnectHint"))
+          return g
+        }
+        if (target.uuid !== cardUuidRef.current) {
+          setCardUuid(target.uuid)
+          write("qc-card", target.uuid)
+        }
+        const r = await api.setCardSni(target.uuid, s)
+        await refresh()
+        if (r.ok && vpnOn) setStatus(t("domainReconnectHint"))
+        if (!r.ok) setStatus(r.msg)
+        return r
+      } catch (e) {
+        const r = { ok: false, msg: e instanceof Error ? e.message : String(e) }
+        setStatus(r.msg)
+        return r
+      }
+    },
+    [preset, refresh, t, vpnOn],
+  )
+
   // Optimistic revoke: the tile leaves in this tick, the server reconciles in
   // the background. A failure puts the exact snapshot back.
   const revokeCardOptimistic = useCallback(
@@ -596,6 +644,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     revokeCard,
     revokeCardOptimistic,
     ensurePresetCard,
+    applyDomain,
     copyCard,
     pickCard,
     preset,

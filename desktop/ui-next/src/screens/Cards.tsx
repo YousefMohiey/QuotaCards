@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { Check, Copy, Link as LinkIcon, Plus, Trash2, TriangleAlert } from "lucide-react"
+import { Check, Plus, Trash2, TriangleAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,14 +17,13 @@ import { Panel } from "@/components/Row"
 import { useApp } from "@/state/app"
 import { useI18n } from "@/lib/i18n"
 import { CUSTOM_SNI, DEFAULT_SNI, SNIS, labelForSni } from "@/lib/snis"
-import { parseCardLink } from "@/lib/cardlink"
 import { cn } from "@/lib/utils"
 
 type Kind = "Gamerz" | "Streamerz"
 
 export function Cards() {
   const { t } = useI18n()
-  const { cards, cardUuid, pickCard, generateCard, importCard, revokeCardOptimistic, copyCard } = useApp()
+  const { cards, cardUuid, pickCard, generateCard, revokeCardOptimistic } = useApp()
 
   const [open, setOpen] = useState(false)
   const [kind, setKind] = useState<Kind>("Gamerz")
@@ -35,11 +34,6 @@ export function Cards() {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState("")
   const [noteBad, setNoteBad] = useState(false)
-
-  const [pasteOpen, setPasteOpen] = useState(false)
-  const [pasted, setPasted] = useState("")
-  const [pasteNote, setPasteNote] = useState("")
-  const [pasteBad, setPasteBad] = useState(false)
 
   // Two-tap revoke arm plus a page-level note for a failed optimistic revoke.
   const [armed, setArmed] = useState<string | null>(null)
@@ -108,27 +102,6 @@ export function Cards() {
     setBusy(false)
   }
 
-  const submitPaste = async () => {
-    const parsed = parseCardLink(pasted)
-    if (!parsed) {
-      setPasteNote(t("badCard"))
-      setPasteBad(true)
-      return
-    }
-    setBusy(true)
-    const r = await importCard(parsed.uuid, parsed.name, parsed.kind, parsed.sni)
-    setBusy(false)
-    setPasteNote(r.msg || t("cardAdded"))
-    setPasteBad(!r.ok)
-    if (r.ok) {
-      setTimeout(() => {
-        setPasteOpen(false)
-        setPasted("")
-        setPasteNote("")
-      }, 700)
-    }
-  }
-
   const domainItems: PickerItem[] = [
     ...SNIS[kind].map(([label, domain]) => ({ value: domain, label, sub: domain })),
     { value: CUSTOM_SNI, label: t("customDomainOpt") },
@@ -193,19 +166,6 @@ export function Cards() {
             <span className="ms-2 text-[12.5px] font-normal text-txt3">{cards.length}</span>
           </h2>
           <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="h-8 gap-1.5 rounded-[10px] px-3 text-[12.5px]"
-              onClick={() => {
-                setPasteNote("")
-                setPasted("")
-                setPasteOpen(true)
-              }}
-            >
-              <LinkIcon className="size-3.5" aria-hidden />
-              {t("addCardLink")}
-            </Button>
             <Button
               size="sm"
               className="h-8 gap-1.5 rounded-[10px] px-3 text-[12.5px]"
@@ -293,15 +253,6 @@ export function Cards() {
                 </div>
 
                 <div className="mt-3 flex items-center gap-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="h-8 gap-1.5 rounded-[10px] px-2.5 text-[12px]"
-                    onClick={() => void copyCard(c.uuid)}
-                  >
-                    <Copy className="size-3.5" aria-hidden />
-                    {t("copy")}
-                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -414,39 +365,6 @@ export function Cards() {
             </Button>
             <Button className="h-9 rounded-[10px] text-[13px]" disabled={busy} onClick={() => void submit()}>
               {busy ? t("measuring") : t("generateCard")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* add a card that came from somewhere else */}
-      <Dialog open={pasteOpen} onOpenChange={setPasteOpen}>
-        <DialogContent className="max-w-[440px] gap-5 rounded-[16px] border-line bg-[var(--popover)]">
-          <DialogHeader>
-            <DialogTitle className="text-[15px]">{t("pasteTitle")}</DialogTitle>
-            <DialogDescription className="text-[12.5px] text-txt3">{t("pasteHint")}</DialogDescription>
-          </DialogHeader>
-
-          <Input
-            autoFocus
-            value={pasted}
-            onChange={(e) => setPasted(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void submitPaste()
-            }}
-            placeholder={t("pastePlaceholder")}
-            aria-label={t("pasteTitle")}
-            className="h-9 rounded-[10px] border-line bg-white/[0.02] font-mono text-[12px]"
-          />
-
-          {pasteNote && <Note text={pasteNote} bad={pasteBad} />}
-
-          <DialogFooter className="gap-2">
-            <Button variant="ghost" className="h-9 rounded-[10px] text-[13px]" onClick={() => setPasteOpen(false)}>
-              {t("cancel")}
-            </Button>
-            <Button className="h-9 rounded-[10px] text-[13px]" disabled={busy || !pasted.trim()} onClick={() => void submitPaste()}>
-              {t("add")}
             </Button>
           </DialogFooter>
         </DialogContent>

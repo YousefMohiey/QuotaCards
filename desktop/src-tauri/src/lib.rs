@@ -316,6 +316,26 @@ async fn copy_card(state: tauri::State<'_, State>, app: tauri::AppHandle, uuid: 
     }
 }
 
+/// Change which domain (SNI) a card rides. The card id stays the same, so the
+/// server side needs nothing; the value is read on the next connect.
+#[tauri::command]
+async fn set_card_sni(state: tauri::State<'_, State>, uuid: String, sni: String) -> Result<CmdResult, String> {
+    let sni = sni.trim().to_string();
+    if sni.is_empty() {
+        return Ok(CmdResult { ok: false, msg: "Pick a domain first.".into() });
+    }
+    let mut cfg = state.0.lock().unwrap();
+    let found = cfg.cards.iter_mut().find(|c| c.uuid == uuid);
+    match found {
+        Some(c) => {
+            c.sni = sni;
+            cfg.save();
+            Ok(CmdResult { ok: true, msg: "Domain updated.".into() })
+        }
+        None => Ok(CmdResult { ok: false, msg: "Card not found.".into() }),
+    }
+}
+
 #[derive(serde::Serialize)]
 struct TunnelState {
     running: bool,
@@ -1186,6 +1206,7 @@ pub fn run() {
             import_card,
             revoke_card,
             copy_card,
+            set_card_sni,
             tunnel_start,
             tunnel_stop,
             tunnel_status,

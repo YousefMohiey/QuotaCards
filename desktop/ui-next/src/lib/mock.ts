@@ -44,6 +44,11 @@ export async function mockCall<T>(cmd: string, args?: Record<string, unknown>): 
     }
     case "copy_card":
       return ok("Link copied.") as T
+    case "set_card_sni": {
+      const c = cards.find((x) => x.uuid === args?.uuid)
+      if (c) c.sni = String(args?.sni || c.sni)
+      return ok("Domain updated.") as T
+    }
     case "tunnel_start":
       running = true
       return ok("Engine started.") as T

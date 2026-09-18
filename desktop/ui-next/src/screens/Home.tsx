@@ -4,15 +4,44 @@ import { Hero } from "@/components/Hero"
 import { PickerDialog, type PickerItem } from "@/components/PickerDialog"
 import { Panel, Row } from "@/components/Row"
 import { Segmented } from "@/components/Segmented"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { useApp, type PresetKind } from "@/state/app"
 import { useI18n } from "@/lib/i18n"
-import { DEFAULT_SNI } from "@/lib/snis"
+import { CUSTOM_SNI, DEFAULT_SNI, SNIS, labelForSni } from "@/lib/snis"
 import { cn } from "@/lib/utils"
 
 export function Home({ onOpenApps }: { onOpenApps: () => void }) {
   const { t } = useI18n()
-  const { cards, card, pickCard, preset, setPreset, ensurePresetCard, transport, setTransport, appsMode, apps } = useApp()
+  const { cards, card, pickCard, preset, setPreset, ensurePresetCard, applyDomain, transport, setTransport, appsMode, apps } = useApp()
   const [pickOpen, setPickOpen] = useState(false)
+  // Domain control: the everyday choice lives here, not in the card list.
+  const [domainOpen, setDomainOpen] = useState(false)
+  const [customOpen, setCustomOpen] = useState(false)
+  const [customVal, setCustomVal] = useState("")
+  const [domainBusy, setDomainBusy] = useState(false)
+
+  const activeKind: PresetKind =
+    card?.card_type === "Streamerz" ? "Streamerz" : card?.card_type === "Gamerz" ? "Gamerz" : preset
+  const currentSni = card?.sni || DEFAULT_SNI[activeKind]
+  const domLabel = labelForSni(currentSni)
+  const domText = domLabel === currentSni ? currentSni : `${domLabel} · ${currentSni}`
+  const domainItems: PickerItem[] = [
+    ...SNIS[activeKind].map(([label, domain]) => ({ value: domain, label, sub: domain })),
+    { value: CUSTOM_SNI, label: t("customDomainOpt") },
+  ]
+
+  const submitCustom = async () => {
+    const v = customVal.trim()
+    if (!v) return
+    setDomainBusy(true)
+    const r = await applyDomain(v)
+    setDomainBusy(false)
+    if (r.ok) {
+      setCustomOpen(false)
+      setCustomVal("")
+    }
+  }
   // In-flight preset creation: the preset flips instantly, the tap below
   // creates and selects the missing card without any connection.
   const [creating, setCreating] = useState<PresetKind | null>(null)
@@ -80,6 +109,43 @@ export function Home({ onOpenApps }: { onOpenApps: () => void }) {
           })}
         </div>
 
+        <Row label={t("domainSni")}>
+          {customOpen ? (
+            <div className="flex w-full max-w-[400px] items-center gap-2">
+              <Input
+                autoFocus
+                value={customVal}
+                onChange={(e) => setCustomVal(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void submitCustom()
+                  if (e.key === "Escape") setCustomOpen(false)
+                }}
+                placeholder="example.com"
+                aria-label={t("domainSni")}
+                className="h-11 rounded-[12px] border-line bg-white/[0.02] text-[13px]"
+              />
+              <Button
+                size="sm"
+                className="h-11 shrink-0 rounded-[12px] px-4 text-[13px]"
+                disabled={domainBusy || !customVal.trim()}
+                onClick={() => void submitCustom()}
+              >
+                {t("apply")}
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              aria-busy={domainBusy}
+              onClick={() => setDomainOpen(true)}
+              className="group flex h-11 w-full max-w-[400px] items-center justify-between gap-3 rounded-[12px] border border-line bg-white/[0.02] px-3.5 text-[13px] text-txt transition-colors duration-200 hover:border-[var(--brand-line)] hover:bg-[var(--brand-bg)]"
+            >
+              <span className="truncate" dir="auto">{domText}</span>
+              <ChevronDown className="size-4 shrink-0 text-txt2 transition-[color,transform] duration-200 group-hover:translate-y-px group-hover:text-brand-strong" aria-hidden />
+            </button>
+          )}
+        </Row>
+
         <Row label={t("cardForVpn")}>
           {/* the same list picker as the domain choice: search, rows, one check */}
           <button
@@ -136,6 +202,23 @@ export function Home({ onOpenApps }: { onOpenApps: () => void }) {
         items={cardItems}
         value={card?.uuid ?? ""}
         onPick={(uuid) => pickCard(uuid)}
+      />
+
+      <PickerDialog
+        open={domainOpen}
+        onOpenChange={setDomainOpen}
+        title={t("domainSni")}
+        search={t("sheetSearch")}
+        items={domainItems}
+        value={currentSni}
+        onPick={(v) => {
+          if (v === CUSTOM_SNI) {
+            setCustomOpen(true)
+            setCustomVal("")
+            return
+          }
+          void applyDomain(v)
+        }}
       />
     </div>
   )
