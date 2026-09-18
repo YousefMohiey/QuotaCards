@@ -8,7 +8,7 @@ import { displayHost } from "@/lib/format"
 
 export function Settings() {
   const { t, lang, setLang } = useI18n()
-  const { update, updateState, checkUpdates, applyUpdate, serverIp, cards } = useApp()
+  const { update, updateState, checkUpdates, applyUpdate, serverIp } = useApp()
 
   const updateText =
     updateState === "checking"
@@ -69,11 +69,6 @@ export function Settings() {
         <Panel>
           <Row label={t("host")}>
             <span className="text-[13px] text-txt">{displayHost(serverIp)}</span>
-          </Row>
-          <Row label={t("cardForVpn")}>
-            <span className="text-[13px] text-txt2">
-              {cards.length === 1 ? t("cardsCountOne") : t("cardsCount").replace("{n}", String(cards.length))}
-            </span>
           </Row>
           <Row label={t("serverHint")}>
             <span className="text-[12px] text-txt3">{t("serverHint")}</span>

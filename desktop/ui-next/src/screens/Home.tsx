@@ -14,7 +14,6 @@ import { cn } from "@/lib/utils"
 export function Home({ onOpenApps }: { onOpenApps: () => void }) {
   const { t } = useI18n()
   const { cards, card, pickCard, preset, setPreset, ensurePresetCard, applyDomain, transport, setTransport, appsMode, apps } = useApp()
-  const [pickOpen, setPickOpen] = useState(false)
   // Domain control: the everyday choice lives here, not in the card list.
   const [domainOpen, setDomainOpen] = useState(false)
   const [customOpen, setCustomOpen] = useState(false)
@@ -45,12 +44,6 @@ export function Home({ onOpenApps }: { onOpenApps: () => void }) {
   // In-flight preset creation: the preset flips instantly, the tap below
   // creates and selects the missing card without any connection.
   const [creating, setCreating] = useState<PresetKind | null>(null)
-
-  const cardItems: PickerItem[] = cards.map((c) => ({
-    value: c.uuid,
-    label: c.name.split(" (")[0],
-    sub: `${c.card_type === "Streamerz" ? t("kindStreamerz") : t("kindGamerz")} · ${c.sni}`,
-  }))
 
   const routing =
     appsMode === "all"
@@ -146,18 +139,6 @@ export function Home({ onOpenApps }: { onOpenApps: () => void }) {
           )}
         </Row>
 
-        <Row label={t("cardForVpn")}>
-          {/* the same list picker as the domain choice: search, rows, one check */}
-          <button
-            type="button"
-            onClick={() => setPickOpen(true)}
-            className="group flex h-11 w-full max-w-[400px] items-center justify-between gap-3 rounded-[12px] border border-line bg-white/[0.02] px-3.5 text-[13px] text-txt transition-colors duration-200 hover:border-[var(--brand-line)] hover:bg-[var(--brand-bg)]"
-          >
-            <span className="truncate" dir="auto">{card ? card.name.split(" (")[0] : t("needCard")}</span>
-            <ChevronDown className="size-4 shrink-0 text-txt2 transition-[color,transform] duration-200 group-hover:translate-y-px group-hover:text-brand-strong" aria-hidden />
-          </button>
-        </Row>
-
         <Row label={t("routing")}>
           <button
             type="button"
@@ -193,16 +174,6 @@ export function Home({ onOpenApps }: { onOpenApps: () => void }) {
           </div>
         </Row>
       </Panel>
-
-      <PickerDialog
-        open={pickOpen}
-        onOpenChange={setPickOpen}
-        title={t("cardForVpn")}
-        search={t("appsSearch")}
-        items={cardItems}
-        value={card?.uuid ?? ""}
-        onPick={(uuid) => pickCard(uuid)}
-      />
 
       <PickerDialog
         open={domainOpen}
