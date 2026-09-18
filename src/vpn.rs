@@ -45,45 +45,67 @@ pub const TUN_IP: &str = "172.19.0.1";
 /// when the address or its /28 prefix already exists on the machine: a ghost
 /// adapter from a force-killed run, or Hyper-V / Docker / WSL / another VPN
 /// on the same range. A taken candidate is skipped, not failed on.
-pub const TUN_IP_CANDIDATES: [&str; 6] = [
+pub const TUN_IP_CANDIDATES: [&str; 8] = [
     "172.19.0.1",
     "172.20.0.1",
     "172.21.0.1",
     "172.22.0.1",
     "10.18.0.1",
     "10.19.0.1",
+    "10.20.0.1",
+    "10.21.0.1",
 ];
 
-/// First tunnel address this machine is not already using. The route table
-/// and the adapter list are both scanned: a ghost adapter shows in ipconfig,
-/// its prefix route in the route table, and either blocks the engine's
-/// set-ipv4-address step with "The object already exists".
-fn pick_tun_ip() -> String {
-    let routes = run_hidden("route", &["print", "-4"])
+/// The IPv6 ULA the tunnel used to hardcode; it collides in exactly the same
+/// way ("set ipv6 address: The object already exists"), so it gets its own
+/// candidate list. The first entry matches every build so far.
+pub const TUN_V6_CANDIDATES: [&str; 6] = [
+    "fdfe:dcba:9876::1",
+    "fdfe:dcba:9877::1",
+    "fdfe:dcba:9878::1",
+    "fdfe:dcba:9879::1",
+    "fdfe:dcba:987a::1",
+    "fdfe:dcba:987b::1",
+];
+
+/// First candidate whose stem is absent from every blob (routes and adapter
+/// list both scanned: a ghost adapter shows in ipconfig, its prefix route in
+/// the route table). The stem keeps everything up to the last '.' or ':', so
+/// it catches the address itself, its prefix route, and any route through it.
+fn first_absent(candidates: &[&str], blobs: &[&str]) -> String {
+    let hay: Vec<String> = blobs.iter().map(|b| b.to_lowercase()).collect();
+    for cand in candidates {
+        let low = cand.to_lowercase();
+        let cut = low.rfind(&['.', ':'][..]).map(|i| i + 1).unwrap_or(0);
+        let stem = &low[..cut];
+        if hay.iter().any(|h| h.contains(stem)) {
+            continue;
+        }
+        return cand.to_string();
+    }
+    candidates[0].to_string()
+}
+
+/// (v4, v6) tunnel addresses: the first candidate each set of tables is free
+/// of. Split out so tests can feed synthetic route/adapter tables.
+fn pick_addresses(routes4: &str, routes6: &str, adapters: &str) -> (String, String) {
+    (
+        first_absent(&TUN_IP_CANDIDATES, &[routes4, adapters]),
+        first_absent(&TUN_V6_CANDIDATES, &[routes6, adapters]),
+    )
+}
+
+fn pick_tun_ips() -> (String, String) {
+    let routes4 = run_hidden("route", &["print", "-4"])
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+    let routes6 = run_hidden("route", &["print", "-6"])
         .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
         .unwrap_or_default();
     let adapters = run_hidden("ipconfig", &["/all"])
         .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
         .unwrap_or_default();
-    pick_from_tables(&routes, &adapters)
-}
-
-/// The pick itself, split out so tests can feed it synthetic route/adapter
-/// tables: both blobs are scanned for every candidate.
-fn pick_from_tables(routes: &str, adapters: &str) -> String {
-    for cand in TUN_IP_CANDIDATES {
-        // Stem to the last octet: catches the address itself, its /28 prefix
-        // route and any default route through it.
-        let stem = match cand.rsplit_once('.') {
-            Some((s, _)) => s,
-            None => cand,
-        };
-        if routes.contains(&format!("{stem}.")) || adapters.contains(cand) {
-            continue;
-        }
-        return cand.to_string();
-    }
-    TUN_IP.to_string()
+    pick_addresses(&routes4, &routes6, &adapters)
 }
 
 /// The TUN address of the last written config (no file yet: the classic
@@ -314,11 +336,12 @@ pub fn write_tun_config(
         .map(|d| d.subsec_nanos())
         .unwrap_or(0);
     let if_name = format!("QuotaCards{:04x}", nanos & 0xffff);
-    // TUN address: first candidate this machine is not already using. Plenty
-    // of PCs hold 172.19.x already (Hyper-V, Docker, WSL, a ghost adapter
-    // from a force-killed run) and the engine then refuses to start with
-    // "The object already exists", so the address is never hardcoded.
-    let tun_ip = pick_tun_ip();
+    // TUN addresses: first candidates this machine is not already using.
+    // Plenty of PCs hold 172.19.x (or the old ULA) already - Hyper-V, Docker,
+    // WSL, a ghost adapter from a force-killed run - and the engine then
+    // refuses to start with "The object already exists", so neither address
+    // is ever hardcoded.
+    let (tun_ip, tun_v6) = pick_tun_ips();
     // per-app routing matches by process, which needs the userspace stack
     // on Windows; whole-PC mode keeps the fast mixed stack.
     let tun_stack = if per_app { "gvisor" } else { "mixed" };
@@ -449,7 +472,7 @@ pub fn write_tun_config(
             "tag": "tun-in",
             "interface_name": if_name,
             "mtu": 9000,
-            "address": [format!("{tun_ip}/28"), "fdfe:dcba:9876::1/126".to_string()],
+            "address": [format!("{tun_ip}/28"), format!("{tun_v6}/126")],
             "auto_route": true,
             "strict_route": true,
             "stack": tun_stack,
@@ -489,9 +512,10 @@ pub fn write_tun_config(
     // to match it by its exact name: other products' wintun adapters and
     // ghosts of force-killed runs share the vague words in their description.
     let _ = std::fs::write(p.with_file_name("tun-ifname.txt"), &if_name);
-    // Track the picked address the same way: cleanup and the route checks
-    // must follow the session's own address, not the one-time constant.
+    // Track the picked addresses the same way: cleanup and the route checks
+    // must follow the session's own addresses, not the one-time constants.
     let _ = std::fs::write(p.with_file_name("tun-ip.txt"), &tun_ip);
+    let _ = std::fs::write(p.with_file_name("tun-ip6.txt"), &tun_v6);
     Ok(p)
 }
 
@@ -949,38 +973,66 @@ mod tests {
         .expect("config");
         let v: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&p).expect("read")).expect("json");
-        let addr = v["inbounds"][0]["address"][0]
+        let addr4 = v["inbounds"][0]["address"][0]
             .as_str()
             .unwrap_or_default()
             .to_string();
-        let tracked = std::fs::read_to_string(p.with_file_name("tun-ip.txt"))
+        let addr6 = v["inbounds"][0]["address"][1]
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
+        let tracked4 = std::fs::read_to_string(p.with_file_name("tun-ip.txt"))
             .expect("tun-ip.txt beside the config")
             .trim()
             .to_string();
-        // The config and the tracking file agree, the address comes from the
-        // candidate list, and the route checks read the same value back: a
-        // stale or hardcoded value would strand cleanup on the wrong address.
-        assert_eq!(addr, format!("{tracked}/28"));
-        assert!(TUN_IP_CANDIDATES.contains(&tracked.as_str()));
-        assert_eq!(current_tun_ip(), tracked);
+        let tracked6 = std::fs::read_to_string(p.with_file_name("tun-ip6.txt"))
+            .expect("tun-ip6.txt beside the config")
+            .trim()
+            .to_string();
+        // The config and the tracking files agree, both addresses come from
+        // the candidate lists, and the route checks read the v4 value back:
+        // a stale or hardcoded address would strand cleanup on the wrong one.
+        assert_eq!(addr4, format!("{tracked4}/28"));
+        assert_eq!(addr6, format!("{tracked6}/126"));
+        assert!(TUN_IP_CANDIDATES.contains(&tracked4.as_str()));
+        assert!(TUN_V6_CANDIDATES.contains(&tracked6.as_str()));
+        assert_eq!(current_tun_ip(), tracked4);
     }
 
     #[test]
     fn tun_ip_skips_addresses_the_machine_already_uses() {
-        // Free machine: the classic address stays.
-        assert_eq!(pick_from_tables("", ""), TUN_IP);
-        // Ghost adapter holds the address (shows in the adapter list).
+        // Free machine: the classic pair stays.
+        assert_eq!(
+            pick_addresses("", "", ""),
+            (TUN_IP.to_string(), "fdfe:dcba:9876::1".to_string())
+        );
+        // Ghost adapter holds the v4 address (shows in the adapter list).
         let adapters =
             "Ethernet adapter QuotaCards3a5f:\n   IPv4 Address. . . : 172.19.0.1(Preferred)";
-        assert_eq!(pick_from_tables("", adapters), "172.20.0.1");
+        assert_eq!(pick_addresses("", "", adapters).0, "172.20.0.1");
         // Only its prefix route remains (shows in the route table).
         let routes = "172.19.0.0  255.255.255.240  On-link  172.19.0.1  281";
-        assert_eq!(pick_from_tables(routes, ""), "172.20.0.1");
+        assert_eq!(pick_addresses(routes, "", "").0, "172.20.0.1");
         // A default route through the address (crashed session) also counts.
         let def = "0.0.0.0  0.0.0.0  On-link  172.19.0.1  281";
-        assert_eq!(pick_from_tables(def, ""), "172.20.0.1");
-        // Everything taken: fall back to the classic constant, never empty.
-        let all = TUN_IP_CANDIDATES.join("\n");
-        assert_eq!(pick_from_tables(&all, &all), TUN_IP);
+        assert_eq!(pick_addresses(def, "", "").0, "172.20.0.1");
+        // The v6 ULA collides the same way, and the two picks are independent.
+        let adapters6 = "   IPv6 Address. . . . . . . . . . . : fdfe:dcba:9876::1(Preferred)";
+        assert_eq!(
+            pick_addresses("", "", adapters6),
+            ("172.19.0.1".to_string(), "fdfe:dcba:9877::1".to_string())
+        );
+        // Its route carrying the ULA counts too, and matching is case-blind.
+        let routes6 = "fdfe:dcba:9876::/126   On-link   fdfe:dcba:9876::1";
+        assert_eq!(pick_addresses("", routes6, "").1, "fdfe:dcba:9877::1");
+        assert_eq!(pick_addresses("", "", "FDFE:DCBA:9876::1").1, "fdfe:dcba:9877::1");
+        // Everything taken: fall back to the first candidates, never empty.
+        let all4 = TUN_IP_CANDIDATES.join("\n");
+        let all6 = TUN_V6_CANDIDATES.join("\n");
+        let both = format!("{all4}\n{all6}");
+        assert_eq!(
+            pick_addresses(&both, &both, &both),
+            (TUN_IP.to_string(), "fdfe:dcba:9876::1".to_string())
+        );
     }
 }
