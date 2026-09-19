@@ -1053,7 +1053,12 @@ async fn speedtest_cli(app: tauri::AppHandle) -> Option<ookla::CliResult> {
         std::sync::Arc::new(move |v: f64| {
             let _ = a2.emit("speed-tick", v);
         });
-    tauri::async_runtime::spawn_blocking(move || ookla::run(&exe, on_phase, on_tick))
+    let a3 = app.clone();
+    let on_result: std::sync::Arc<dyn Fn(serde_json::Value) + Send + Sync> =
+        std::sync::Arc::new(move |j: serde_json::Value| {
+            let _ = a3.emit("speed-result", j);
+        });
+    tauri::async_runtime::spawn_blocking(move || ookla::run(&exe, on_phase, on_tick, on_result))
         .await
         .ok()
         .flatten()

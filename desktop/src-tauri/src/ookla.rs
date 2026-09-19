@@ -92,7 +92,7 @@ pub async fn ensure_binary() -> Option<PathBuf> {
 
 /// Everything the parser learned from one run.
 #[derive(Default)]
-struct Parsed {
+pub struct Parsed {
     result: CliResult,
     last_down: Option<f64>,
     last_up: Option<f64>,
@@ -113,6 +113,51 @@ fn number_after(line: &str, key: &str) -> Option<f64> {
     tok.parse::<f64>().ok()
 }
 
+/// One thing the parser wants the UI told about: a phase change or a value
+/// that just finalized mid-run.
+pub enum Ev {
+    /// Live value for a phase; NaN means "phase only, no tick".
+    Tick(String, f64),
+    /// A value as it lands (ping, jitter, down, up).
+    Result(serde_json::Value),
+}
+
+/// Turns parser events into callbacks. One thing it guarantees: the phase is
+/// announced ONCE per change. The client reprints its progress line ten times
+/// a second, and announcing the phase on every one of those lines made the UI
+/// reset its bars on every tick, so the graph never grew and the run looked
+/// dead next to the moving number.
+pub struct Emitter {
+    last_phase: Option<String>,
+}
+
+impl Emitter {
+    pub fn new() -> Self {
+        Self { last_phase: None }
+    }
+
+    pub fn handle(
+        &mut self,
+        ev: Ev,
+        on_phase: &Arc<dyn Fn(&str) + Send + Sync>,
+        on_tick: &Arc<dyn Fn(f64) + Send + Sync>,
+        on_result: &Arc<dyn Fn(serde_json::Value) + Send + Sync>,
+    ) {
+        match ev {
+            Ev::Tick(phase, v) => {
+                if self.last_phase.as_deref() != Some(phase.as_str()) {
+                    self.last_phase = Some(phase.clone());
+                    on_phase(&phase);
+                }
+                if !v.is_nan() {
+                    on_tick(v);
+                }
+            }
+            Ev::Result(j) => on_result(j),
+        }
+    }
+}
+
 impl Parsed {
     /// Progress lines look like:
     ///   Download:    45.67 Mbps [=====/          ] 26%   - latency: 232.68 ms
@@ -122,14 +167,14 @@ impl Parsed {
     /// live ticks. (The upload phase's first progress line carries a leftover
     /// download figure, so trusting the ticks over the finals would report the
     /// wrong download.)
-    fn feed(&mut self, line: &str, on_tick: &mut dyn FnMut(&str, f64)) {
+    pub fn feed(&mut self, line: &str, out: &mut Vec<Ev>) {
         let t = line.trim();
         // The client announces its server selection before any measurement;
         // the UI shows a "finding the server" state for that stretch instead
         // of a dead screen.
         if t.starts_with("Selecting server") || t.starts_with("Selecting best server") {
             // NaN marks "phase only, no tick": the value stays where it was.
-            on_tick("select", f64::NAN);
+            out.push(Ev::Tick("select".into(), f64::NAN));
             return;
         }
         let is_down = t.starts_with("Download:");
@@ -138,7 +183,7 @@ impl Parsed {
             let Some(v) = number_after(t, ":") else { return };
             if t.contains('[') {
                 let phase = if is_down { "download" } else { "upload" };
-                on_tick(phase, v);
+                out.push(Ev::Tick(phase.into(), v));
                 if is_down {
                     self.last_down = Some(v);
                 } else {
@@ -146,8 +191,10 @@ impl Parsed {
                 }
             } else if is_down {
                 self.result.down_mbps = Some(v);
+                out.push(Ev::Result(serde_json::json!({ "down": v })));
             } else {
                 self.result.up_mbps = Some(v);
+                out.push(Ev::Result(serde_json::json!({ "up": v })));
             }
             return;
         }
@@ -175,6 +222,20 @@ impl Parsed {
                             }
                         }
                     }
+                }
+            }
+            // The idle figures are the headline ones: hand them over the
+            // moment they are measured, not at the end of the whole run.
+            if idle {
+                let mut part = serde_json::Map::new();
+                if let Some(p) = self.ping_idle {
+                    part.insert("ping".to_string(), serde_json::json!(p));
+                }
+                if let Some(j) = self.jitter_idle {
+                    part.insert("jitter".to_string(), serde_json::json!(j));
+                }
+                if !part.is_empty() {
+                    out.push(Ev::Result(serde_json::Value::Object(part)));
                 }
             }
             return;
@@ -245,6 +306,7 @@ pub fn run(
     exe: &Path,
     on_phase: Arc<dyn Fn(&str) + Send + Sync>,
     on_tick: Arc<dyn Fn(f64) + Send + Sync>,
+    on_result: Arc<dyn Fn(serde_json::Value) + Send + Sync>,
 ) -> Option<CliResult> {
     let mut cmd = Command::new(exe);
     cmd.args([
@@ -275,12 +337,14 @@ pub fn run(
         let parsed = Arc::clone(&parsed);
         let on_phase = Arc::clone(&on_phase);
         let on_tick = Arc::clone(&on_tick);
+        let on_result = Arc::clone(&on_result);
         readers.push(std::thread::spawn(move || {
             // Read raw bytes, not lines: the CLI rewrites its progress line in
             // place with a carriage return and only emits a newline when the
             // phase ends. Waiting for a newline holds every tick back until the
             // end, which is exactly how "the numbers arrive after they are
             // already calculated" happened.
+            let mut em = Emitter::new();
             let mut reader = BufReader::new(stream);
             let mut buf = [0u8; 4096];
             let mut carry = String::new();
@@ -299,21 +363,10 @@ pub fn run(
                             if part.trim().is_empty() {
                                 continue;
                             }
-                            let mut guard = parsed.lock().unwrap();
-                            let mut phase: Option<String> = None;
-                            let mut tick: Option<f64> = None;
-                            guard.feed(part, &mut |p, v| {
-                                phase = Some(p.to_string());
-                                tick = Some(v);
-                            });
-                            drop(guard);
-                            if let Some(p) = phase {
-                                on_phase(&p);
-                            }
-                            if let Some(v) = tick {
-                                if !v.is_nan() {
-                                    on_tick(v);
-                                }
+                            let mut evs: Vec<Ev> = Vec::new();
+                            parsed.lock().unwrap().feed(part, &mut evs);
+                            for ev in evs {
+                                em.handle(ev, &on_phase, &on_tick, &on_result);
                             }
                         }
                     }
@@ -323,21 +376,10 @@ pub fn run(
             // Whatever the last partial segment held.
             let last = carry.trim().to_string();
             if !last.is_empty() {
-                let mut guard = parsed.lock().unwrap();
-                let mut phase: Option<String> = None;
-                let mut tick: Option<f64> = None;
-                guard.feed(&last, &mut |p, v| {
-                    phase = Some(p.to_string());
-                    tick = Some(v);
-                });
-                drop(guard);
-                if let Some(p) = phase {
-                    on_phase(&p);
-                }
-                if let Some(v) = tick {
-                    if !v.is_nan() {
-                        on_tick(v);
-                    }
+                let mut evs: Vec<Ev> = Vec::new();
+                parsed.lock().unwrap().feed(&last, &mut evs);
+                for ev in evs {
+                    em.handle(ev, &on_phase, &on_tick, &on_result);
                 }
             }
         }));
@@ -377,3 +419,4 @@ pub fn run(
     }
     Some(result)
 }
+

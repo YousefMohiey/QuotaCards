@@ -72,6 +72,20 @@ export async function onSpeedPhase(cb: (phase: string) => void): Promise<() => v
   return listen<string>("speed-phase", (e) => cb(e.payload))
 }
 
+/** Values as each phase finalizes: ping and jitter the moment they are
+ *  measured, download the moment its phase ends. Nothing waits for the end
+ *  of the whole run. */
+export async function onSpeedResult(
+  cb: (part: Partial<{ ping: number; jitter: number; down: number; up: number }>) => void,
+): Promise<() => void> {
+  if (!isTauri()) return () => {}
+  const { listen } = await import("@tauri-apps/api/event")
+  return listen<Partial<{ ping: number; jitter: number; down: number; up: number }>>(
+    "speed-result",
+    (e) => cb(e.payload),
+  )
+}
+
 /** What the official speedtest.net client reports for one run. */
 export type CliSpeed = {
   ping_ms: number | null

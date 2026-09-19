@@ -6,7 +6,7 @@ import { useApp } from "@/state/app"
 import { useI18n, type StrKey } from "@/lib/i18n"
 import { measureDownload, measurePing, measureUpload } from "@/lib/speedtest"
 import { CLOUDFLARE, loadPool, pickFastest, type SpeedServer } from "@/lib/speedservers"
-import { isTauri, netInfo, onSpeedPhase, onSpeedTick, speedDown, speedLatency, speedUp, speedtestCli, speedtestCliReady, type CliSpeed } from "@/lib/ipc"
+import { isTauri, netInfo, onSpeedPhase, onSpeedResult, onSpeedTick, speedDown, speedLatency, speedUp, speedtestCli, speedtestCliReady, type CliSpeed } from "@/lib/ipc"
 import { cn } from "@/lib/utils"
 
 const PING_PROBES = 8
@@ -407,11 +407,18 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
             setValue(v)
           }
         }).catch(() => () => {})
+        // Values as each phase finalizes: the ping the moment it is measured,
+        // the download the moment its phase ends. Nothing waits for the whole
+        // run to finish to become visible.
+        const offResult = await onSpeedResult((part) => {
+          if (!s.aborted) setResult((prev) => ({ ...prev, ...part }))
+        }).catch(() => () => {})
         try {
           cli = await speedtestCli()
         } finally {
           offPhase()
           offTick()
+          offResult()
         }
       } catch {
         cli = null
