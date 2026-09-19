@@ -8,7 +8,7 @@ import { displayHost } from "@/lib/format"
 
 export function Settings() {
   const { t, lang, setLang } = useI18n()
-  const { update, updateState, checkUpdates, applyUpdate, serverIp } = useApp()
+  const { update, updateState, checkUpdates, applyUpdate, serverIp, updatePct } = useApp()
 
   const updateText =
     updateState === "checking"
@@ -17,6 +17,8 @@ export function Settings() {
         ? t("upLatest").replace("{v}", update.latest)
         : updateState === "available" && update
           ? t("upOut").replace("{v}", update.latest)
+          : updateState === "installing"
+            ? t("upInstalling")
           : updateState === "error"
             ? t("upFail")
             : t("upCur").replace("{v}", update?.current ?? "0.2.4")
@@ -51,9 +53,17 @@ export function Settings() {
                 <RefreshCw className="size-4" aria-hidden />
                 {updateState === "checking" ? t("upChecking") : t("upCheck")}
               </Button>
-              {updateState === "available" && (
-                <Button className="h-9 rounded-[10px] px-3.5 text-[13px]" onClick={() => void applyUpdate()}>
-                  {t("upGet")}
+              {(updateState === "available" || updateState === "installing") && (
+                <Button
+                  className="h-9 rounded-[10px] px-3.5 text-[13px]"
+                  onClick={() => void applyUpdate()}
+                  disabled={updateState === "installing"}
+                >
+                  {updateState === "installing"
+                    ? updatePct !== null
+                      ? `${updatePct}%`
+                      : t("upInstalling")
+                    : t("upGet")}
                 </Button>
               )}
               <span aria-live="polite" className="text-[12px] text-txt3">

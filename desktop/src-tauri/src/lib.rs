@@ -29,6 +29,11 @@ struct State(Mutex<AppConfig>);
 /// Live engine PID. None means no tunnel (or one we no longer track).
 struct Engine(Mutex<Option<u32>>);
 
+/// One in-app install at a time. The updater plugin does not serialize
+/// downloads, so a second press used to start a whole second transfer and
+/// both slowed to a crawl (the user read that as a dead button).
+static UPDATE_BUSY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 #[derive(serde::Serialize)]
 struct CmdResult {
     ok: bool,
@@ -401,21 +406,94 @@ async fn tunnel_start(
     transport: Option<String>,
     voice: Option<bool>,
 ) -> Result<CmdResult, String> {
-    let (host, card) = {
+    let (host, user, port, key, card) = {
         let state = app.state::<State>();
         let cfg = state.0.lock().unwrap();
         let Some(card) = cfg.cards.iter().find(|c| c.uuid == uuid).cloned() else {
             return Ok(CmdResult { ok: false, msg: "Card not found.".into() });
         };
-        (cfg.server_ip.clone(), card)
+        (
+            cfg.server_ip.clone(),
+            cfg.ssh_user.clone(),
+            cfg.ssh_port,
+            cfg.private_key.clone(),
+            card,
+        )
     };
     if host.is_empty() {
         return Ok(CmdResult { ok: false, msg: "Set up your server first.".into() });
     }
-    // Desktop engine is Standard (VLESS) only; Game/WireGuard live on phones.
-    match transport.as_deref().unwrap_or("vless") {
-        "vless" | "" => {}
-        _ => return Ok(CmdResult { ok: false, msg: "Game and WireGuard are phone-only - Standard carries the traffic.".into() }),
+    let t = match transport.as_deref().unwrap_or("vless") {
+        "hy2" => "hy2",
+        "wg" => "wg",
+        _ => "vless",
+    };
+    // Provision whatever the transport needs, cached after first use: the
+    // shared Hysteria2 password, or this card's WireGuard keypair + address.
+    let mut hy2_pass = String::new();
+    let mut wg_tuple: Option<(String, String, String)> = None;
+    if t == "hy2" {
+        let cached = app.state::<State>().0.lock().unwrap().hy2_password.clone();
+        hy2_pass = if cached.is_empty() {
+            match server::hy2_password(&host, port, &user, &key).await {
+                Ok(p) => {
+                    let state = app.state::<State>();
+                    let mut st = state.0.lock().unwrap();
+                    st.hy2_password = p.clone();
+                    st.save();
+                    p
+                }
+                Err(e) => {
+                    return Ok(CmdResult {
+                        ok: false,
+                        msg: format!("Could not set up the game transport: {e}"),
+                    })
+                }
+            }
+        } else {
+            cached
+        };
+    } else if t == "wg" {
+        if card.wg_private.is_empty() || card.wg_addr.is_empty() {
+            let creds = match server::wg_add(&host, port, &user, &key, &card.uuid).await {
+                Ok(c) => c,
+                Err(e) => {
+                    return Ok(CmdResult {
+                        ok: false,
+                        msg: format!("Could not set up WireGuard: {e}"),
+                    })
+                }
+            };
+            let state = app.state::<State>();
+            let mut st = state.0.lock().unwrap();
+            if let Some(cc) = st.cards.iter_mut().find(|c| c.uuid == uuid) {
+                cc.wg_private = creds.private_key.clone();
+                cc.wg_addr = creds.address.clone();
+            }
+            st.wg_server_pub = creds.server_pub.clone();
+            st.save();
+            wg_tuple = Some((creds.private_key, creds.address, creds.server_pub));
+        } else {
+            let mut srvpub = app.state::<State>().0.lock().unwrap().wg_server_pub.clone();
+            if srvpub.is_empty() {
+                match server::wg_server_pub(&host, port, &user, &key).await {
+                    Ok(p) => {
+                        srvpub = p;
+                        let state = app.state::<State>();
+                        let mut st = state.0.lock().unwrap();
+                        st.wg_server_pub = srvpub.clone();
+                        st.save();
+                    }
+                    Err(e) => {
+                        return Ok(CmdResult {
+                            ok: false,
+                            msg: format!("Could not set up WireGuard: {e}"),
+                        })
+                    }
+                }
+            }
+            wg_tuple = Some((card.wg_private.clone(), card.wg_addr.clone(), srvpub));
+        }
     }
     if !vpn::is_elevated() {
         return Ok(CmdResult { ok: false, msg: "Run QuotaVPN as administrator, then connect.".into() });
@@ -427,7 +505,9 @@ async fn tunnel_start(
     let mode = apps_mode.unwrap_or_default();
     let list = apps.unwrap_or_default();
     vpn::ensure_engine().map_err(|e| e)?;
-    vpn::write_tun_config(&card.uuid, &host, &card.sni, &mode, &list, voice_on).map_err(|e| e)?;
+    let wg_ref = wg_tuple.as_ref().map(|(p, a, s)| (p.as_str(), a.as_str(), s.as_str()));
+    vpn::write_tun_config(&card.uuid, &host, &card.sni, &mode, &list, voice_on, t, &hy2_pass, wg_ref)
+        .map_err(|e| e)?;
     vpn::check_config().map_err(|e| e)?;
     stop_engine(&engine);
     let mode_label = if voice_on {
@@ -1075,12 +1155,15 @@ async fn apply_update(app: tauri::AppHandle) -> Result<String, String> {
     {
         return Err("This build is already current.".to_string());
     }
+    if UPDATE_BUSY.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        return Err("An update is already installing.".to_string());
+    }
     {
         let eng = app.state::<Engine>();
         stop_engine(&eng);
     }
     let prog = app.clone();
-    update
+    let res = update
         .download_and_install(
             move |chunk, total| {
                 let pct = total.map(|t| {
@@ -1097,9 +1180,14 @@ async fn apply_update(app: tauri::AppHandle) -> Result<String, String> {
             },
             || {},
         )
-        .await
-        .map_err(|e| format!("install failed: {e}"))?;
-    app.restart();
+        .await;
+    match res {
+        Ok(()) => app.restart(),
+        Err(e) => {
+            UPDATE_BUSY.store(false, std::sync::atomic::Ordering::SeqCst);
+            Err(format!("install failed: {e}"))
+        }
+    }
 }
 
 pub fn run() {

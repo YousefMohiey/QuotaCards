@@ -315,6 +315,9 @@ pub fn write_tun_config(
     apps_mode: &str,
     apps: &[String],
     voice: bool,
+    transport: &str,
+    hy2_pass: &str,
+    wg: Option<(&str, &str, &str)>,
 ) -> Result<PathBuf, String> {
     let mut excludes = resolve_server_ips(host)?;
     for ip in [PROXY_DOH_IP, DIRECT_DNS] {
@@ -456,7 +459,81 @@ pub fn write_tun_config(
     } else {
         serde_json::json!([{"domain": [host], "server": "direct-dns"}])
     };
-    let cfg = serde_json::json!({
+    // The UDP transports dial the resolved address directly: name resolution
+    // inside the engine is one more thing that can go wrong on a game path.
+    let server_v4 = excludes
+        .iter()
+        .find(|c| c.ends_with("/32"))
+        .map(|c| c.trim_end_matches("/32").to_string())
+        .unwrap_or_else(|| host.to_string());
+    // Transport shapes follow the vendored engine (1.13+): WireGuard is a
+    // top-level ENDPOINT (the outbound form was removed outright), Hysteria2
+    // is an outbound. The endpoint carries the "proxy" tag, so route rules,
+    // DNS detours, per-app rules and the voice rules all keep working.
+    let (outbounds, endpoints) = match transport {
+        "hy2" => (
+            serde_json::json!([
+                {
+                    "type": "hysteria2",
+                    "tag": "proxy",
+                    "server": server_v4,
+                    "server_port": 443,
+                    "password": hy2_pass,
+                    "up_mbps": 10,
+                    "down_mbps": 50,
+                    "tls": {
+                        "enabled": true,
+                        "server_name": sni,
+                        "insecure": true,
+                        "alpn": ["h3"]
+                    }
+                },
+                {"type": "direct", "tag": "direct"}
+            ]),
+            serde_json::json!([]),
+        ),
+        "wg" => {
+            let (priv_key, wg_addr, srv_pub) = wg.unwrap_or(("", "", ""));
+            (
+                serde_json::json!([{"type": "direct", "tag": "direct"}]),
+                serde_json::json!([{
+                    "type": "wireguard",
+                    "tag": "proxy",
+                    "address": [wg_addr],
+                    "private_key": priv_key,
+                    "peers": [{
+                        "address": server_v4,
+                        "port": 53,
+                        "public_key": srv_pub,
+                        "allowed_ips": ["0.0.0.0/0"],
+                        "persistent_keepalive_interval": 25
+                    }],
+                    "mtu": 1280
+                }]),
+            )
+        }
+        _ => (
+            serde_json::json!([
+                {
+                    "type": "vless",
+                    "tag": "proxy",
+                    "server": host,
+                    "server_port": 443,
+                    "uuid": uuid,
+                    "tls": {
+                        "enabled": true,
+                        "server_name": sni,
+                        "insecure": true,
+                        "alpn": ["h3", "h2", "http/1.1"],
+                        "utls": {"enabled": true, "fingerprint": "random"}
+                    }
+                },
+                {"type": "direct", "tag": "direct"}
+            ]),
+            serde_json::json!([]),
+        ),
+    };
+    let mut cfg = serde_json::json!({
         "log": {"level": "warning"},
         "dns": {
             "servers": [
@@ -478,23 +555,7 @@ pub fn write_tun_config(
             "stack": tun_stack,
             "route_exclude_address": excludes
         }],
-        "outbounds": [
-            {
-                "type": "vless",
-                "tag": "proxy",
-                "server": host,
-                "server_port": 443,
-                "uuid": uuid,
-                "tls": {
-                    "enabled": true,
-                    "server_name": sni,
-                    "insecure": true,
-                    "alpn": ["h3", "h2", "http/1.1"],
-                    "utls": {"enabled": true, "fingerprint": "random"}
-                }
-            },
-            {"type": "direct", "tag": "direct"}
-        ],
+        "outbounds": outbounds,
         "route": {
             "rules": route_rules,
             "final": route_final,
@@ -502,6 +563,11 @@ pub fn write_tun_config(
             "default_domain_resolver": "direct-dns"
         }
     });
+    // The WireGuard endpoint lives in its own top-level list; omit the key
+    // entirely for the other transports so the shape stays minimal.
+    if !endpoints.as_array().map(|a| a.is_empty()).unwrap_or(true) {
+        cfg["endpoints"] = endpoints;
+    }
     let p = tun_config_path();
     std::fs::write(
         &p,
@@ -556,7 +622,12 @@ pub fn spawn_engine() -> Result<std::process::Child, String> {
         .map(|d| d.as_secs())
         .unwrap_or(0);
     let _ = writeln!(log, "=== run {now} ===");
-    let child = cmd_hidden(&singbox_path().to_string_lossy())
+    let mut cmd = cmd_hidden(&singbox_path().to_string_lossy());
+    // Below normal priority: when a game runs on the same machine it must
+    // win the CPU, and the engine keeps the line fed with leftover cycles.
+    #[cfg(windows)]
+    cmd.creation_flags(NO_WINDOW | 0x0000_4000); // BELOW_NORMAL_PRIORITY_CLASS
+    let child = cmd
         .args(["run", "-c", &tun_config_path().to_string_lossy()])
         .current_dir(engine_dir())
         .stdin(std::process::Stdio::null())
@@ -797,6 +868,9 @@ mod tests {
             mode,
             &list,
             false,
+            "vless",
+            "",
+            None,
         )
         .expect("config");
         serde_json::from_str(&std::fs::read_to_string(p).expect("read")).expect("json")
@@ -814,6 +888,9 @@ mod tests {
             "allow",
             &list,
             true,
+            "vless",
+            "",
+            None,
         )
         .expect("config");
         let v: serde_json::Value =
@@ -907,6 +984,9 @@ mod tests {
             mode,
             &list,
             voice,
+            "vless",
+            "",
+            None,
         )
         .expect("config");
         serde_json::from_str(&std::fs::read_to_string(p).expect("read")).expect("json")
@@ -969,6 +1049,9 @@ mod tests {
             "",
             &[],
             false,
+            "vless",
+            "",
+            None,
         )
         .expect("config");
         let v: serde_json::Value =
@@ -1034,5 +1117,61 @@ mod tests {
             pick_addresses(&both, &both, &both),
             (TUN_IP.to_string(), "fdfe:dcba:9876::1".to_string())
         );
+    }
+
+    #[test]
+    fn udp_transports_build_engine_valid_configs() {
+        let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // Hysteria2: the outbound form, carrying the card SNI and the
+        // server's shared password.
+        let p = write_tun_config(
+            "00000000-test",
+            crate::config::DEFAULT_HOST,
+            "example.com",
+            "all",
+            &[],
+            false,
+            "hy2",
+            "deadbeef",
+            None,
+        )
+        .expect("config");
+        check_config().expect("hy2 config must pass the engine's own decoder");
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&p).expect("read")).expect("json");
+        assert!(v["outbounds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|o| o["type"] == "hysteria2"));
+        assert!(v.get("endpoints").is_none());
+        // WireGuard: the 1.13+ top-level endpoint, still tagged "proxy" so
+        // route rules, DNS detours and the voice rules keep pointing at it.
+        let p = write_tun_config(
+            "00000000-test",
+            crate::config::DEFAULT_HOST,
+            "example.com",
+            "all",
+            &[],
+            false,
+            "wg",
+            "",
+            Some((
+                "Ji355SrChcN8xhmBAWfjUlx8V1/lNmL/ItImPY7B/tA=",
+                "10.8.0.8/32",
+                "NybbwmymQWVk3lKfz46jqj/Cqzxbv7ToDk3jP0A5yv4=",
+            )),
+        )
+        .expect("config");
+        check_config().expect("wg config must pass the engine's own decoder");
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&p).expect("read")).expect("json");
+        assert_eq!(v["endpoints"][0]["type"], "wireguard");
+        assert_eq!(v["endpoints"][0]["tag"], "proxy");
+        assert!(v["outbounds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|o| o["tag"] != "proxy"));
     }
 }

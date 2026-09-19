@@ -4,8 +4,10 @@ The long-form handoff (system map, flows, code map, build and release, traps) is
 `docs/HANDOFF.md`. Read it before changing anything structural.
 
 A VPN client for Windows and Android that routes per-app and per-quota traffic
-through a personal Xray/VLESS server. The phone adds WireGuard (UDP/53) and
-Hysteria2 (UDP/443) transports; the PC speaks Standard VLESS only.
+through a personal Xray/VLESS server. Both apps carry all three transports:
+Standard (VLESS), WireGuard (UDP/53) and Hysteria2 (UDP/443). From Egypt, WE's
+DPI drops WireGuard handshakes, so Hysteria2 is the UDP transport that connects
+there.
 
 ## Layout
 

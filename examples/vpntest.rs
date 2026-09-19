@@ -43,7 +43,7 @@ fn main() {
     println!("server resolves to: {want:?}");
     println!("mode={mode:?} apps={apps:?} expect={expect}");
     println!("engine: {}", vpn::ensure_engine().unwrap());
-    let p = vpn::write_tun_config(&uuid, host, "epicgames.com", &mode, &apps, false).unwrap();
+    let p = vpn::write_tun_config(&uuid, host, "epicgames.com", &mode, &apps, false, "vless", "", None).unwrap();
     println!("config: {p:?}");
     vpn::check_config().unwrap();
     println!("config check OK");

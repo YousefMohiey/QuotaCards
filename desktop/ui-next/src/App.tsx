@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react"
+import { getCurrentWindow } from "@tauri-apps/api/window"
+import { isTauri } from "@/lib/ipc"
 import { AnimatePresence, motion } from "motion/react"
 import { Sidebar, type Tab } from "@/components/Sidebar"
 import { Home } from "@/screens/Home"
@@ -34,6 +36,26 @@ export default function App() {
     setResultAt(at)
     go("result")
   }
+
+  // Drag from anywhere: the window moves from any non-interactive surface,
+  // so no title strip or edge grab is needed. Buttons, fields, dialogs and
+  // scrollbar gutters keep their own gestures.
+  useEffect(() => {
+    if (!isTauri()) return
+    const onDown = (e: MouseEvent) => {
+      if (e.button !== 0) return
+      const el = e.target as HTMLElement | null
+      if (!el) return
+      if (el.closest('button, a, input, textarea, select, [role="dialog"], [data-no-drag], [contenteditable="true"]')) return
+      // A press on a scrollbar must scroll, not move the window.
+      const r = el.getBoundingClientRect()
+      if (el.scrollHeight > el.clientHeight && e.clientX >= r.left + el.clientWidth - 18) return
+      if (el.scrollWidth > el.clientWidth && e.clientY >= r.top + el.clientHeight - 18) return
+      void getCurrentWindow().startDragging().catch(() => {})
+    }
+    window.addEventListener("mousedown", onDown)
+    return () => window.removeEventListener("mousedown", onDown)
+  }, [])
 
   // Back/forward and anything else that moves the hash keeps the shell in step.
   useEffect(() => {

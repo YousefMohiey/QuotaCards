@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react"
-import { api, type Card, type CmdResult, type UpdateInfo } from "@/lib/ipc"
+import { api, isTauri, type Card, type CmdResult, type UpdateInfo } from "@/lib/ipc"
 import { useI18n } from "@/lib/i18n"
 import { DEFAULT_SNI } from "@/lib/snis"
 
@@ -36,9 +36,12 @@ type Value = {
   tx: number
   sessionStart: number | null
   update: UpdateInfo | null
-  updateState: "idle" | "checking" | "latest" | "available" | "error"
+  updateState: "idle" | "checking" | "latest" | "available" | "installing" | "error"
   version: string
   refresh: () => Promise<void>
+  refreshing: boolean
+  hardRefresh: () => Promise<void>
+  updatePct: number | null
   generateCard: (name: string, kind: string, sni: string) => Promise<CmdResult>
   importCard: (uuid: string, name: string, kind: string, sni: string) => Promise<CmdResult>
   revokeCard: (uuid: string) => Promise<CmdResult>
@@ -95,7 +98,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [sessionStart, setSessionStart] = useState<number | null>(null)
   const [update, setUpdate] = useState<UpdateInfo | null>(null)
   const [updateState, setUpdateState] = useState<Value["updateState"]>("idle")
+  const [updatePct, setUpdatePct] = useState<number | null>(null)
   const [version, setVersion] = useState("")
+  const [refreshing, setRefreshing] = useState(false)
+  const refreshingRef = useRef(false)
   const busyRef = useRef(false)
   const vpnRef = useRef(false)
   // Guards the staged disconnect teardown below: any new connect run
@@ -166,6 +172,31 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const id = window.setTimeout(() => void checkUpdates(), 4000)
     return () => window.clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // The installer streams its progress as events; show the percentage and
+  // keep the button locked while it runs. Listener is best-effort so a
+  // refused permission can never kill the install path itself.
+  useEffect(() => {
+    if (!isTauri()) return
+    let dead = false
+    let un: (() => void) | undefined
+    void (async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event")
+        const u = await listen<{ pct: number | null }>("update-progress", (e) => {
+          if (!dead) setUpdatePct(e.payload?.pct ?? null)
+        })
+        if (dead) u()
+        else un = u
+      } catch {
+        /* the button lock still holds without live percentages */
+      }
+    })()
+    return () => {
+      dead = true
+      un?.()
+    }
   }, [])
 
   useEffect(() => {
@@ -411,12 +442,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const applyUpdate = useCallback(async () => {
+    // One press, one download: a second press while installing is ignored
+    // here and refused again in the backend.
+    if (updateState === "installing") return
+    setUpdateState("installing")
+    setUpdatePct(null)
     try {
       await api.applyUpdate()
     } catch (e) {
       setStatus(String(e))
+      setUpdateState("error")
     }
-  }, [])
+  }, [updateState])
 
   const loadApps = useCallback(async () => {
     try {
@@ -457,6 +494,34 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       /* the next action reports its own error */
     }
   }, [])
+
+  // The refresh button: pull state again, then re-sync the engine's own
+  // view so a session that started or died outside the app lands in one tap.
+  const hardRefresh = useCallback(async () => {
+    if (refreshingRef.current) return
+    refreshingRef.current = true
+    setRefreshing(true)
+    try {
+      await refresh()
+      const st = await api.status().catch(() => null)
+      if (st?.running) {
+        setVpnOn(true)
+        const probe = await api.probeTunnel().catch(() => null)
+        if (probe?.ok) setConnected(true)
+      } else if (vpnRef.current) {
+        setVpnOn(false)
+        setConnected(false)
+        setPhase("idle")
+      }
+    } finally {
+      // A beat of visible spin so the tap reads as an action even when
+      // every round trip came back instantly.
+      window.setTimeout(() => {
+        refreshingRef.current = false
+        setRefreshing(false)
+      }, 400)
+    }
+  }, [refresh])
 
   const generateCard = useCallback(
     async (name: string, kind: string, sni: string) => {
@@ -639,6 +704,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     updateState,
     version,
     refresh,
+    refreshing,
+    hardRefresh,
+    updatePct,
     generateCard,
     importCard,
     revokeCard,

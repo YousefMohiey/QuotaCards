@@ -15,10 +15,10 @@ carrier classifies it into the bucket the card is meant to spend.
 Two client apps, one server:
 
 - **Windows** (`desktop/`): Tauri 2 app. The UI is React (`desktop/ui-next`). The engine uses
-  sing-box + wintun to open a TUN adapter. Standard VLESS only.
+  sing-box + wintun to open a TUN adapter. Carries all three transports: Standard VLESS, plus
+  WireGuard (endpoint on UDP 53) and Hysteria2 (UDP 443) provisioned through the server helpers.
 - **Android** (`android/tauri-app/`): Tauri 2 app with a Kotlin `VpnService` and a Go tunnel
-  library (`libbox.aar`). Adds two extra transports the phone can use because it can open raw
-  sockets: WireGuard (endpoint on UDP 53) and Hysteria2 (UDP 443).
+  library (`libbox.aar`). Same three transports as the desktop.
 - **Server**: a small VPS serving Xray/VLESS, WireGuard and Hysteria2, provisioned and
   maintained over SSH by scripts in `embed/`.
 
@@ -266,8 +266,10 @@ that matter most:
   keep that behaviour.
 - There is **no kill switch** in the engine. The UI does not advertise one, and should not until
   a real firewall implementation exists.
-- Hysteria2 quota attribution is unsettled (see section 2), and the PC rejects WireGuard and
-  Hysteria2 on purpose (Standard carries the traffic), so do not "fix" that by enabling them.
+- Hysteria2 quota attribution is unsettled (see section 2). WireGuard from WE fixed lines is
+  DPI-blocked: the ISP drops its handshake packets in transit (plain packets of the same size
+  to the same ports arrive; handshakes never do), so a failing WireGuard connect from Egypt is
+  expected, not a bug. Hysteria2 works from there and is the Egypt-proof UDP transport.
 - The phone APK is sideloaded over LAN; keep it small.
 - The owner installs builds on another machine, so anything you build here must be a complete
   artifact (exe plus DLL, or installer, or signed APK), not just a build tree.
