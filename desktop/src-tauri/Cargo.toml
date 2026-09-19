@@ -41,3 +41,8 @@ windows = { version = "0.62", features = ["Win32_NetworkManagement_IpHelper", "W
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+# The bare exe is served as a test download and folded into the installer:
+# keep it lean (the default profile left ~17 MB of symbol table in it).
+strip = true
