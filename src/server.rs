@@ -242,6 +242,18 @@ fn clean_line(out: &str) -> Result<String, String> {
         .ok_or_else(need_upgrade)
 }
 
+/// The JSON object inside a command's output, whatever its shape: compact on
+/// one line, pretty-printed across lines, or followed by the agent's OK
+/// trailer. Taking "the first line" is what once cached a bare "{".
+fn clean_json(out: &str) -> Result<String, String> {
+    let start = out.find('{').ok_or_else(need_upgrade)?;
+    let end = out.rfind('}').ok_or_else(need_upgrade)?;
+    if end <= start {
+        return Err(need_upgrade());
+    }
+    Ok(out[start..=end].to_string())
+}
+
 /// Shared Hysteria2 password (one per server, no per-user step needed).
 pub async fn hy2_password(host: &str, port: u16, user: &str, key: &str) -> Result<String, String> {
     let out = net_cmd(host, port, user, key, "qc-hy2-pass", "sudo /usr/local/bin/qc-hy2-pass").await?;
@@ -251,11 +263,10 @@ pub async fn hy2_password(host: &str, port: u16, user: &str, key: &str) -> Resul
 /// AmneziaWG obfuscation parameters (one set per server, shared by all cards).
 pub async fn awg_params(host: &str, port: u16, user: &str, key: &str) -> Result<String, String> {
     let out = net_cmd(host, port, user, key, "qc-awg-params", "sudo /usr/local/bin/qc-awg-params").await?;
-    let line = clean_line(&out)?;
-    if !line.starts_with('{') {
-        return Err(need_upgrade());
-    }
-    Ok(line)
+    let j = clean_json(&out)?;
+    // Only a value that parses is worth carrying into the config.
+    serde_json::from_str::<serde_json::Value>(&j).map_err(|_| need_upgrade())?;
+    Ok(j)
 }
 
 /// WireGuard server public key (one per server).
@@ -306,4 +317,17 @@ pub async fn wg_del(host: &str, port: u16, user: &str, key: &str, uuidv: &str) {
         &format!("sudo /usr/local/bin/qc-wg-del {uuidv}"),
     )
     .await;
+}
+#[cfg(test)]
+mod awg_json_tests {
+    use super::*;
+
+    #[test]
+    fn extraction_survives_pretty_json_and_trailers() {
+        let pretty = "{\n  \"jc\": 4,\n  \"jmin\": 40\n}\nOK\n";
+        assert_eq!(clean_json(pretty).unwrap(), "{\n  \"jc\": 4,\n  \"jmin\": 40\n}");
+        let compact = "{\"jc\":4}\nOK\n";
+        assert_eq!(clean_json(compact).unwrap(), "{\"jc\":4}");
+        assert!(clean_json("no json here").is_err());
+    }
 }

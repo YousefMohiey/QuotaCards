@@ -455,8 +455,11 @@ async fn tunnel_start(
         };
     } else if t == "wg" {
         // The obfuscation parameters are shared by every card: fetch once.
+        // A cached copy is only worth keeping if it parses - an older server
+        // shipped the params pretty-printed and the first line alone is a
+        // bare "{", which is not JSON.
         let mut awg_json = app.state::<State>().0.lock().unwrap().awg_params.clone();
-        if awg_json.is_empty() {
+        if awg_json.is_empty() || serde_json::from_str::<serde_json::Value>(&awg_json).is_err() {
             match server::awg_params(&host, port, &user, &key).await {
                 Ok(p) => {
                     let state = app.state::<State>();
