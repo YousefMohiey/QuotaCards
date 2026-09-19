@@ -248,6 +248,16 @@ pub async fn hy2_password(host: &str, port: u16, user: &str, key: &str) -> Resul
     clean_line(&out)
 }
 
+/// AmneziaWG obfuscation parameters (one set per server, shared by all cards).
+pub async fn awg_params(host: &str, port: u16, user: &str, key: &str) -> Result<String, String> {
+    let out = net_cmd(host, port, user, key, "qc-awg-params", "sudo /usr/local/bin/qc-awg-params").await?;
+    let line = clean_line(&out)?;
+    if !line.starts_with('{') {
+        return Err(need_upgrade());
+    }
+    Ok(line)
+}
+
 /// WireGuard server public key (one per server).
 pub async fn wg_server_pub(host: &str, port: u16, user: &str, key: &str) -> Result<String, String> {
     let out = net_cmd(host, port, user, key, "qc-wg-pub", "sudo /usr/local/bin/qc-wg-pub").await?;

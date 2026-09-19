@@ -29,6 +29,9 @@ pub struct AppConfig {
     /// WireGuard server public key, fetched once from the server.
     #[serde(default)]
     pub wg_server_pub: String,
+    /// AmneziaWG obfuscation parameters (JSON), fetched once from the server.
+    #[serde(default)]
+    pub awg_params: String,
     /// Tunnel scope: "all" (whole PC) or "apps" (only tun_apps processes).
     #[serde(default)]
     pub tun_mode: String,

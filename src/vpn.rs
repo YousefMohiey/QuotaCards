@@ -14,7 +14,12 @@ const NO_WINDOW: u32 = 0x08000000;
 #[cfg(not(windows))]
 const NO_WINDOW: u32 = 0;
 
-const SINGBOX_TAG: &str = "v1.14.0";
+/// Engine: amnezia-box (sing-box + AmneziaWG obfuscated WireGuard), hosted as
+/// a release asset so every install pulls the same pinned build.
+const ENGINE_TAG: &str = "awg-1.14.1";
+const ENGINE_VER: &str = "1.14.1";
+const ENGINE_URL: &str =
+    "https://github.com/YousefMohiey/QuotaCards/releases/download/engine-awg-1141/engine-awg-1141.zip";
 const WINTUN_TAG: &str = "0.14.1";
 const WINTUN_URL: &str = "https://www.wintun.net/builds/wintun-0.14.1.zip";
 
@@ -184,21 +189,17 @@ pub fn ensure_engine() -> Result<String, String> {
     }
     let ver_file = dir.join("tun-version.txt");
     let cur = std::fs::read_to_string(&ver_file).unwrap_or_default();
-    let want = format!("sing-box {SINGBOX_TAG} + wintun {WINTUN_TAG}");
+    let want = format!("amnezia-box {ENGINE_TAG} + wintun {WINTUN_TAG}");
     if singbox_path().exists() && wintun_path().exists() && cur.trim() == want {
         return Ok("engine ready".to_string());
     }
-    // --- sing-box ---
-    let ver = SINGBOX_TAG.trim_start_matches('v');
-    let zip = dir.join("sing-box.zip");
-    let url = format!(
-        "https://github.com/SagerNet/sing-box/releases/download/{SINGBOX_TAG}/sing-box-{ver}-windows-amd64.zip"
-    );
+    // --- engine (amnezia-box: sing-box + AmneziaWG) ---
+    let zip = dir.join("engine.zip");
     let dl = run_hidden(
         "curl",
         &[
             "-L", "--max-time", "180", "-A", "QuotaVPN", "-o",
-            &zip.to_string_lossy(), &url,
+            &zip.to_string_lossy(), ENGINE_URL,
         ],
     )
     .map(|o| o.status.success())
@@ -213,7 +214,7 @@ pub fn ensure_engine() -> Result<String, String> {
     )
     .map_err(|e| format!("extract: {e}"))?;
     let _ = std::fs::remove_file(&zip);
-    let inner = dir.join(format!("sing-box-{ver}-windows-amd64"));
+    let inner = dir.join(format!("sing-box-{ENGINE_VER}-windows-amd64"));
     if singbox_path().exists() {
         let _ = std::fs::remove_file(singbox_path());
     }
@@ -249,7 +250,7 @@ pub fn ensure_engine() -> Result<String, String> {
     let _ = std::fs::remove_dir_all(dir.join("wintun"));
     if singbox_path().exists() && wintun_path().exists() {
         let _ = std::fs::write(&ver_file, &want);
-        Ok(format!("engine {SINGBOX_TAG} ready"))
+        Ok(format!("engine {ENGINE_TAG} ready"))
     } else {
         Err("engine missing after extract".to_string())
     }
@@ -317,7 +318,7 @@ pub fn write_tun_config(
     voice: bool,
     transport: &str,
     hy2_pass: &str,
-    wg: Option<(&str, &str, &str)>,
+    wg: Option<(&str, &str, &str, &str)>,
 ) -> Result<PathBuf, String> {
     let mut excludes = resolve_server_ips(host)?;
     for ip in [PROXY_DOH_IP, DIRECT_DNS] {
@@ -493,14 +494,31 @@ pub fn write_tun_config(
             serde_json::json!([]),
         ),
         "wg" => {
-            let (priv_key, wg_addr, srv_pub) = wg.unwrap_or(("", "", ""));
+            let (priv_key, wg_addr, srv_pub, awg_json) = wg.unwrap_or(("", "", "", ""));
+            let p: serde_json::Value = serde_json::from_str(awg_json)
+                .map_err(|e| format!("awg params: {e}"))?;
+            for k in ["jc", "jmin", "jmax", "s1", "s2", "h1", "h2", "h3", "h4"] {
+                if p.get(k).is_none() {
+                    return Err(format!("awg params missing {k}"));
+                }
+            }
+            let h = |k: &str| p[k].as_str().map(str::to_string).unwrap_or_else(|| p[k].to_string());
             (
                 serde_json::json!([{"type": "direct", "tag": "direct"}]),
                 serde_json::json!([{
-                    "type": "wireguard",
+                    "type": "awg",
                     "tag": "proxy",
                     "address": [wg_addr],
                     "private_key": priv_key,
+                    "jc": p["jc"],
+                    "jmin": p["jmin"],
+                    "jmax": p["jmax"],
+                    "s1": p["s1"],
+                    "s2": p["s2"],
+                    "h1": h("h1"),
+                    "h2": h("h2"),
+                    "h3": h("h3"),
+                    "h4": h("h4"),
                     "peers": [{
                         "address": server_v4,
                         "port": 53,
@@ -1160,13 +1178,15 @@ mod tests {
                 "Ji355SrChcN8xhmBAWfjUlx8V1/lNmL/ItImPY7B/tA=",
                 "10.8.0.8/32",
                 "NybbwmymQWVk3lKfz46jqj/Cqzxbv7ToDk3jP0A5yv4=",
+                "{\"jc\":4,\"jmin\":40,\"jmax\":70,\"s1\":15,\"s2\":68,\"h1\":\"2310286408\",\"h2\":\"311773765\",\"h3\":\"3400017965\",\"h4\":\"400567291\"}",
             )),
         )
         .expect("config");
         check_config().expect("wg config must pass the engine's own decoder");
         let v: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&p).expect("read")).expect("json");
-        assert_eq!(v["endpoints"][0]["type"], "wireguard");
+        assert_eq!(v["endpoints"][0]["type"], "awg");
+        assert_eq!(v["endpoints"][0]["jc"], 4);
         assert_eq!(v["endpoints"][0]["tag"], "proxy");
         assert!(v["outbounds"]
             .as_array()

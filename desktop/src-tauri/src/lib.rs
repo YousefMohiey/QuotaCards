@@ -431,7 +431,7 @@ async fn tunnel_start(
     // Provision whatever the transport needs, cached after first use: the
     // shared Hysteria2 password, or this card's WireGuard keypair + address.
     let mut hy2_pass = String::new();
-    let mut wg_tuple: Option<(String, String, String)> = None;
+    let mut wg_tuple: Option<(String, String, String, String)> = None;
     if t == "hy2" {
         let cached = app.state::<State>().0.lock().unwrap().hy2_password.clone();
         hy2_pass = if cached.is_empty() {
@@ -454,6 +454,25 @@ async fn tunnel_start(
             cached
         };
     } else if t == "wg" {
+        // The obfuscation parameters are shared by every card: fetch once.
+        let mut awg_json = app.state::<State>().0.lock().unwrap().awg_params.clone();
+        if awg_json.is_empty() {
+            match server::awg_params(&host, port, &user, &key).await {
+                Ok(p) => {
+                    let state = app.state::<State>();
+                    let mut st = state.0.lock().unwrap();
+                    st.awg_params = p.clone();
+                    st.save();
+                    awg_json = p;
+                }
+                Err(e) => {
+                    return Ok(CmdResult {
+                        ok: false,
+                        msg: format!("Could not set up WireGuard: {e}"),
+                    })
+                }
+            }
+        }
         if card.wg_private.is_empty() || card.wg_addr.is_empty() {
             let creds = match server::wg_add(&host, port, &user, &key, &card.uuid).await {
                 Ok(c) => c,
@@ -472,7 +491,7 @@ async fn tunnel_start(
             }
             st.wg_server_pub = creds.server_pub.clone();
             st.save();
-            wg_tuple = Some((creds.private_key, creds.address, creds.server_pub));
+            wg_tuple = Some((creds.private_key, creds.address, creds.server_pub, awg_json.clone()));
         } else {
             let mut srvpub = app.state::<State>().0.lock().unwrap().wg_server_pub.clone();
             if srvpub.is_empty() {
@@ -492,7 +511,7 @@ async fn tunnel_start(
                     }
                 }
             }
-            wg_tuple = Some((card.wg_private.clone(), card.wg_addr.clone(), srvpub));
+            wg_tuple = Some((card.wg_private.clone(), card.wg_addr.clone(), srvpub, awg_json.clone()));
         }
     }
     if !vpn::is_elevated() {
@@ -505,7 +524,7 @@ async fn tunnel_start(
     let mode = apps_mode.unwrap_or_default();
     let list = apps.unwrap_or_default();
     vpn::ensure_engine().map_err(|e| e)?;
-    let wg_ref = wg_tuple.as_ref().map(|(p, a, s)| (p.as_str(), a.as_str(), s.as_str()));
+    let wg_ref = wg_tuple.as_ref().map(|(p, a, s, j)| (p.as_str(), a.as_str(), s.as_str(), j.as_str()));
     vpn::write_tun_config(&card.uuid, &host, &card.sni, &mode, &list, voice_on, t, &hy2_pass, wg_ref)
         .map_err(|e| e)?;
     vpn::check_config().map_err(|e| e)?;
