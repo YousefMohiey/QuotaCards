@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react"
+import { useMemo } from "react"
 
 const BARS = 48
 
 /**
- * The run's own shape: one thin bar per sample, growing as the test goes.
+ * The run's own shape: one thin bar per sample, filling from the LEFT as
+ * the run goes (newest sample at the right end once the field is full).
  * Idle it is a flat row of dashes; during a run it is alive; when the run
  * ends it stays put as the fingerprint of that connection.
  */
@@ -16,21 +17,15 @@ export function SpeedBars({
   accent: string
   active: boolean
 }) {
-  const [view, setView] = useState<number[]>(() => new Array(BARS).fill(0))
-  const raf = useRef(0)
-
-  useEffect(() => {
-    // One paint per frame at most: a burst of samples must not queue renders.
-    cancelAnimationFrame(raf.current)
-    raf.current = requestAnimationFrame(() => {
-      setView((prev) => {
-        const next = [...prev, ...samples.slice(-BARS)]
-        return next.slice(-BARS)
-      })
-    })
-    return () => cancelAnimationFrame(raf.current)
+  // Newest at the right, empty slots padded on the right so the first
+  // seconds fill left-to-right like a scale, never from the right edge.
+  const view = useMemo(() => {
+    const tail = samples.slice(-BARS)
+    return tail.length >= BARS ? tail : [...tail, ...new Array(BARS - tail.length).fill(0)]
   }, [samples])
 
+  // One paint per frame at most is handled by the sample throttle upstream;
+  // deriving straight from the prop keeps every bar in step with the readout.
   const max = Math.max(1, ...view)
   const any = view.some((v) => v > 0)
   const height = view.map((v) => (v === 0 ? "2px" : `${Math.max(8, (v / max) * 100)}%`))

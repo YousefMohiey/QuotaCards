@@ -603,8 +603,16 @@ async fn tunnel_stop(engine: tauri::State<'_, Engine>) -> Result<CmdResult, Stri
 async fn tunnel_status(engine: tauri::State<'_, Engine>) -> Result<TunnelState, String> {
     let pid = engine.0.lock().unwrap().clone();
     match pid {
-        Some(p) if pid_alive(p) && vpn::tun_routes_present() => {
-            Ok(TunnelState { running: true, error: String::new() })
+        Some(p) if pid_alive(p) => {
+            // The process is what the state owns: keep it while it lives,
+            // even before its routes land (a cold adapter can lag). Clearing
+            // it here stranded a live engine that the UI could no longer
+            // stop. Only a dead process clears the state and speaks.
+            if vpn::tun_routes_present() {
+                Ok(TunnelState { running: true, error: String::new() })
+            } else {
+                Ok(TunnelState { running: false, error: String::new() })
+            }
         }
         Some(_) => {
             *engine.0.lock().unwrap() = None;

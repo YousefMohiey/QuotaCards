@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ChevronDown, ChevronRight, Gamepad2, RefreshCw, Tv } from "lucide-react"
+import { ChevronDown, ChevronRight, Gamepad2, Tv } from "lucide-react"
 import { Hero } from "@/components/Hero"
 import { PickerDialog, type PickerItem } from "@/components/PickerDialog"
 import { Panel, Row } from "@/components/Row"
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils"
 
 export function Home({ onOpenApps }: { onOpenApps: () => void }) {
   const { t } = useI18n()
-  const { cards, card, pickCard, preset, setPreset, ensurePresetCard, applyDomain, transport, setTransport, appsMode, apps, hardRefresh, refreshing } = useApp()
+  const { cards, card, pickCard, preset, setPreset, ensurePresetCard, applyDomain, transport, setTransport, appsMode, apps } = useApp()
   // Domain control: the everyday choice lives here, not in the card list.
   const [domainOpen, setDomainOpen] = useState(false)
   const [customOpen, setCustomOpen] = useState(false)
@@ -55,20 +55,6 @@ export function Home({ onOpenApps }: { onOpenApps: () => void }) {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* page actions: a manual refresh for everything the panels show */}
-      <div className="flex items-center justify-end">
-        <button
-          type="button"
-          onClick={() => void hardRefresh()}
-          disabled={refreshing}
-          aria-label={t("refresh")}
-          title={t("refresh")}
-          className="grid size-10 place-items-center rounded-[12px] border border-line bg-white/[0.02] text-txt2 transition-colors duration-200 hover:border-[var(--brand-line)] hover:bg-[var(--brand-bg)] hover:text-brand-strong disabled:cursor-wait"
-        >
-          <RefreshCw className={cn("size-4", refreshing && "animate-spin")} aria-hidden />
-        </button>
-      </div>
-
       <Hero />
 
       {/* one instrument panel: preset pair on top, then the card, routing

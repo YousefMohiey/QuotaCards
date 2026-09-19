@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { ChevronRight, Gamepad2, History, Play, Square, Tv, Video } from "lucide-react"
+import { ChevronRight, Gamepad2, History, Play, RefreshCw, Square, Tv, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SpeedBars } from "@/components/SpeedBars"
 import { useApp } from "@/state/app"
@@ -123,7 +123,7 @@ export function saveHistory(runs: Run[]) {
 
 export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
   const { t } = useI18n()
-  const { card } = useApp()
+  const { card, hardRefresh, refreshing } = useApp()
 
   const [phase, setPhase] = useState<Phase>("idle")
   const [caption, setCaption] = useState(() => t("idle"))
@@ -218,9 +218,9 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
 
   useEffect(() => () => abort.current?.abort(), [])
 
-  const push = (v: number) => {
+  const push = (v: number, force = false) => {
     const now = performance.now()
-    if (now - gate.current < 90) return
+    if (!force && now - gate.current < 90) return
     gate.current = now
     setValue(v)
     setSamples((prev) => [...prev.slice(-(BARS_MEMORY - 1)), v])
@@ -241,7 +241,7 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
         const ping = Math.min(...ms)
         const jitter = meanAbsDelta(ms)
         setResult((prev) => ({ ...prev, ping, jitter }))
-        push(ping)
+        push(ping, true)
         setValue(ping)
         return { ping, jitter }
       }
@@ -307,6 +307,7 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
       }
       if (mbps === null) throw new Error(reason || "no throughput")
       setResult((prev) => (direction === "down" ? { ...prev, down: mbps } : { ...prev, up: mbps }))
+      push(mbps, true)
       setValue(mbps)
       return mbps
     } catch (e) {
@@ -526,6 +527,28 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
     setHint(t("stopped"))
   }
 
+  // Pull everything this page shows again: the app state (so the card
+  // domains are current), the server pool and the exit address.
+  const refreshAll = async () => {
+    const ctl = new AbortController()
+    setPicking(true)
+    try {
+      await hardRefresh()
+      const pool = await loadPool(ctl.signal)
+      if (ctl.signal.aborted) return
+      setPool(pool)
+      const best = await pickFastest(pool, ctl.signal)
+      if (!ctl.signal.aborted) setPicked(best)
+    } catch {
+      /* keep the current list */
+    } finally {
+      setPicking(false)
+    }
+    void resolveNetInfo(ctl.signal).then((info) => {
+      if (info && !ctl.signal.aborted) setNetInfo(info)
+    })
+  }
+
   const measured = result.ping !== null || result.down !== null || result.up !== null
   const verdicts = buildVerdicts(result, t)
   const peak = samples.length ? Math.max(...samples) : 0
@@ -533,11 +556,23 @@ export function Speed({ onOpenHistory }: { onOpenHistory: () => void }) {
   return (
     <div className="mx-auto flex w-full max-w-[640px] flex-col gap-3">
       <section className="glass rounded-[24px] px-5 pb-3 pt-3">
-        <div className="min-w-0">
-          <div className="truncate text-[13px] font-semibold text-txt">{t("tabSpeed")}</div>
-          <div className="mt-0.5 truncate text-[11.5px] text-txt3" dir="auto">
-            <bdi>{card?.name.split(" (")[0] ?? "-"}</bdi> · <bdi>{kind === "Streamerz" ? t("kindStreamerz") : t("kindGamerz")}</bdi>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-[13px] font-semibold text-txt">{t("tabSpeed")}</div>
+            <div className="mt-0.5 truncate text-[11.5px] text-txt3" dir="auto">
+              <bdi>{card?.name.split(" (")[0] ?? "-"}</bdi> · <bdi>{kind === "Streamerz" ? t("kindStreamerz") : t("kindGamerz")}</bdi>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => void refreshAll()}
+            disabled={refreshing}
+            aria-label={t("refresh")}
+            title={t("refresh")}
+            className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-line bg-white/[0.02] text-txt2 transition-colors duration-200 hover:border-[var(--brand-line)] hover:bg-[var(--brand-bg)] hover:text-brand-strong disabled:cursor-wait"
+          >
+            <RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} aria-hidden />
+          </button>
         </div>
 
         {/* Both ends of the test, stated the way a speed test states them:

@@ -301,11 +301,25 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         /* file:// */
       }
       const r = await api.start(uuid, mode, apps, transport, voiceOn)
-      setStatus(r.msg)
       if (!r.ok) {
+        // The engine can be alive but not routing yet ("still starting"): the
+        // tunnel usually comes up a moment later, so enter the connected
+        // state anyway - the poll adopts it and the dial can always stop it.
+        // Without this the UI sat on "Connect" over a live tunnel, and every
+        // press re-connected instead of disconnecting.
+        if (r.msg.toLowerCase().includes("still starting")) {
+          setVpnOn(true)
+          setPhase("on")
+          setStatus("")
+          return
+        }
+        setStatus(r.msg)
         setPhase("idle")
         return
       }
+      // Success speaks through the dial and the panel only; a failed probe
+      // below is the one message allowed to appear under it.
+      setStatus("")
       setVpnOn(true)
       setSessionStart(Date.now())
       setRx(0)
@@ -429,6 +443,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     if (busyRef.current) return
     void (vpnRef.current ? disconnect() : connect())
   }, [connect, disconnect])
+
 
   const checkUpdates = useCallback(async () => {
     setUpdateState("checking")

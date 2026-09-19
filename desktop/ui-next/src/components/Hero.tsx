@@ -104,9 +104,11 @@ export function Hero() {
         >
           <motion.div layout transition={SPRING} className="flex shrink-0 flex-col items-center text-center">
             <Dial state={state} onClick={toggle} disabled={busy} />
-            <div className="mt-3 max-w-[190px] truncate text-center text-[12.5px] text-txt2" dir="auto">{name}</div>
+            {!connected && (
+              <div className="mt-3 max-w-[190px] truncate text-center text-[12.5px] text-txt2" dir="auto">{name}</div>
+            )}
             {status ? (
-              <div className="mt-2 max-w-[280px] text-center text-[11.5px] leading-snug text-txt3">
+              <div className={cn("max-w-[280px] text-center text-[11.5px] leading-snug text-txt3", connected ? "mt-3" : "mt-2")}>
                 {status}
               </div>
             ) : null}
