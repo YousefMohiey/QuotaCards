@@ -1,34 +1,61 @@
-; QuotaCards NSIS installer hooks (bundle.windows.nsis.installerHooks).
+; QuotaVPN NSIS installer hooks (bundle.windows.nsis.installerHooks).
 ;
-; Windows caches shell icons by file path, so an update that replaces the app
-; exe in place can keep showing the previous icon in Explorer, the taskbar
-; and the Start menu until the icon cache is rebuilt. That repair used to be
-; a manual script the user had to find and run. The installer now does it on
-; every install and every in-app update, so nobody ever sees a stale icon.
+; Two jobs:
 ;
-; Order mirrors the proven manual recipe: clear the on-disk cache first,
-; schedule whatever Explorer holds open for deletion at the next reboot,
-; then tell the shell to drop its in-memory icons and re-read what is there.
+; 1) Shortcut hygiene. The app used to be called QuotaCards, and an update
+;    skips the template's shortcut creation ($UpdateMode), so old-name
+;    shortcuts could survive forever. Old installs may also have used the
+;    per-machine layout, which puts shortcuts in the shared (Public) desktop
+;    and the shared start menu, where the per-user cleanup never looked.
+;    On every install and update: remove every legacy shortcut name from
+;    every location Windows can show, then make sure exactly one current
+;    shortcut named "Quota" exists.
+;
+; 2) Shell icon cache refresh, so nobody sees a stale icon after an update.
+;    That repair used to be a manual script the user had to find and run;
+;    the installer now does it on every install and every in-app update.
+
+!macro QCVPN_PURGE_LEGACY_SHORTCUTS
+  ; Shared locations first (per-machine era). A per-user installer may not
+  ; have rights here; the reboot fallback covers that without failing.
+  SetShellVarContext all
+  Delete /REBOOTOK "$DESKTOP\QuotaCards.lnk"
+  Delete /REBOOTOK "$DESKTOP\QuotaVPN.lnk"
+  Delete /REBOOTOK "$SMPROGRAMS\QuotaCards.lnk"
+  Delete /REBOOTOK "$SMPROGRAMS\QuotaVPN.lnk"
+  RMDir /r "$SMPROGRAMS\QuotaCards"
+  RMDir /r "$SMPROGRAMS\QuotaVPN"
+  SetShellVarContext current
+
+  ; Per-user locations. The extra profile paths cover a desktop that was
+  ; moved by OneDrive redirection after the old shortcut was created.
+  Delete "$DESKTOP\QuotaCards.lnk"
+  Delete "$DESKTOP\QuotaVPN.lnk"
+  Delete "$PROFILE\Desktop\QuotaCards.lnk"
+  Delete "$PROFILE\Desktop\QuotaVPN.lnk"
+  Delete "$PROFILE\OneDrive\Desktop\QuotaCards.lnk"
+  Delete "$PROFILE\OneDrive\Desktop\QuotaVPN.lnk"
+  Delete "$SMPROGRAMS\QuotaCards.lnk"
+  Delete "$SMPROGRAMS\QuotaVPN.lnk"
+  RMDir /r "$SMPROGRAMS\QuotaCards"
+  RMDir /r "$SMPROGRAMS\QuotaVPN"
+!macroend
 
 !macro NSIS_HOOK_POSTINSTALL
-  ; --- Shortcut hygiene: the app used to be called QuotaCards, and an update
-  ; skips shortcut creation ($UpdateMode), so old desktops kept the old-name
-  ; shortcut forever. Drop it and make sure a current one exists.
-  IfFileExists "$DESKTOP\QuotaCards.lnk" 0 qc_desktop_new
-    Delete "$DESKTOP\QuotaCards.lnk"
-    DetailPrint "Removed the old QuotaCards desktop shortcut"
-  qc_desktop_new:
-  IfFileExists "$DESKTOP\${PRODUCTNAME}.lnk" qc_desktop_done 0
-    CreateShortcut "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-    !insertmacro SetLnkAppUserModelId "$DESKTOP\${PRODUCTNAME}.lnk"
-    DetailPrint "Desktop shortcut updated"
-  qc_desktop_done:
-  IfFileExists "$SMPROGRAMS\QuotaCards.lnk" 0 qc_sm_new
-    Delete "$SMPROGRAMS\QuotaCards.lnk"
-  qc_sm_new:
-  IfFileExists "$SMPROGRAMS\QuotaCards\*.*" 0 qc_sm_done
-    RMDir /r "$SMPROGRAMS\QuotaCards"
-  qc_sm_done:
+  !insertmacro QCVPN_PURGE_LEGACY_SHORTCUTS
+
+  ; The template just created "$DESKTOP\${PRODUCTNAME}.lnk" (QuotaVPN) on
+  ; fresh installs. Replace it with the short name.
+  Delete "$DESKTOP\QuotaVPN.lnk"
+  Delete "$SMPROGRAMS\QuotaVPN.lnk"
+
+  ; Always (re)create the current shortcut, so fresh installs, updates,
+  ; renames and moved desktops all end with one working shortcut.
+  CreateShortcut "$DESKTOP\Quota.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  !insertmacro SetLnkAppUserModelId "$DESKTOP\Quota.lnk"
+  CreateShortcut "$SMPROGRAMS\Quota.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\Quota.lnk"
+  DetailPrint "Shortcut set to Quota"
 
   DetailPrint "Refreshing the shell icon cache"
   nsExec::ExecToLog 'cmd /c del /f /q "%LOCALAPPDATA%\IconCache.db" 2>nul & del /f /q "%LOCALAPPDATA%\Microsoft\Windows\Explorer\iconcache_*.db" 2>nul'
@@ -42,6 +69,18 @@
   FindClose $0
   nsExec::ExecToLog '"$SYSDIR\ie4uinit.exe" -ClearIconCache'
   nsExec::ExecToLog '"$SYSDIR\ie4uinit.exe" -show'
+!macroend
+
+!macro NSIS_HOOK_PREUNINSTALL
+  ; The template removes "$DESKTOP\${PRODUCTNAME}.lnk" itself, but the
+  ; shortcut is named Quota now, so clean those here. Restore the shell
+  ; var context at the end so the rest of the uninstaller is unaffected.
+  Delete "$DESKTOP\Quota.lnk"
+  Delete "$SMPROGRAMS\Quota.lnk"
+  SetShellVarContext all
+  Delete /REBOOTOK "$DESKTOP\Quota.lnk"
+  Delete /REBOOTOK "$SMPROGRAMS\Quota.lnk"
+  SetShellVarContext current
 !macroend
 
 !macro NSIS_HOOK_POSTUNINSTALL
