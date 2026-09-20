@@ -323,4 +323,6 @@ that matter most:
 - Next release shape when asked: bump the four version files, `npm run build` in `ui-next`,
   build installer plus APK (the NSIS build script includes the checkbox patch + re-sign step),
   write `C:/Tools/qc-relnotes-<vvv>.md`, then `python C:/Tools/qc-tools/publish.py <ver>` and
-  verify the live feed.
+  verify the live feed. publish.py takes the feed's build stamp from the shipped app exe (the
+  exact value the app compares against), so a commit landing after the build cannot strand
+  users on a same-version update loop.

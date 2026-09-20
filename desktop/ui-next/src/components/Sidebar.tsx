@@ -12,8 +12,8 @@ const EASE_OUT = [0.1, 0.9, 0.2, 1] as const
 
 const PRIMARY: Array<{ id: Tab; icon: ComponentType<{ className?: string; strokeWidth?: number; "aria-hidden"?: boolean }>; key: StrKey }> = [
   { id: "home", icon: Home, key: "tabHome" },
-  { id: "speed", icon: Gauge, key: "tabSpeed" },
   { id: "voice", icon: ValorantMark, key: "tabVoice" },
+  { id: "speed", icon: Gauge, key: "tabSpeed" },
   { id: "history", icon: HistoryIcon, key: "history" },
 ]
 
