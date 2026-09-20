@@ -81,7 +81,9 @@ frozen, so measure geometry numerically rather than trusting a screenshot.
 
 ## Current state
 
-v0.3.1 is the latest release (installer, APK, `latest.json`): AmneziaWG WireGuard, the
-disconnect fix, live speed-test updates, the smaller stripped binary, and installer shortcut
-hygiene. Windows UI is the React app in `desktop/ui-next`; the phone still runs the vanilla UI.
-`docs/STATUS.md` has the details.
+v0.3.2 is the latest release (installer, APK, `latest.json`): the installer now leaves exactly
+one desktop shortcut, named QuotaVPN, removing the QuotaCards and Quota leftovers everywhere
+(user and shared desktops, both start menus) on install and update, and the finish page no
+longer asks about creating a shortcut. The app is unchanged from 0.3.1 (AmneziaWG WireGuard,
+disconnect fix, live speed test, stripped binary). Windows UI is the React app in
+`desktop/ui-next`; the phone still runs the vanilla UI. `docs/STATUS.md` has the details.

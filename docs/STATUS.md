@@ -1,6 +1,6 @@
 # Status (Sept 2026)
 
-Maintained state of record: `docs/HANDOFF.md` (v0.3.1, Sept 20 2026). This page is a
+Maintained state of record: `docs/HANDOFF.md` (v0.3.2, Sept 21 2026). This page is a
 historical snapshot; where it disagrees with HANDOFF.md, HANDOFF.md wins.
 
 ## Works

@@ -306,16 +306,21 @@ that matter most:
 
 ## 11. Current state (as of this handoff)
 
-- Latest release: **v0.3.1** (installer, APK, feed), published and live.
-- v0.3.1 carries: the AmneziaWG WireGuard transport (obfuscated, Egypt-proof, with a
-  self-healing cached parameter fetch), the disconnect fix (a live engine is never dropped from
-  the app's state, and a slow-rising connect still lands in a disconnectable state), live
-  speed-test updates, drag from any empty spot inside the window, the refresh control on the
-  Speed page, the smaller stripped binary, and installer shortcut hygiene (old QuotaCards
-  desktop and start-menu shortcuts are removed and the QuotaVPN one is refreshed on every
-  install and in-app update).
+- Latest release: **v0.3.2** (installer, APK, feed), published and live.
+- v0.3.2 carries the installer shortcut cleanup: exactly one desktop shortcut, named QuotaVPN,
+  with the legacy QuotaCards and Quota names removed from the user and shared desktops and both
+  start menus on every install and in-app update, and the finish page no longer offering its
+  own create-desktop-shortcut checkbox. The checkbox defines are stripped from the generated
+  NSIS script by `C:/Tools/qc-tools/qc-nsi-patch-sign.py`, which re-runs makensis and re-signs;
+  the release build script (see `C:/Tools/qc-tools/build-032.sh`) calls it after the bundler
+  build. The app itself is unchanged from 0.3.1: the AmneziaWG WireGuard transport (obfuscated,
+  Egypt-proof, with a self-healing cached parameter fetch), the disconnect fix (a live engine is
+  never dropped from the app's state, and a slow-rising connect still lands in a disconnectable
+  state), live speed-test updates, drag from any empty spot inside the window, the refresh
+  control on the Speed page, and the smaller stripped binary.
 - The desktop UI runs the React app; the phone still runs its vanilla UI, and its WireGuard is
   dead against the AWG server (rebuilding libbox from the fork is the fix if that ever matters).
 - Next release shape when asked: bump the four version files, `npm run build` in `ui-next`,
-  build installer plus APK, write `C:/Tools/qc-relnotes-<vvv>.md`, then
-  `python C:/Tools/qc-tools/publish.py <ver>` and verify the live feed.
+  build installer plus APK (the NSIS build script includes the checkbox patch + re-sign step),
+  write `C:/Tools/qc-relnotes-<vvv>.md`, then `python C:/Tools/qc-tools/publish.py <ver>` and
+  verify the live feed.
