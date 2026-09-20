@@ -1,19 +1,27 @@
 # Status (Sept 2026)
 
+Maintained state of record: `docs/HANDOFF.md` (v0.3.1, Sept 20 2026). This page is a
+historical snapshot; where it disagrees with HANDOFF.md, HANDOFF.md wins.
+
 ## Works
 
 - Standard mode connects; traffic counts from gamerz/streamerz quota
   (randomized handshake + SNI stamp, verified by packet capture: SNI on
   the wire, WE app bucket moves).
-- Game (Hysteria2) and WireGuard (endpoint, UDP/53) connect with working
-  traffic; both count from general quota (ISP reads SNI off TCP only).
+- Game (Hysteria2) connects with working traffic; the PC's WireGuard is
+  AmneziaWG (obfuscated) since WE's DPI drops plain handshakes - it connects
+  and carries traffic from Egypt. Both count from general quota (ISP reads
+  SNI off TCP only). The phone's WireGuard cannot speak AWG yet (stock
+  libbox).
 - Cards generate / copy / revoke; same `vless://` links import into
   NekoBox/v2rayNG and count correctly there.
 - Cards self-heal: connect re-registers any local card missing on the
   server (`qc-list` + idempotent add).
 - Per-app VPN (all / only-these / all-but-these), quick-settings tile,
   kill-switch path via system Always-on VPN (+ Block connections).
-- In-app speed test (Cloudflare endpoints, measures the live path).
+- Speed test runs the official Ookla CLI on full runs (live graph, results
+  as they are measured), with the built-in measurer for single tiles and
+  fallback.
 - Windows ships as an NSIS installer; closing the window hides to the
   tray (Show / Check for updates / Quit), and updates install from
   GitHub by themselves (signed feed, auto-restart).
