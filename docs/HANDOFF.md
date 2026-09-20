@@ -15,8 +15,10 @@ carrier classifies it into the bucket the card is meant to spend.
 Two client apps, one server:
 
 - **Windows** (`desktop/`): Tauri 2 app. The UI is React (`desktop/ui-next`). The engine uses
-  sing-box + wintun to open a TUN adapter. Carries all three transports: Standard VLESS, plus
-  WireGuard (endpoint on UDP 53) and Hysteria2 (UDP 443) provisioned through the server helpers.
+  sing-box + wintun to open a TUN adapter, and it is a FORK (amnezia-box, `engine-awg-1141`)
+  because upstream sing-box refuses AmneziaWG. Carries all three transports: Standard VLESS,
+  WireGuard (AmneziaWG obfuscated endpoint on UDP 53, which is what makes it work from Egypt)
+  and Hysteria2 (UDP 443), provisioned through the server helpers.
 - **Android** (`android/tauri-app/`): Tauri 2 app with a Kotlin `VpnService` and a Go tunnel
   library (`libbox.aar`). Same three transports as the desktop.
 - **Server**: a small VPS serving Xray/VLESS, WireGuard and Hysteria2, provisioned and
@@ -69,16 +71,18 @@ The publish scripts write the field automatically, so nothing is set by hand.
 The rerun trigger covers both `.git/HEAD` and `.git/refs/heads`: a commit only advances the
 branch ref, so a build script that watched HEAD alone kept the previous commit's `QC_BUILD`.
 After any release build, confirm the short hash appears in
-`desktop/src-tauri/target/x86_64-pc-windows-gnu/release/quotacards.exe` (raw search; the
+`desktop/src-tauri/target/x86_64-pc-windows-gnu/release/QuotaVPN.exe` (raw search; the
 `setup.exe` is compressed and shows nothing); touch `desktop/src-tauri/build.rs` to force a
 re-read in a dirty tree. A stale stamp makes every install re-offer the same release forever.
 
-**Speed test.** Client-side, modelled on LibreSpeed: timed tiny requests for latency and
-jitter, a rolling-window download that adapts chunk size, and a streamed upload. Endpoints are
-on the owner's server (`/speed/down`, `/speed/up`) plus public ping targets (Cloudflare 1.1.1.1,
-Google DNS, Quad9, OpenDNS). The download side measures over a ~1.5s window; the upload side
-uses the same rolling window because per-event deltas caught a single TCP burst and read 2 to
-4 times high.
+**Speed test.** A full run goes through the official Ookla CLI (`src/ookla.rs` fetches it once
+into `%APPDATA%/quotacards/bin`; the binary is never bundled). Its progress lines stream live
+ticks for the graph; its `Idle Latency` line streams ping+jitter the moment it is measured; each
+phase's final value streams the moment that phase ends (`speed-result`). The phase callback
+fires ONCE per change, never per progress line (announcing it per line reset the UI's graph ten
+times a second and the run looked dead next to the moving number). Single-tile reruns and the
+fallback use the built-in measurer (`src/speed.rs`, LibreSpeed-shaped) against the owner's
+server (`/speed/down`, `/speed/up`) plus public ping targets.
 
 ## 4. Code map
 
@@ -111,6 +115,11 @@ uses the same rolling window because per-event deltas caught a single TCP burst 
 - `desktop/ui/`: the old vanilla UI. Kept only as a reference for behaviours the owner liked.
   It is not shipped.
 - `desktop/src-tauri/tauri.conf.json`: `frontendDist` points at `../ui-next/dist`.
+- Native helpers beside `lib.rs`: `src/ookla.rs` (fetch, run and parse the official CLI, with
+  the phase-once emitter and streamed partial results), `src/speed.rs` (built-in measurer),
+  `build.rs` (QC_BUILD stamp, admin manifest for bins, plus an asInvoker test manifest) and
+  `capabilities/default.json` (event listeners plus `core:window:allow-start-dragging`; a missing
+  permission makes the matching webview call silently do nothing).
 
 ### Android
 
@@ -188,6 +197,11 @@ node ../android/tauri-cli-npm/node_modules/@tauri-apps/cli/tauri.js build \
 
 with `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` exported, and NSIS on
 PATH. Produces `bundle/nsis/QuotaVPN_<version>_x64-setup.exe` plus its `.sig`.
+Run `npm run build` in `desktop/ui-next` first: `beforeBuildCommand` is empty, so this command
+embeds whatever `ui-next/dist` currently holds. The desktop package carries
+`[profile.release] strip = true`; without it the bare exe shipped with ~17 MB of symbol table
+(48 MB vs about 31 MB, and the installer shrinks with it). Changing the profile forces one full
+dependency rebuild.
 
 **Phone**
 
@@ -266,10 +280,16 @@ that matter most:
   keep that behaviour.
 - There is **no kill switch** in the engine. The UI does not advertise one, and should not until
   a real firewall implementation exists.
-- Hysteria2 quota attribution is unsettled (see section 2). WireGuard from WE fixed lines is
-  DPI-blocked: the ISP drops its handshake packets in transit (plain packets of the same size
-  to the same ports arrive; handshakes never do), so a failing WireGuard connect from Egypt is
-  expected, not a bug. Hysteria2 works from there and is the Egypt-proof UDP transport.
+- Hysteria2 quota attribution is unsettled (see section 2). Plain WireGuard from WE fixed
+  lines is DPI-blocked (the ISP drops its handshake packets in transit), which is why the
+  desktop's WireGuard is AmneziaWG on the forked amnezia-box engine: obfuscated handshakes pass
+  and carry real traffic from Egypt, verified end to end. Plain-WG clients (old builds, stock
+  libbox on the phone, third-party apps) can no longer handshake against the server; that is
+  expected. Hysteria2 remains the other Egypt-proof UDP transport.
+- Test targets in `desktop/src-tauri` that reference the lib cannot load on this build box
+  (0xc0000139: they import WebView2Loader and comctl32 v6, and no manifest or DLL copy fixes
+  it). Only a target that links nothing runs. Put executable checks in a bin instead:
+  `clitest --selftest` covers the speed parser, and root-crate tests stay the unit lane.
 - The phone APK is sideloaded over LAN; keep it small.
 - The owner installs builds on another machine, so anything you build here must be a complete
   artifact (exe plus DLL, or installer, or signed APK), not just a build tree.
@@ -286,10 +306,16 @@ that matter most:
 
 ## 11. Current state (as of this handoff)
 
-- Latest release: **v0.3.0** (installer, APK, feed), published and live.
-- `master` also carries a full polish pass on the desktop UI that is **not** in v0.2.5: one
-  token layer, quieter sidebar, tighter Home, list-style routing page, refined Cards, compact
-  modals, and a slightly larger Speed reading. That pass is what the next release should carry.
-- The desktop UI runs the React app; the phone still runs its vanilla UI.
-- The shape of the next UI release, if the owner asks for it: bump to 0.2.6 in the four version
-  files, build installer plus APK, publish, verify the feed.
+- Latest release: **v0.3.1** (installer, APK, feed), published and live.
+- v0.3.1 carries: the AmneziaWG WireGuard transport (obfuscated, Egypt-proof, with a
+  self-healing cached parameter fetch), the disconnect fix (a live engine is never dropped from
+  the app's state, and a slow-rising connect still lands in a disconnectable state), live
+  speed-test updates, drag from any empty spot inside the window, the refresh control on the
+  Speed page, the smaller stripped binary, and installer shortcut hygiene (old QuotaCards
+  desktop and start-menu shortcuts are removed and the QuotaVPN one is refreshed on every
+  install and in-app update).
+- The desktop UI runs the React app; the phone still runs its vanilla UI, and its WireGuard is
+  dead against the AWG server (rebuilding libbox from the fork is the fix if that ever matters).
+- Next release shape when asked: bump the four version files, `npm run build` in `ui-next`,
+  build installer plus APK, write `C:/Tools/qc-relnotes-<vvv>.md`, then
+  `python C:/Tools/qc-tools/publish.py <ver>` and verify the live feed.

@@ -5,9 +5,10 @@ The long-form handoff (system map, flows, code map, build and release, traps) is
 
 A VPN client for Windows and Android that routes per-app and per-quota traffic
 through a personal Xray/VLESS server. Both apps carry all three transports:
-Standard (VLESS), WireGuard (UDP/53) and Hysteria2 (UDP/443). From Egypt, WE's
-DPI drops WireGuard handshakes, so Hysteria2 is the UDP transport that connects
-there.
+Standard (VLESS), WireGuard (UDP/53) and Hysteria2 (UDP/443). WE's DPI drops plain
+WireGuard handshakes from Egypt, so the desktop's WireGuard is AmneziaWG (obfuscated
+WireGuard on a forked engine) and connects from there; Hysteria2 is the other
+Egypt-proof UDP transport. The phone still runs stock libbox and cannot speak AWG.
 
 ## Layout
 
@@ -30,7 +31,9 @@ Windows, run from git-bash. The toolchain this project was developed against:
 `C:/Tools/mingw_extract/mingw64/bin` (MinGW), Android SDK + NDK 28.2.13676358,
 `JAVA_HOME` at a JDK 23, Node 22, `tauri-cli` 2.11.4.
 
-- UI: `cd desktop/ui-next && npm install && npm run build`
+- UI: `cd desktop/ui-next && npm install && npm run build`. Run this before any
+  installer build: `beforeBuildCommand` is empty, so `tauri build` embeds whatever
+  `ui-next/dist` currently holds.
 - Desktop app: `cd desktop/src-tauri && cargo build --release --offline --target x86_64-pc-windows-gnu`
   The dev profile does not link under MinGW (`export ordinal too large`), so always
   verify through a release build. Copy `WebView2Loader.dll` next to the exe to run it.
@@ -62,7 +65,7 @@ Windows, run from git-bash. The toolchain this project was developed against:
   carries a `build` stamp (short git hash, written by the publish scripts) so a re-release under
   the same version number still reaches installed apps; commit the bump before creating the
   release (the tag follows the remote default branch). Confirm the stamp landed: the short hash
-  must appear in the built `release/quotacards.exe` (the setup exe is compressed). A stale
+  must appear in the built `release/QuotaVPN.exe` (the setup exe is compressed). A stale
   stamp makes every install re-offer the same release.
 - **Secrets** (keystore, updater key and passwords, the server private key in
   `%APPDATA%/quotacards/config.json`) never enter the repo and never get printed.
@@ -78,5 +81,7 @@ frozen, so measure geometry numerically rather than trusting a screenshot.
 
 ## Current state
 
-v0.2.5 is the latest release (installer, APK, `latest.json`). Windows UI is the React app in
-`desktop/ui-next`; the phone still runs the vanilla UI. `docs/STATUS.md` has the details.
+v0.3.1 is the latest release (installer, APK, `latest.json`): AmneziaWG WireGuard, the
+disconnect fix, live speed-test updates, the smaller stripped binary, and installer shortcut
+hygiene. Windows UI is the React app in `desktop/ui-next`; the phone still runs the vanilla UI.
+`docs/STATUS.md` has the details.
