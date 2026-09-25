@@ -17,7 +17,7 @@ A personal VPN for Windows and Android that makes your traffic ride the data pac
 | Platform | File | Notes |
 |----------|------|-------|
 | Windows 10/11 | `QuotaVPN_<version>_x64-setup.exe` | Installs per user, no admin needed. Updates itself after that. |
-| Android | `QuotaCards-mobile-signed.apk` | Sideload once. Updates itself from the same releases page. |
+| Android | `QuotaVPN-mobile-signed.apk` | Sideload once. Updates itself from the same releases page. |
 
 ## What it does
 

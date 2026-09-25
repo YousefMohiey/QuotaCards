@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Build, align and sign the QuotaCards Android APK.
+# Build, align and sign the QuotaVPN Android APK.
 # Usage: bash tools/build-apk.sh
-# Output: android/QuotaCards-mobile-signed.apk (+ SIGN_VERIFY_OK)
+# Output: android/QuotaVPN-mobile-signed.apk (+ SIGN_VERIFY_OK)
 set -e
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -29,7 +29,7 @@ UNSIGNED="$ROOT/android/tauri-app/src-tauri/gen/android/app/build/outputs/apk/un
 # Native .exe tools cannot read MSYS /c/... paths; hand them Windows paths.
 UNSIGNED_W="$(cygpath -w "$UNSIGNED")"
 ALIGNED_W="$(cygpath -w "$ROOT/android/app-aligned.apk")"
-OUT_W="$(cygpath -w "$ROOT/android/QuotaCards-mobile-signed.apk")"
+OUT_W="$(cygpath -w "$ROOT/android/QuotaVPN-mobile-signed.apk")"
 
 . /c/Tools/qc-keystore-pass.txt
 KS="C:/Tools/qc-release.keystore"
@@ -42,5 +42,5 @@ rm -f "$ROOT/android/app-aligned.apk"
 
 "$BT/apksigner.bat" verify "$OUT_W" && echo SIGN_VERIFY_OK
 "$BT/aapt.exe" dump badging "$OUT_W" | head -1
-ls -la "$ROOT/android/QuotaCards-mobile-signed.apk"
+ls -la "$ROOT/android/QuotaVPN-mobile-signed.apk"
 echo APK_BUILD_DONE

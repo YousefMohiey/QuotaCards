@@ -135,7 +135,7 @@ class TunnelPlugin(private val activity: Activity) : Plugin(activity) {
                 val current = activity.packageManager
                     .getPackageInfo(activity.packageName, 0).versionName ?: "0"
                 val conn = java.net.URL(
-                    "https://api.github.com/repos/YousefMohiey/QuotaCards/releases/latest",
+                    "https://api.github.com/repos/YousefMohiey/QuotaVPN/releases/latest",
                 ).openConnection() as java.net.HttpURLConnection
                 conn.setRequestProperty("Accept", "application/vnd.github+json")
                 conn.setRequestProperty("User-Agent", "quotacards-updater")
@@ -148,7 +148,7 @@ class TunnelPlugin(private val activity: Activity) : Plugin(activity) {
                 v.optJSONArray("assets")?.let { arr ->
                     for (i in 0 until arr.length()) {
                         val a = arr.getJSONObject(i)
-                        if (a.optString("name") == "QuotaCards-mobile-signed.apk") {
+                        if (a.optString("name") == "QuotaVPN-mobile-signed.apk") {
                             apk = a.optString("browser_download_url")
                         }
                     }
