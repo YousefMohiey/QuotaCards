@@ -1249,11 +1249,7 @@ fn set_webview_memory_low(app: &tauri::AppHandle, low: bool) {
         let _ = w.with_webview(move |pw| {
             #[cfg(windows)]
             {
-                use webview2_com::Microsoft::Web::WebView2::Win32::{
-                    ICoreWebView2_19, ICoreWebView2_3,
-                    COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW,
-                    COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL,
-                };
+                use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2_3;
                 use windows_core::Interface;
                 let controller = pw.controller();
                 let Ok(core) = (unsafe { controller.CoreWebView2() }) else {
@@ -1263,19 +1259,12 @@ fn set_webview_memory_low(app: &tauri::AppHandle, low: bool) {
                 // the controller visibility follows the window state (the
                 // documented pattern for a hidden or minimized app window).
                 let _ = unsafe { controller.SetIsVisible(!low) };
-                // 1) Memory target level: a cheap hint, no state is unloaded.
-                if let Ok(c19) = core.cast::<ICoreWebView2_19>() {
-                    let level = if low {
-                        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW
-                    } else {
-                        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL
-                    };
-                    let _ = unsafe { c19.SetMemoryUsageTargetLevel(level) };
-                }
-                // 2) Suspend while hidden: this is the one that actually
-                // releases the renderer. Resume restores the page as it was,
-                // no reload. Suspend can refuse (page visible, media playing),
-                // in which case nothing changes.
+                // Suspend while hidden: this is the one that actually releases
+                // the renderer, and it drives the memory target level itself,
+                // so the app must not also call SetMemoryUsageTargetLevel
+                // (the WebView2 docs say to pick one of the two, not mix).
+                // Resume restores the page as it was, no reload. Suspend can
+                // refuse (page visible, media playing), nothing changes then.
                 if let Ok(c3) = core.cast::<ICoreWebView2_3>() {
                     if low {
                         let handler = webview2_com::TrySuspendCompletedHandler::create(Box::new(
@@ -1370,6 +1359,25 @@ pub fn run() {
             spawn_launch_refresh(app.handle().clone());
             Ok(())
         })
+        .setup(|app| {
+            // Window-state reconciler: an undecorated window no longer reports
+            // a 0x0 size while minimized, and hide/show/minimize events arrive
+            // in orders that are easy to get wrong, so poll the real state a
+            // couple of times a second and let the flag in set_webview_memory_low
+            // swallow the no-op calls. Cheap (two state reads per tick) and it
+            // cannot miss a transition.
+            let handle = app.handle().clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(std::time::Duration::from_millis(1200));
+                let Some(w) = handle.get_webview_window("main") else {
+                    continue;
+                };
+                let hidden = !w.is_visible().unwrap_or(true);
+                let low = hidden || w.is_minimized().unwrap_or(false);
+                set_webview_memory_low(&handle, low);
+            });
+            Ok(())
+        })
         .on_window_event(|window, event| {
             // X hides to the tray instead of quitting; the tunnel keeps
             // running and the icon stays until Quit is picked there.
@@ -1378,18 +1386,11 @@ pub fn run() {
                 api.prevent_close();
                 set_webview_memory_low(window.app_handle(), true);
             }
-            // Minimize/restore both arrive as resize events (a minimized
-            // window reports a 0x0 size; IsIconic may still report the old
-            // state mid-transition, so the size decides). Trimming while
-            // minimized frees the webview's memory; restoring brings it back.
-            if let WindowEvent::Resized(size) = event {
-                let minimized = size.width == 0 || size.height == 0;
-                set_webview_memory_low(window.app_handle(), minimized);
-            }
+
             // Safety net: any focus on a normal, visible window means the
             // user is looking at it again.
             if let WindowEvent::Focused(true) = event {
-                if !window.is_minimized().unwrap_or(false) {
+                if window.is_visible().unwrap_or(true) && !window.is_minimized().unwrap_or(false) {
                     set_webview_memory_low(window.app_handle(), false);
                 }
             }
