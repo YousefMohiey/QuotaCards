@@ -90,7 +90,14 @@ export default function App() {
       <div className="relative z-10 flex h-full">
         <Sidebar tab={tab} onTab={go} />
         <main id="content" className="min-w-0 flex-1 overflow-y-auto scroll-pb-6">
-          <div className="mx-auto w-full max-w-[900px] px-8 py-6">
+          {/* the caption strip: pt-14 below keeps the window buttons in clear
+              space, and this soft fade hides content that scrolls up behind
+              them, so they are never in the way of a page */}
+          <div
+            aria-hidden
+            className="pointer-events-none sticky top-0 z-20 -mb-14 h-14 bg-gradient-to-b from-[#10141c] via-[#10141c]/85 to-transparent"
+          />
+          <div className="mx-auto w-full max-w-[900px] px-8 pb-6 pt-14">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={tab}
