@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window"
 import { isTauri } from "@/lib/ipc"
 import { AnimatePresence, motion } from "motion/react"
 import { Sidebar, type Tab } from "@/components/Sidebar"
+import { WindowControls } from "@/components/WindowControls"
 import { Home } from "@/screens/Home"
 import { Speed } from "@/screens/Speed"
 import { Voice } from "@/screens/Voice"
@@ -42,6 +43,11 @@ export default function App() {
   // scrollbar gutters keep their own gestures.
   useEffect(() => {
     if (!isTauri()) return
+    // The window is undecorated, so the caption strip keeps the title-bar
+    // gestures: a double press in the top strip toggles maximize. The click
+    // count rides on mousedown as e.detail, the signal Tauri's own drag
+    // regions use (a dblclick event never arrives once the OS takes the
+    // pointer for the move loop).
     const onDown = (e: MouseEvent) => {
       if (e.button !== 0) return
       const el = e.target as HTMLElement | null
@@ -51,6 +57,10 @@ export default function App() {
       const r = el.getBoundingClientRect()
       if (el.scrollHeight > el.clientHeight && e.clientX >= r.left + el.clientWidth - 18) return
       if (el.scrollWidth > el.clientWidth && e.clientY >= r.top + el.clientHeight - 18) return
+      if (e.detail === 2 && e.clientY < 64) {
+        void getCurrentWindow().toggleMaximize().catch(() => {})
+        return
+      }
       void getCurrentWindow().startDragging().catch(() => {})
     }
     window.addEventListener("mousedown", onDown)
@@ -76,6 +86,7 @@ export default function App() {
         <span className="orb orb-c" />
         <span className="orb orb-d" />
       </div>
+      <WindowControls />
       <div className="relative z-10 flex h-full">
         <Sidebar tab={tab} onTab={go} />
         <main id="content" className="min-w-0 flex-1 overflow-y-auto scroll-pb-6">

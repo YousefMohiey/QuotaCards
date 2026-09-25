@@ -2,6 +2,10 @@
 // Regenerate with C:/Tools/qc-tools/extract-i18n.mjs + convert-i18n.py.
 export const ar = {
   "add": "إضافة",
+  "winMin": "تصغير",
+  "winMax": "تكبير",
+  "winRestore": "استعادة",
+  "winClose": "إغلاق",
   "addCard": "+ جديد",
   "addCardLink": "إضافة برابط",
   "apply": "تطبيق",

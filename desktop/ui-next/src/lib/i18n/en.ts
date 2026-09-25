@@ -2,6 +2,10 @@
 // Regenerate with C:/Tools/qc-tools/extract-i18n.mjs + convert-i18n.py.
 export const en = {
   "add": "Add",
+  "winMin": "Minimize",
+  "winMax": "Maximize",
+  "winRestore": "Restore",
+  "winClose": "Close",
   "addCard": "+ New",
   "addCardLink": "Add from link",
   "apply": "Apply",
