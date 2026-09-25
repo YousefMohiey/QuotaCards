@@ -37,6 +37,11 @@ quotacards = { path = "../.." }
 [target.'cfg(windows)'.dependencies]
 # TUN adapter byte counters for the live traffic chart.
 windows = { version = "0.62", features = ["Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_Foundation"] }
+# WebView2 memory trimming while the window sits hidden in the tray
+# (ICoreWebView2_19::SetMemoryUsageTargetLevel). Both are already in the
+# dependency tree through tauri, so this adds no new downloads.
+webview2-com = "0.38"
+windows-core = "0.61"
 
 [features]
 default = ["custom-protocol"]

@@ -1225,6 +1225,79 @@ async fn apply_update(app: tauri::AppHandle) -> Result<String, String> {
     }
 }
 
+static WEBVIEW_LOW: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// WebView2 memory: LOW while the window is hidden (tray or minimized) and
+/// NORMAL when it is back on screen. WebView2 suspends the page and the
+/// working set drops to a few MB; nothing is unloaded, so showing the window
+/// again resumes it without a reload. Runs on a worker thread: with_webview
+/// dispatches onto the main thread and must not be called from it.
+fn set_webview_memory_low(app: &tauri::AppHandle, low: bool) {
+    if WEBVIEW_LOW.swap(low, std::sync::atomic::Ordering::SeqCst) == low {
+        return;
+    }
+    let Some(w) = app.get_webview_window("main") else {
+        return;
+    };
+    std::thread::spawn(move || {
+        // Give the hide/minimize a moment to reach the compositor before the
+        // suspend request: WebView2 refuses to suspend while it still counts
+        // as visible.
+        if low {
+            std::thread::sleep(std::time::Duration::from_millis(900));
+        }
+        let _ = w.with_webview(move |pw| {
+            #[cfg(windows)]
+            {
+                use webview2_com::Microsoft::Web::WebView2::Win32::{
+                    ICoreWebView2_19, ICoreWebView2_3,
+                    COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW,
+                    COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL,
+                };
+                use windows_core::Interface;
+                let controller = pw.controller();
+                let Ok(core) = (unsafe { controller.CoreWebView2() }) else {
+                    return;
+                };
+                // WebView2 refuses to suspend while it counts as visible, so
+                // the controller visibility follows the window state (the
+                // documented pattern for a hidden or minimized app window).
+                let _ = unsafe { controller.SetIsVisible(!low) };
+                // 1) Memory target level: a cheap hint, no state is unloaded.
+                if let Ok(c19) = core.cast::<ICoreWebView2_19>() {
+                    let level = if low {
+                        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW
+                    } else {
+                        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL
+                    };
+                    let _ = unsafe { c19.SetMemoryUsageTargetLevel(level) };
+                }
+                // 2) Suspend while hidden: this is the one that actually
+                // releases the renderer. Resume restores the page as it was,
+                // no reload. Suspend can refuse (page visible, media playing),
+                // in which case nothing changes.
+                if let Ok(c3) = core.cast::<ICoreWebView2_3>() {
+                    if low {
+                        let handler = webview2_com::TrySuspendCompletedHandler::create(Box::new(
+                            |_hr, _suspended| Ok(()),
+                        ));
+                        let _ = unsafe { c3.TrySuspend(&handler) };
+                    } else {
+                        let _ = unsafe { c3.Resume() };
+                    }
+                }
+                // Showing again: visibility goes back on after the resume so
+                // the page repaints immediately.
+                if !low {
+                    let _ = unsafe { controller.SetIsVisible(true) };
+                }
+            }
+            #[cfg(not(windows))]
+            let _ = &pw;
+        });
+    });
+}
+
 pub fn run() {
     tauri::Builder::default()
         // Single instance: a second launch brings the running app forward
@@ -1235,6 +1308,7 @@ pub fn run() {
                 let _ = w.unminimize();
                 let _ = w.set_focus();
             }
+            set_webview_memory_low(app, false);
         }))
         .plugin(tauri_plugin_clipboard_manager::init())
         // The updater also sees a build re-released under the SAME version
@@ -1286,6 +1360,7 @@ pub fn run() {
                             let _ = w.show();
                             let _ = w.set_focus();
                         }
+                        set_webview_memory_low(tray.app_handle(), false);
                     }
                 })
                 .build(&handle)?;
@@ -1301,6 +1376,22 @@ pub fn run() {
             if let WindowEvent::CloseRequested { api, .. } = event {
                 let _ = window.hide();
                 api.prevent_close();
+                set_webview_memory_low(window.app_handle(), true);
+            }
+            // Minimize/restore both arrive as resize events (a minimized
+            // window reports a 0x0 size; IsIconic may still report the old
+            // state mid-transition, so the size decides). Trimming while
+            // minimized frees the webview's memory; restoring brings it back.
+            if let WindowEvent::Resized(size) = event {
+                let minimized = size.width == 0 || size.height == 0;
+                set_webview_memory_low(window.app_handle(), minimized);
+            }
+            // Safety net: any focus on a normal, visible window means the
+            // user is looking at it again.
+            if let WindowEvent::Focused(true) = event {
+                if !window.is_minimized().unwrap_or(false) {
+                    set_webview_memory_low(window.app_handle(), false);
+                }
             }
         })
         .on_menu_event(|app, event| match event.id.as_ref() {
@@ -1309,13 +1400,21 @@ pub fn run() {
                     let _ = w.show();
                     let _ = w.set_focus();
                 }
+                set_webview_memory_low(app, false);
             }
             "check" => {
                 if let Some(w) = app.get_webview_window("main") {
                     let _ = w.show();
                     let _ = w.set_focus();
                 }
-                let _ = app.emit("tray-check-updates", ());
+                set_webview_memory_low(app, false);
+                // Resuming the webview is asynchronous; give it a beat so the
+                // update check lands in a running page instead of a suspended one.
+                let handle = app.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(1200));
+                    let _ = handle.emit("tray-check-updates", ());
+                });
             }
             "quit" => {
                 let eng = app.state::<Engine>();

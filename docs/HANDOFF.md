@@ -120,6 +120,11 @@ server (`/speed/down`, `/speed/up`) plus public ping targets.
   `build.rs` (QC_BUILD stamp, admin manifest for bins, plus an asInvoker test manifest) and
   `capabilities/default.json` (event listeners plus `core:window:allow-start-dragging`; a missing
   permission makes the matching webview call silently do nothing).
+- Memory: while the window is hidden in the tray or minimized, `lib.rs` suspends the WebView2
+  (`SetIsVisible(false)` then `TrySuspend`; `Resume` on show, no reload) and lowers its memory
+  target. Measured on the build box: ~340 MB with the window open, ~30-45 MB hidden in the tray,
+  ~27 MB minimized. `vpn.rs::spawn_engine` also caps the engine's Go heap (`GOMEMLIMIT=64MiB`,
+  `GOGC=50`).
 
 ### Android
 
@@ -294,6 +299,17 @@ that matter most:
 - The owner installs builds on another machine, so anything you build here must be a complete
   artifact (exe plus DLL, or installer, or signed APK), not just a build tree.
 - Never publish or share a build until the owner explicitly asks for it.
+- WebView2 only suspends when it does not count as visible: hide/minimize must set the controller
+  invisible first (the pattern from the WebView2 docs). For minimize and restore, decide from the
+  WM_SIZE size (a minimized window reports 0x0); `IsIconic` can still report the old state
+  mid-transition and the restore would be missed.
+- Driving the packaged app from this machine: the agent shell runs in session 0, where
+  `CloseMainWindow`/`ShowWindow` on the session-1 desktop silently do nothing and
+  `MainWindowHandle` reads 0. Run helpers through a scheduled task (`schtasks /RU Administrator
+  /IT`) so they execute inside the interactive session, and find the real window via UI Automation
+  (`ProcessId` + name `QuotaVPN`); `MainWindowHandle` can point at WebView2 helper windows.
+- `tauri-build` runs `windres` when the config changes (icon/manifest resources). On this box it
+  needs `C:/Tools/mingw_extract/mingw64/bin` on PATH or the build dies with `NotAttempted("windres")`.
 
 ## 10. Environment (this build machine)
 
@@ -320,6 +336,8 @@ that matter most:
   control on the Speed page, and the smaller stripped binary.
 - The desktop UI runs the React app; the phone still runs its vanilla UI, and its WireGuard is
   dead against the AWG server (rebuilding libbox from the fork is the fix if that ever matters).
+- Unreleased on top of v0.3.2: the memory pass (WebView2 suspend while hidden or minimized, engine
+  heap caps). The desktop build carries it; nothing has been published from it yet.
 - Next release shape when asked: bump the four version files, `npm run build` in `ui-next`,
   build installer plus APK (the NSIS build script includes the checkbox patch + re-sign step),
   write `C:/Tools/qc-relnotes-<vvv>.md`, then `python C:/Tools/qc-tools/publish.py <ver>` and

@@ -641,6 +641,10 @@ pub fn spawn_engine() -> Result<std::process::Child, String> {
         .unwrap_or(0);
     let _ = writeln!(log, "=== run {now} ===");
     let mut cmd = cmd_hidden(&singbox_path().to_string_lossy());
+    // Go runtime tuning: cap the heap target and collect sooner, so a long
+    // session keeps its resident memory tight instead of holding garbage.
+    // The engine reads these once at startup; behaviour is unchanged.
+    cmd.env("GOMEMLIMIT", "64MiB").env("GOGC", "50");
     // Below normal priority: when a game runs on the same machine it must
     // win the CPU, and the engine keeps the line fed with leftover cycles.
     #[cfg(windows)]
