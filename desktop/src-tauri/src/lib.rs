@@ -86,13 +86,26 @@ fn initial_config() -> AppConfig {
     // Zero-setup: baked-in builds point at the owner's server, nothing to type.
     if let Some(emb) = EMBED_KEY {
         let points_at_mine = cfg.server_ip.is_empty() || cfg.server_ip == DEFAULT_HOST;
-        if points_at_mine && cfg.private_key != emb {
-            cfg.server_ip = DEFAULT_HOST.to_string();
-            cfg.ssh_user = DEFAULT_USER.to_string();
-            cfg.ssh_port = DEFAULT_PORT;
-            cfg.private_key = emb.to_string();
-            cfg.synced = false;
-            cfg.save();
+        if points_at_mine {
+            let mut dirty = false;
+            // Heal an empty host on its own: it used to stay stuck on
+            // "Set up your server first." forever whenever the embed key was
+            // already installed, because the whole block was gated on the key
+            // being stale. Each field is repaired independently now.
+            if cfg.server_ip.is_empty() {
+                cfg.server_ip = DEFAULT_HOST.to_string();
+                dirty = true;
+            }
+            if cfg.private_key != emb {
+                cfg.private_key = emb.to_string();
+                cfg.ssh_user = DEFAULT_USER.to_string();
+                cfg.ssh_port = DEFAULT_PORT;
+                cfg.synced = false;
+                dirty = true;
+            }
+            if dirty {
+                cfg.save();
+            }
         }
     }
     // migrate old cards (no per-card SNI) to a sane default
@@ -1357,15 +1370,18 @@ pub fn run() {
             // server so a wiped or rebuilt server heals on launch, not only
             // when the user connects.
             spawn_launch_refresh(app.handle().clone());
-            Ok(())
-        })
-        .setup(|app| {
             // Window-state reconciler: an undecorated window no longer reports
             // a 0x0 size while minimized, and hide/show/minimize events arrive
             // in orders that are easy to get wrong, so poll the real state a
             // couple of times a second and let the flag in set_webview_memory_low
             // swallow the no-op calls. Cheap (two state reads per tick) and it
             // cannot miss a transition.
+            //
+            // Keep this INSIDE the setup above: Tauri's App holds a single
+            // setup slot (App.setup: Option<SetupHook>), so a second .setup()
+            // call silently replaces the first and the app loses its config
+            // load and its tray - which is exactly what "Set up your server
+            // first." looked like on a machine that was already configured.
             let handle = app.handle().clone();
             std::thread::spawn(move || loop {
                 std::thread::sleep(std::time::Duration::from_millis(1200));
