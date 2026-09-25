@@ -1,41 +1,44 @@
-![QuotaVPN banner](assets/banner.svg?v=5)
+![QuotaVPN](assets/banner.svg?v=6)
 
-[![Latest release](https://img.shields.io/github/v/release/YousefMohiey/QuotaVPN?color=4a86e8)](https://github.com/YousefMohiey/QuotaVPN/releases/latest)
+# QuotaVPN
+
+A personal VPN for Windows and Android that makes your traffic ride the data package you pick: gaming, streaming, or general quota.
+
+[![Latest release](https://img.shields.io/github/v/release/YousefMohiey/QuotaVPN?color=5cb28e&labelColor=0b0f18)](https://github.com/YousefMohiey/QuotaVPN/releases/latest)
 ![Windows 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0b0f18?logo=windows&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-0b0f18?logo=android&logoColor=3ddc84)
-![English + Arabic](https://img.shields.io/badge/UI-English%20%2B%20Arabic-0b0f18)
+![UI: English + Arabic](https://img.shields.io/badge/UI-English%20%2B%20Arabic-0b0f18)
 ![License: MIT](https://img.shields.io/badge/license-MIT-0b0f18)
 
-**Website:** https://yousefmohiey.github.io/QuotaVPN/
-
-**QuotaVPN**  is a personal VPN built for ISPs that sell your line in quota buckets. What a connection counts against is decided from the TLS handshake, so QuotaVPN makes your traffic ride the bucket you pick: your gaming or streaming package, or general quota. One Windows app, one Android app, full English and Arabic, and both update themselves from this repo.
-
-## Screenshots
-
-![Windows app, connected](assets/app-home.png?v=2)
-
-One tap connects. The profile tiles pick the quota class, the Server row picks the address, and the session counters run while you are on.
-
-![Server picker](assets/app-servers.png)
-
-Every profile carries its own server list: gaming domains for Gamerz, streaming domains for Streamerz, plus any custom server you want.
-
-![Arabic UI](assets/app-arabic.png)
-
-Arabic ships complete and formal. The layout keeps its shape, nothing mirrors.
+**Website:** https://yousefmohiey.github.io/QuotaVPN/ · **Download:** [latest release](https://github.com/YousefMohiey/QuotaVPN/releases/latest)
 
 ## Download
 
-Latest build from [Releases](https://github.com/YousefMohiey/QuotaVPN/releases/latest):
+| Platform | File | Notes |
+|----------|------|-------|
+| Windows 10/11 | `QuotaVPN_<version>_x64-setup.exe` | Installs per user, no admin needed. Updates itself after that. |
+| Android | `QuotaCards-mobile-signed.apk` | Sideload once. Updates itself from the same releases page. |
 
-- **Windows**: `QuotaVPN_<version>_x64-setup.exe`. Installs per user, no admin needed. After that the app updates itself: Settings, Updates, or the tray.
-- **Android**: the signed APK from the same page. Sideload it once, then it updates itself from here.
+## What it does
 
-Runs on Windows 10/11 and modern Android.
+Your ISP classifies a connection from the TLS handshake at its start, and that is what decides which quota it counts against. QuotaVPN puts a server name from your chosen package on that handshake, so the session lands in the bucket you picked.
+
+- **Two profiles, Gamerz and Streamerz**, each with its own server list (EA, Riot, Steam, YouTube, Meta, Prime Video and friends) plus any custom server you add.
+- **Three transports, honestly labelled.** Standard spends your package class; WireGuard and Hysteria2 spend general quota and are the raw-speed options.
+- **Per-app routing** on both platforms: whole device, only these apps, or everything except them.
+- **Speed screen** with ping, download and upload against your own server, plus history.
+- **Full English and Arabic**, in both apps. The layout keeps its shape; nothing mirrors.
+- **Signed self-updates.** The app downloads the signed installer and applies it for you.
+
+## Screenshots
+
+| Connected | Servers | Arabic |
+|---|---|---|
+| ![Windows app, connected](assets/app-home.png) | ![Server picker](assets/app-servers.png) | ![Arabic interface](assets/app-arabic.png) |
+
+One tap connects. The profile tiles pick the quota class, the Server row picks the address, and the session counters run while you are on.
 
 ## How it works
-
-Your ISP classifies a connection from the TLS handshake at its start. QuotaVPN gives each connection an SNI from your package's own whitelist (Gamerz: EA, Riot, Call of Duty, PUBG, Steam and friends; Streamerz: YouTube, Meta, X, Prime Video, OSN+ and friends), so the session lands in the bucket you picked.
 
 | Mode | Transport | Counts from |
 |------|-----------|-------------|
@@ -43,23 +46,7 @@ Your ISP classifies a connection from the TLS handshake at its start. QuotaVPN g
 | WireGuard | Raw UDP, no TLS handshake | General quota |
 | Hysteria2 | UDP 443 with the same SNI | General quota (ISPs read SNI off TCP only) |
 
-Standard spends your package class. WireGuard and Hysteria2 spend general quota and are the raw-speed options.
-
-## The Windows app
-
-- One-tap connect with live session time and up/down counters
-- Two profiles, Gamerz and Streamerz, each with its own server list (and a custom server option)
-- Per-app routing: whole device, only these apps, or everything except
-- Speed screen: ping, download and upload against your own server, with history
-- Its own engine (sing-box + wintun): traffic goes through the tunnel or nowhere, no leak path
-- Signed updates: the app downloads the signed setup and installs it for you
-
-## The Android app
-
-- Whole-device tunnel (VpnService + sing-box), Quick Settings tile
-- Per-app routing, Always-on VPN compatible, swipe-away safe
-- Same profiles and server lists as the desktop, full Arabic
-- Updates itself from GitHub Releases
+The engine is sing-box: on Windows it runs with wintun inside the app, on Android it runs through `VpnService` with libbox. Traffic goes through the tunnel or nowhere.
 
 ## Self-hosting the server
 

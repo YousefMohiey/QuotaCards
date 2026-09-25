@@ -3,84 +3,169 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QuotaVPN - Windows and Android VPN for gaming and streaming data packages</title>
-<meta name="description" content="QuotaVPN  is a personal VPN built for ISPs that sell your line in quota buckets: your traffic rides the package you pick, gaming or streaming, on Windows and Android, in English and Arabic.">
+<title>QuotaVPN: your gaming and streaming packages, used on purpose</title>
+<meta name="description" content="QuotaVPN is a personal VPN for Windows and Android that makes your traffic ride the data package you pick: gaming, streaming, or general quota. EN and AR.">
 <link rel="canonical" href="https://yousefmohiey.github.io/QuotaVPN/">
+<meta name="theme-color" content="#0b0f18">
 <meta property="og:type" content="website">
-<meta property="og:title" content="QuotaVPN - VPN for gaming and streaming data packages">
-<meta property="og:description" content="A personal VPN built for ISPs that sell your line in quota buckets. Windows and Android, English and Arabic.">
+<meta property="og:site_name" content="QuotaVPN">
+<meta property="og:title" content="QuotaVPN: your gaming and streaming packages, used on purpose">
+<meta property="og:description" content="A personal VPN for Windows and Android that makes your traffic ride the data package you pick: gaming, streaming, or general quota.">
 <meta property="og:url" content="https://yousefmohiey.github.io/QuotaVPN/">
-<meta property="og:image" content="https://yousefmohiey.github.io/QuotaVPN/assets/app-home.png">
+<meta property="og:image" content="https://yousefmohiey.github.io/QuotaVPN/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="QuotaVPN">
+<meta name="twitter:description" content="Your gaming and streaming packages, used on purpose. Windows and Android.">
+<meta name="twitter:image" content="https://yousefmohiey.github.io/QuotaVPN/assets/og.png">
 <link rel="icon" href="assets/icon.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "QuotaVPN",
+  "description": "A personal VPN for Windows and Android that makes your traffic ride the data package you pick: gaming, streaming, or general quota.",
+  "url": "https://yousefmohiey.github.io/QuotaVPN/",
+  "applicationCategory": "SecurityApplication",
+  "operatingSystem": "Windows 10, Windows 11, Android",
+  "softwareVersion": "0.3.4",
+  "license": "https://opensource.org/licenses/MIT",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "downloadUrl": "https://github.com/YousefMohiey/QuotaVPN/releases/latest",
+  "codeRepository": "https://github.com/YousefMohiey/QuotaVPN",
+  "inLanguage": ["en", "ar"]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What does QuotaVPN actually change?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Your ISP decides which quota a connection counts against from the TLS handshake at its start. QuotaVPN gives each connection a server name from the package you picked, so the session lands in that bucket instead of your general quota." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it work with any ISP?",
+      "acceptedAnswer": { "@type": "Answer", "text": "It is built for ISPs that sell your line in quota buckets, where gaming, streaming and general traffic are counted separately. On a normal line it still works as a plain VPN." }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need an account?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. There is no sign up and no account. You add the server address and the profile that your server gives you, and the app connects." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is the Android build a real app or a wrapper?",
+      "acceptedAnswer": { "@type": "Answer", "text": "It is a native VpnService app with the same Rust core as the Windows build, including per-app routing, a Quick Settings tile and Always-on VPN support." }
+    }
+  ]
+}
+</script>
 <style>
   :root{
-    --bg:#0b0f18; --bg2:#10141c; --card:rgba(255,255,255,.04); --line:rgba(255,255,255,.09);
-    --txt:#e8eefc; --muted:#9aa8c0; --accent:#4a86e8; --accent2:#6ea8fe; --ok:#3fbf7f;
+    --bg:#0b0f18; --panel:#111826; --card:rgba(255,255,255,.035); --line:rgba(255,255,255,.10);
+    --txt:#eef1f6; --muted:#98a3b8; --accent:#5cb28e; --accent-ink:#08130e; --amber:#c49a58;
     --r:14px;
   }
   *{box-sizing:border-box}
-  html{-webkit-text-size-adjust:100%; color-scheme:dark}
+  html{-webkit-text-size-adjust:100%; color-scheme:dark; scroll-behavior:smooth}
   body{
     margin:0; background:
-      radial-gradient(1100px 520px at 18% -8%, rgba(74,134,232,.20), transparent 60%),
-      radial-gradient(900px 460px at 88% 4%, rgba(110,168,254,.10), transparent 60%),
+      radial-gradient(1100px 520px at 14% -10%, rgba(92,178,142,.16), transparent 62%),
+      radial-gradient(900px 420px at 92% 2%, rgba(196,154,88,.07), transparent 60%),
       var(--bg);
     color:var(--txt);
-    font:16px/1.62 "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,"Noto Sans Arabic",Tahoma,Arial,sans-serif;
+    font:16px/1.62 "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
   }
-  a{color:var(--accent2); text-decoration:none}
-  a:hover{text-decoration:underline}
-  .wrap{max-width:1080px; margin:0 auto; padding:0 22px}
-  header{display:flex; align-items:center; gap:12px; padding:20px 0}
-  header img{width:34px; height:34px; border-radius:9px}
-  header b{font-size:17px; letter-spacing:.2px}
+  a{color:var(--txt); text-decoration:none}
+  a:hover{text-decoration:underline; text-underline-offset:3px}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:6px}
+  .wrap{max-width:1060px; margin:0 auto; padding:0 22px}
+  img{max-width:100%}
+
+  header{display:flex; align-items:center; gap:11px; padding:20px 0}
+  header img{width:32px; height:32px; border-radius:9px}
+  header .name{font-weight:650; letter-spacing:.2px}
   header .sp{flex:1}
-  header a.gh{display:inline-flex; align-items:center; gap:8px; border:1px solid var(--line);
-    background:var(--card); padding:8px 13px; border-radius:10px; color:var(--txt); font-size:14px}
-  header a.gh:hover{background:rgba(255,255,255,.07); text-decoration:none}
-  .hero{display:grid; grid-template-columns:1.05fr .95fr; gap:38px; align-items:center; padding:34px 0 10px}
-  .pill{display:inline-flex; align-items:center; gap:8px; font-size:13px; color:var(--muted);
-    border:1px solid var(--line); background:var(--card); padding:6px 11px; border-radius:999px}
-  .dot{width:7px; height:7px; border-radius:50%; background:var(--ok)}
-  h1{font-size:44px; line-height:1.12; margin:16px 0 12px; letter-spacing:-.5px}
-  h1 span{color:var(--accent2)}
-  .lead{color:var(--muted); font-size:17px; max-width:56ch}
-  .btns{display:flex; gap:12px; flex-wrap:wrap; margin-top:22px}
-  .btn{display:inline-flex; align-items:center; gap:10px; padding:12px 18px; border-radius:11px;
-    font-weight:600; font-size:15px; border:1px solid transparent}
-  .btn.primary{background:var(--accent); color:#fff}
-  .btn.primary:hover{background:#3f79db; text-decoration:none}
+  header nav{display:flex; gap:20px; align-items:center; font-size:14.5px; color:var(--muted)}
+  header nav a{color:var(--muted)}
+  header nav a:hover{color:var(--txt)}
+
+  .hero{display:grid; grid-template-columns:1.02fr .98fr; gap:44px; align-items:center; padding:40px 0 30px}
+  .kicker{font-size:13.5px; color:var(--muted); letter-spacing:.3px}
+  h1{font-size:46px; line-height:1.08; margin:12px 0 14px; letter-spacing:-.8px; font-weight:660}
+  h1 em{font-style:normal; color:var(--accent)}
+  .lead{color:var(--muted); font-size:16.5px; max-width:52ch; margin:0}
+  .cta{display:flex; gap:12px; flex-wrap:wrap; margin-top:26px}
+  .btn{display:inline-flex; align-items:center; gap:9px; padding:12px 19px; border-radius:11px;
+    font-weight:600; font-size:15px; border:1px solid transparent; transition:background .16s ease, transform .16s ease}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--accent); color:var(--accent-ink)}
+  .btn.primary:hover{background:#6cc09c; text-decoration:none}
   .btn.ghost{border-color:var(--line); background:var(--card); color:var(--txt)}
   .btn.ghost:hover{background:rgba(255,255,255,.07); text-decoration:none}
-  .shot{border:1px solid rgba(110,168,254,.22); background:var(--card); border-radius:var(--r); padding:10px;
-    box-shadow:0 24px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(74,134,232,.06) inset}
-  .shot img{width:100%; display:block; border-radius:9px}
-  section{padding:44px 0}
-  h2{font-size:25px; margin:0 0 18px; letter-spacing:-.2px}
-  .grid{display:grid; grid-template-columns:repeat(2,1fr); gap:16px}
-  .card{border:1px solid var(--line); background:var(--card); border-radius:var(--r); padding:20px}
-  .card h3{margin:0 0 7px; font-size:16.5px}
-  .card p{margin:0; color:var(--muted); font-size:14.6px}
-  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:16px}
-  .step{border:1px solid var(--line); background:var(--card); border-radius:var(--r); padding:18px}
-  .num{width:26px; height:26px; border-radius:8px; background:rgba(74,134,232,.16); color:var(--accent2);
-    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; margin-bottom:10px}
-  .step h3{margin:0 0 6px; font-size:15.5px}
-  .step p{margin:0; color:var(--muted); font-size:14px}
-  .two{display:grid; grid-template-columns:1fr 1fr; gap:18px}
-  .facts{display:flex; gap:26px; flex-wrap:wrap; margin-top:26px}
-  .fact b{display:block; font-size:22px}
-  .fact span{color:var(--muted); font-size:13.5px}
-  footer{border-top:1px solid var(--line); margin-top:24px; padding:26px 0 40px; color:var(--muted); font-size:14px;
+  .shot{border:1px solid rgba(92,178,142,.20); background:var(--card); border-radius:var(--r); padding:9px;
+    box-shadow:0 26px 64px rgba(0,0,0,.55)}
+  .shot img{width:100%; display:block; border-radius:8px}
+
+  .strip{border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    display:grid; grid-template-columns:repeat(3,1fr); gap:0}
+  .strip div{padding:20px 24px}
+  .strip div + div{border-left:1px solid var(--line)}
+  .strip b{display:block; font-size:19px; font-weight:650}
+  .strip span{color:var(--muted); font-size:14px}
+
+  section{padding:52px 0}
+  h2{font-size:26px; margin:0 0 8px; letter-spacing:-.3px; font-weight:650}
+  .sub{color:var(--muted); margin:0 0 30px; max-width:62ch}
+
+  .feature{display:grid; grid-template-columns:repeat(2,1fr); gap:2px 40px}
+  .feature article{padding:20px 0; border-top:1px solid var(--line)}
+  .feature h3{margin:0 0 6px; font-size:16.5px; font-weight:620}
+  .feature p{margin:0; color:var(--muted); font-size:15px}
+
+  .gallery{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+  .gallery figure{margin:0}
+  .gallery figcaption{color:var(--muted); font-size:13.5px; margin-top:10px}
+
+  details{border-top:1px solid var(--line); padding:16px 0}
+  details:last-of-type{border-bottom:1px solid var(--line)}
+  summary{cursor:pointer; font-weight:600; font-size:15.5px; list-style:none; display:flex; justify-content:space-between; gap:16px}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+"; color:var(--accent); font-weight:700}
+  details[open] summary::after{content:"-" }
+  details p{color:var(--muted); margin:10px 0 0; max-width:70ch}
+
+  .band{text-align:left; border:1px solid var(--line); background:linear-gradient(180deg,rgba(92,178,142,.10),rgba(92,178,142,.02));
+    border-radius:var(--r); padding:32px; display:flex; gap:24px; align-items:center; flex-wrap:wrap}
+  .band h2{margin:0 0 6px}
+  .band p{margin:0; color:var(--muted)}
+  .band .sp{flex:1}
+
+  footer{border-top:1px solid var(--line); margin-top:20px; padding:26px 0 42px; color:var(--muted); font-size:14px;
     display:flex; gap:18px; flex-wrap:wrap; align-items:center}
+  footer a{color:var(--muted)}
   footer .sp{flex:1}
   code{background:rgba(255,255,255,.06); border:1px solid var(--line); border-radius:6px; padding:1px 6px; font-size:13.5px}
+
   @media (max-width:860px){
-    .hero{grid-template-columns:1fr; gap:26px}
-    h1{font-size:33px}
-    .grid,.steps,.two{grid-template-columns:1fr}
-    section{padding:34px 0}
+    .hero{grid-template-columns:1fr; gap:28px; padding:26px 0 22px}
+    h1{font-size:32px}
+    .strip{grid-template-columns:1fr}
+    .strip div + div{border-left:0; border-top:1px solid var(--line)}
+    .feature,.gallery{grid-template-columns:1fr}
+    section{padding:38px 0}
+    header nav{display:none}
+    .band{padding:24px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    .btn{transition:none}
   }
 </style>
 </head>
@@ -89,88 +174,106 @@
 
   <header>
     <img src="assets/icon.png" alt="QuotaVPN icon">
-    <b>QuotaVPN</b>
+    <span class="name">QuotaVPN</span>
     <span class="sp"></span>
-    <a class="gh" href="https://github.com/YousefMohiey/QuotaVPN">GitHub</a>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/YousefMohiey/QuotaVPN">GitHub</a>
+    </nav>
   </header>
 
   <div class="hero">
     <div>
-      <span class="pill"><span class="dot"></span> v0.3.4 &middot; Windows 10/11 + Android</span>
-      <h1>Your gaming and streaming packages,<br><span>used on purpose.</span></h1>
-      <p class="lead">QuotaVPN is a personal VPN built for ISPs that sell your line in quota buckets.
-        What a connection counts against is decided from the TLS handshake, so QuotaVPN makes your
-        traffic ride the bucket you pick: your gaming package, your streaming package, or general quota.</p>
-      <div class="btns">
+      <div class="kicker">Windows 10/11 and Android</div>
+      <h1>Your whole connection, riding your <em>gaming and streaming packages</em>.</h1>
+      <p class="lead">QuotaVPN is a personal VPN for lines sold in quota buckets. Pick the package, and your traffic counts against it.</p>
+      <div class="cta">
         <a class="btn primary" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.2 4.5v7.1H3V5.5Zm0 13 7.2 1v-7H3v6Zm8.4 1.2L21 21V12.6h-9.6v7.1ZM11.4 4.3 21 3v8.6h-9.6V4.3Z"/></svg>Download for Windows</a>
-        <a class="btn ghost" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.6 9.2h8.8c.3 0 .5.2.5.5v6.5c0 .8-.6 1.4-1.4 1.4h-.4v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-2.1v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-.4c-.8 0-1.4-.6-1.4-1.4v-6.5c0-.3.2-.5.5-.5Zm-2.3.1c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1Zm13.4 0c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1ZM15.1 4.3l.9-1.6a.3.3 0 0 0-.5-.3l-.9 1.6a5.6 5.6 0 0 0-5.2 0L8.5 2.4a.3.3 0 0 0-.5.3l.9 1.6A4.6 4.6 0 0 0 6.5 8h11a4.6 4.6 0 0 0-2.4-3.7Z"/></svg>Android APK</a>
-      </div>
-      <div class="facts">
-        <div class="fact"><b>2</b><span>apps: Windows and Android</span></div>
-        <div class="fact"><b>EN / AR</b><span>full interface, both languages</span></div>
-        <div class="fact"><b>0</b><span>accounts, no sign up</span></div>
+        <a class="btn ghost" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.6 9.2h8.8c.3 0 .5.2.5.5v6.5c0 .8-.6 1.4-1.4 1.4h-.4v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-2.1v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-.4c-.8 0-1.4-.6-1.4-1.4v-6.5c0-.3.2-.5.5-.5Zm-2.3.1c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1Zm13.4 0c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1ZM15.1 4.3l.9-1.6a.3.3 0 0 0-.5-.3l-.9 1.6a5.6 5.6 0 0 0-5.2 0L8.5 2.4a.3.3 0 0 0-.5.3l.9 1.6A4.6 4.6 0 0 0 6.5 8h11a4.6 4.6 0 0 0-2.4-3.7Z"/></svg>Get the Android APK</a>
       </div>
     </div>
-    <div class="shot"><img src="assets/app-home.png" alt="QuotaVPN for Windows, connected"></div>
+    <div class="shot"><img src="assets/app-home.png" alt="QuotaVPN for Windows, connected to a gaming profile" width="1343" height="884"></div>
   </div>
 
-  <section>
+  <div class="strip">
+    <div><b>Two apps</b><span>Windows 10/11 and Android, same profiles</span></div>
+    <div><b>English and Arabic</b><span>The whole interface, either language</span></div>
+    <div><b>No account</b><span>Nothing to sign up for, nothing to log into</span></div>
+  </div>
+
+  <section id="features">
     <h2>What it does</h2>
-    <div class="grid">
-      <div class="card">
-        <h3>Counts against the package you choose</h3>
-        <p>Gamerz and Streamerz profiles carry their own server list, so game and streaming traffic rides
-          the package that should pay for it instead of your general quota.</p>
-      </div>
-      <div class="card">
+    <p class="sub">Your ISP reads the TLS handshake at the start of a connection to decide which quota it counts against. QuotaVPN puts a server name from the package you chose on that handshake.</p>
+    <div class="feature">
+      <article>
+        <h3>Counts against the package you pick</h3>
+        <p>Gamerz and Streamerz profiles each carry their own server list, so a game or a stream rides the package that should pay for it instead of your general quota.</p>
+      </article>
+      <article>
         <h3>Three transports, honestly labelled</h3>
-        <p>Standard, gaming and WireGuard modes. Each one states in plain words what it spends from,
-          because a faster mode that counts differently is a decision, not a detail.</p>
-      </div>
-      <div class="card">
-        <h3>English and Arabic, completely</h3>
-        <p>The whole interface ships in both languages, with the layout keeping its shape. Nothing mirrors,
-          nothing is half translated.</p>
-      </div>
-      <div class="card">
-        <h3>Updates itself</h3>
-        <p>One installer, no admin needed, and the app keeps itself current from the releases page.
-          The Android build sideloads once and updates the same way.</p>
-      </div>
+        <p>Standard, WireGuard and Hysteria2. Each one says in plain words what it spends from, because a faster mode that counts differently is a decision, not a detail.</p>
+      </article>
+      <article>
+        <h3>Per-app routing</h3>
+        <p>Send the whole device through the tunnel, only the apps you list, or everything except them. The choice is per card and it survives restarts.</p>
+      </article>
+      <article>
+        <h3>It updates itself</h3>
+        <p>One installer per platform, no admin needed on Windows, and the app keeps itself current from the releases page. The APK sideloads once and does the same.</p>
+      </article>
     </div>
   </section>
 
   <section>
-    <h2>How it works</h2>
-    <div class="steps">
-      <div class="step">
-        <div class="num">1</div>
-        <h3>Pick a card</h3>
-        <p>A card is a profile: a name, a domain to ride, and the transport you want to use.</p>
-      </div>
-      <div class="step">
-        <div class="num">2</div>
-        <h3>Pick a server</h3>
-        <p>Every card carries its own server list, plus any custom address you add yourself.</p>
-      </div>
-      <div class="step">
-        <div class="num">3</div>
-        <h3>Connect</h3>
-        <p>One tap. The session runs, the counters run, and closing the window keeps it alive in the tray.</p>
-      </div>
+    <h2>Every profile carries its own servers</h2>
+    <p class="sub">A card is a profile: a name, a domain to ride, the transport, and a server list you can extend with your own address at any time.</p>
+    <div class="gallery">
+      <figure>
+        <div class="shot"><img src="assets/app-speed.png" alt="QuotaVPN speed test screen with ping, download and upload"></div>
+        <figcaption>Ping, download and upload against your own server, with history.</figcaption>
+      </figure>
+      <figure>
+        <div class="shot"><img src="assets/app-valorant.png" alt="QuotaVPN profile tiles, Valorant profile selected"></div>
+        <figcaption>Profile tiles pick the quota class. The session counters run while you are on.</figcaption>
+      </figure>
     </div>
+  </section>
+
+  <section id="faq">
+    <h2>Questions</h2>
+    <p class="sub">The short answers. The full picture is in the docs on GitHub.</p>
+    <details open>
+      <summary>What does QuotaVPN actually change?</summary>
+      <p>Your ISP decides which quota a connection counts against from the TLS handshake at its start. QuotaVPN gives each connection a server name from the package you picked, so the session lands in that bucket instead of your general quota.</p>
+    </details>
+    <details>
+      <summary>Does it work with any ISP?</summary>
+      <p>It is built for ISPs that sell your line in quota buckets, where gaming, streaming and general traffic are counted separately. On a normal line it still works as a plain VPN.</p>
+    </details>
+    <details>
+      <summary>Do I need an account?</summary>
+      <p>No. There is no sign up and no account. You add the server address and the profile your server gives you, and the app connects.</p>
+    </details>
+    <details>
+      <summary>Is the Android build a real app or a wrapper?</summary>
+      <p>It is a native VpnService app with the same Rust core as the Windows build, including per-app routing, a Quick Settings tile and Always-on VPN support.</p>
+    </details>
   </section>
 
   <section>
-    <div class="two">
-      <div class="shot"><img src="assets/app-speed.png" alt="QuotaVPN speed test screen"></div>
-      <div class="shot"><img src="assets/app-valorant.png" alt="QuotaVPN Valorant profile screen"></div>
+    <div class="band">
+      <div>
+        <h2>Get the build</h2>
+        <p>Free and open source, MIT licensed. Windows installer and the signed APK live on the releases page.</p>
+      </div>
+      <span class="sp"></span>
+      <a class="btn primary" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest">Open releases</a>
     </div>
   </section>
 
-  
   <footer>
-    <span>QuotaVPN.</span>
+    <span>QuotaVPN</span>
     <span class="sp"></span>
     <a href="https://github.com/YousefMohiey/QuotaVPN">Source on GitHub</a>
     <a href="https://github.com/YousefMohiey/QuotaVPN/releases">Releases</a>

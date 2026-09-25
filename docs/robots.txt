@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://yousefmohiey.github.io/QuotaCards/sitemap.xml
+Sitemap: https://yousefmohiey.github.io/QuotaVPN/sitemap.xml
