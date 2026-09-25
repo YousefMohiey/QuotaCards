@@ -16,7 +16,7 @@ From the repo root:
 bash tools/build-apk.sh
 ```
 
-That sets the toolchain env, syncs the shared assets, builds, zipaligns and signs with the release keystore, then verifies the signature. Output: `android/QuotaCards-mobile-signed.apk` (the filename stays for updater compatibility until the next mobile rename).
+That sets the toolchain env, syncs the shared assets, builds, zipaligns and signs with the release keystore, then verifies the signature. Output: `android/QuotaVPN-mobile-signed.apk`.
 
 Needs Rust stable with the Android targets, Android SDK 35 + NDK 28, and JDK 23. Go and gomobile are only needed when regenerating `libbox.aar`.
 

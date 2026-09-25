@@ -1,4 +1,4 @@
-//! QuotaCards mobile backend (Tauri) - Phase 1.
+//! QuotaVPN mobile backend (Tauri) - Phase 1.
 //!
 //! Same core as desktop: server setup + card generate/revoke over SSH.
 //! Tunnel connect (Phase 2) needs a Kotlin VpnService + Go libbox.
@@ -633,5 +633,5 @@ pub fn run() {
             apply_update
         ])
         .run(tauri::generate_context!())
-        .expect("QuotaCards failed to start");
+        .expect("QuotaVPN failed to start");
 }
