@@ -10,7 +10,7 @@
 
 ## Screenshots
 
-![Windows app, connected](assets/app-home.png)
+![Windows app, connected](assets/app-home.png?v=2)
 
 One tap connects. The profile tiles pick the quota class, the Server row picks the address, and the session counters run while you are on.
 
