@@ -6,8 +6,12 @@ import { useI18n } from "@/lib/i18n"
 import { isTauri } from "@/lib/ipc"
 
 // The window is undecorated: these are the caption buttons, plus the eight
-// invisible resize edges Windows would normally draw. Physical right/top
-// classes on purpose: Arabic copy never mirrors the chrome.
+// invisible resize edges Windows would normally draw. They ride above every
+// screen and above the dialogs, the way a real title bar never goes away, and
+// they borrow the app's own icon-button rhythm (36px hit area, 10px radius,
+// the nav's resting and hover colours, 2px icon strokes) so they read as part
+// of the product rather than chrome bolted on. Physical right/top classes on
+// purpose: Arabic copy never mirrors the window controls.
 const EDGES = [
   { dir: "North", cls: "left-3 right-3 top-0 h-[5px] cursor-ns-resize" },
   { dir: "South", cls: "bottom-0 left-3 right-3 h-[5px] cursor-ns-resize" },
@@ -20,7 +24,7 @@ const EDGES = [
 ] as const
 
 const CAPTION =
-  "grid size-8 place-items-center rounded-[10px] text-txt2 transition-colors hover:bg-white/[0.07] hover:text-txt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-line)]"
+  "grid size-9 place-items-center rounded-[10px] text-txt2 transition-colors hover:bg-white/[0.08] hover:text-txt active:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-line)]"
 
 export function WindowControls() {
   const { t } = useI18n()
@@ -59,7 +63,7 @@ export function WindowControls() {
         />
       ))}
 
-      <div className="fixed right-2.5 top-2.5 z-40 flex items-center gap-0.5" data-no-drag>
+      <div className="fixed right-2.5 top-2 z-[60] flex items-center gap-1" data-no-drag>
         <button
           type="button"
           aria-label={t("winMin")}
@@ -67,7 +71,7 @@ export function WindowControls() {
           className={CAPTION}
           onClick={() => void win.minimize().catch(() => {})}
         >
-          <Minus className="size-[15px]" strokeWidth={2} aria-hidden />
+          <Minus className="size-4" strokeWidth={2} aria-hidden />
         </button>
         <button
           type="button"
@@ -77,19 +81,19 @@ export function WindowControls() {
           onClick={() => void win.toggleMaximize().catch(() => {})}
         >
           {maximized ? (
-            <Copy className="size-[13px]" strokeWidth={2} aria-hidden />
+            <Copy className="size-[15px]" strokeWidth={1.75} aria-hidden />
           ) : (
-            <Square className="size-[12.5px]" strokeWidth={2} aria-hidden />
+            <Square className="size-[14px]" strokeWidth={1.75} aria-hidden />
           )}
         </button>
         <button
           type="button"
           aria-label={t("winClose")}
           title={t("winClose")}
-          className={cn(CAPTION, "hover:bg-[#e5484d]/20 hover:text-[#ff9aa0]")}
+          className={cn(CAPTION, "hover:bg-[#e5484d]/20 hover:text-[#ff9aa0] active:bg-[#e5484d]/30")}
           onClick={() => void win.close().catch(() => {})}
         >
-          <X className="size-[15px]" strokeWidth={2} aria-hidden />
+          <X className="size-4" strokeWidth={2} aria-hidden />
         </button>
       </div>
     </>
