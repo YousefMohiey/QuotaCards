@@ -6,6 +6,8 @@
 ![English + Arabic](https://img.shields.io/badge/UI-English%20%2B%20Arabic-0b0f18)
 ![License: MIT](https://img.shields.io/badge/license-MIT-0b0f18)
 
+**Website:** https://yousefmohiey.github.io/QuotaCards/
+
 **QuotaVPN** (formerly QuotaCards) is a personal VPN built for ISPs that sell your line in quota buckets. What a connection counts against is decided from the TLS handshake, so QuotaVPN makes your traffic ride the bucket you pick: your gaming or streaming package, or general quota. One Windows app, one Android app, full English and Arabic, and both update themselves from this repo.
 
 ## Screenshots
