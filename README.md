@@ -1,14 +1,14 @@
 ![QuotaVPN banner](assets/banner.svg?v=5)
 
-[![Latest release](https://img.shields.io/github/v/release/YousefMohiey/QuotaCards?color=4a86e8)](https://github.com/YousefMohiey/QuotaCards/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/YousefMohiey/QuotaVPN?color=4a86e8)](https://github.com/YousefMohiey/QuotaVPN/releases/latest)
 ![Windows 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0b0f18?logo=windows&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-0b0f18?logo=android&logoColor=3ddc84)
 ![English + Arabic](https://img.shields.io/badge/UI-English%20%2B%20Arabic-0b0f18)
 ![License: MIT](https://img.shields.io/badge/license-MIT-0b0f18)
 
-**Website:** https://yousefmohiey.github.io/QuotaCards/
+**Website:** https://yousefmohiey.github.io/QuotaVPN/
 
-**QuotaVPN** (formerly QuotaCards) is a personal VPN built for ISPs that sell your line in quota buckets. What a connection counts against is decided from the TLS handshake, so QuotaVPN makes your traffic ride the bucket you pick: your gaming or streaming package, or general quota. One Windows app, one Android app, full English and Arabic, and both update themselves from this repo.
+**QuotaVPN**  is a personal VPN built for ISPs that sell your line in quota buckets. What a connection counts against is decided from the TLS handshake, so QuotaVPN makes your traffic ride the bucket you pick: your gaming or streaming package, or general quota. One Windows app, one Android app, full English and Arabic, and both update themselves from this repo.
 
 ## Screenshots
 
@@ -26,7 +26,7 @@ Arabic ships complete and formal. The layout keeps its shape, nothing mirrors.
 
 ## Download
 
-Latest build from [Releases](https://github.com/YousefMohiey/QuotaCards/releases/latest):
+Latest build from [Releases](https://github.com/YousefMohiey/QuotaVPN/releases/latest):
 
 - **Windows**: `QuotaVPN_<version>_x64-setup.exe`. Installs per user, no admin needed. After that the app updates itself: Settings, Updates, or the tray.
 - **Android**: the signed APK from the same page. Sideload it once, then it updates itself from here.

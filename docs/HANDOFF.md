@@ -7,7 +7,7 @@ and every trap already paid for once.
 
 ## 1. What this is
 
-QuotaVPN (formerly QuotaCards; repo, server hostname and package names still say QuotaCards) is a VPN client for Windows and Android, plus the server tooling behind it. It
+QuotaVPN (server hostname and package names use the older spelling) is a VPN client for Windows and Android, plus the server tooling behind it. It
 exists because the owner's ISP (WE, Egypt, VDSL 35b) sells separate "gaming" and "streaming"
 quota buckets, and a normal VPN spends the wrong one. The app shapes its traffic so the
 carrier classifies it into the bucket the card is meant to spend.
@@ -58,7 +58,7 @@ Windows resolves the installed-app list in `tunnel_apps` and returns JSON rows
 the executable name back, which is why old selections saved as display labels do not match
 after an upgrade and the list has to be re-picked once.
 
-**Updates.** Both apps check `https://github.com/YousefMohiey/QuotaCards/releases/latest/download/latest.json`.
+**Updates.** Both apps check `https://github.com/YousefMohiey/QuotaVPN/releases/latest/download/latest.json`.
 The PC downloads the NSIS installer and applies it (signed feed, `TAURI_SIGNING_PRIVATE_KEY`).
 The phone downloads the APK and hands it to the system installer. The feed asset must be named
 exactly `latest.json`.
@@ -234,7 +234,7 @@ python tools/make-icons.py   # ALL_VERIFIED means every frame is correct
    follows the remote default branch, and the installer's `QC_BUILD` stamp should be the
    published commit.
 4. Verify by fetching the exact URL the apps fetch:
-   `curl -sL https://github.com/YousefMohiey/QuotaCards/releases/latest/download/latest.json`
+   `curl -sL https://github.com/YousefMohiey/QuotaVPN/releases/latest/download/latest.json`
    and confirming the version is the new one.
 
 ## 7. Design system and UI conventions
@@ -332,7 +332,7 @@ that matter most:
 
 ## 10. Environment (this build machine)
 
-- Repo: `C:/Tools/QuotaCards`, branch `master`, remote `YousefMohiey/QuotaCards`.
+- Repo: the working copy on the build host, branch `master`, remote `YousefMohiey/QuotaVPN`.
 - Scratch: `C:/Tools/qc-tools` (release and audit scripts), `C:/Tools/shots-react` (UI
   screenshots).
 - Python with Pillow and pefile lives in the Hermes venv under
@@ -345,7 +345,7 @@ that matter most:
 - Unreleased on top of v0.3.2: the in-app window controls (commit `ed0ef4b`) and the memory
   work (`e745b58`). The four version files already read 0.3.3.
 - v0.3.2 carries the installer shortcut cleanup: exactly one desktop shortcut, named QuotaVPN,
-  with the legacy QuotaCards and Quota names removed from the user and shared desktops and both
+  with leftovers from older installs removed from the user and shared desktops and both
   start menus on every install and in-app update, and the finish page no longer offering its
   own create-desktop-shortcut checkbox. The checkbox defines are stripped from the generated
   NSIS script by `C:/Tools/qc-tools/qc-nsi-patch-sign.py`, which re-runs makensis and re-signs;
