@@ -122,7 +122,7 @@ server (`/speed/down`, `/speed/up`) plus public ping targets.
   permission makes the matching webview call silently do nothing).
 - Memory: while the window is hidden in the tray or minimized, `lib.rs` suspends the WebView2
   (`SetIsVisible(false)` then `TrySuspend`; `Resume` on show, no reload) and lowers its memory
-  target. Measured on the build box: ~340 MB with the window open, ~30-45 MB hidden in the tray,
+  target. Measured on the build box: ~340 MB with the window open, ~35-50 MB hidden in the tray,
   ~27 MB minimized. `vpn.rs::spawn_engine` also caps the engine's Go heap (`GOMEMLIMIT=64MiB`,
   `GOGC=50`).
 
