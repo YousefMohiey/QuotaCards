@@ -306,9 +306,13 @@ that matter most:
   artifact (exe plus DLL, or installer, or signed APK), not just a build tree.
 - Never publish or share a build until the owner explicitly asks for it.
 - WebView2 only suspends when it does not count as visible: hide/minimize must set the controller
-  invisible first (the pattern from the WebView2 docs). For minimize and restore, decide from the
-  WM_SIZE size (a minimized window reports 0x0); `IsIconic` can still report the old state
-  mid-transition and the restore would be missed.
+  invisible first (the pattern from the WebView2 docs). An UNDECORATED window no longer reports a
+  0x0 size while minimized (Windows hands back the icon rect), so the size-based detection used
+  before 0.3.3 silently stopped trimming: a small reconciler thread now polls the real window
+  state (visible / minimized) and the flag inside `set_webview_memory_low` swallows no-op calls.
+  The focus path may only resume a VISIBLE window, or a focus event that lands while hidden undoes
+  the trim a tick later. Do not mix `TrySuspend`/`Resume` with `SetMemoryUsageTargetLevel`: the
+  docs say pick one, and TrySuspend drives the level itself.
 - Driving the packaged app from this machine: the agent shell runs in session 0, where
   `CloseMainWindow`/`ShowWindow` on the session-1 desktop silently do nothing and
   `MainWindowHandle` reads 0. Run helpers through a scheduled task (`schtasks /RU Administrator
