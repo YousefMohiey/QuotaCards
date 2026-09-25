@@ -265,6 +265,12 @@ that matter most:
 - **Glass trap**: never declare `backdrop-filter` and `-webkit-backdrop-filter` together. Vite's
   minifier (lightningcss) keeps only the `-webkit-` form, Chromium ignores it, and the blur
   silently disappears from the shipped build.
+- **Window chrome**: the main window is undecorated. Minimize, maximize and close are drawn by
+  the app (`components/WindowControls.tsx`, top right in both languages) and the title-bar
+  gestures stay in JS: drag from any empty spot, double press the top strip to maximize
+  (`e.detail === 2` on mousedown, the signal Tauri's own drag regions use, because a `dblclick`
+  event never arrives once the OS takes the pointer for the move loop), and invisible edge
+  strips resize through `startResizeDragging`. Close still means hide to the tray.
 
 ## 8. Verifying UI work (the honest way)
 
@@ -308,6 +314,15 @@ that matter most:
   `MainWindowHandle` reads 0. Run helpers through a scheduled task (`schtasks /RU Administrator
   /IT`) so they execute inside the interactive session, and find the real window via UI Automation
   (`ProcessId` + name `QuotaVPN`); `MainWindowHandle` can point at WebView2 helper windows.
+- **UI build trap**: `npm run build` in `desktop/ui-next` can finish in about a second and emit
+  the bundle at the `dist` root while `index.html` still points at `assets/...`. The packaged app
+  then loads a missing file and the window comes up empty, so every click looks like it does
+  nothing. Clean the output (`rm -rf dist`) or check that `dist/assets/` holds the js named in
+  `dist/index.html` before trusting a fast build.
+- **Synthetic input lands on the topmost window**, not on the app: any console or other window
+  over the target swallows the click. Minimize everything else first, check the point with
+  `WindowFromPoint` (it should report the app's `Chrome_RenderWidgetHostHWND`), and run click
+  helpers from a hidden scheduled task so no console sits on top.
 - `tauri-build` runs `windres` when the config changes (icon/manifest resources). On this box it
   needs `C:/Tools/mingw_extract/mingw64/bin` on PATH or the build dies with `NotAttempted("windres")`.
 
@@ -323,6 +338,8 @@ that matter most:
 ## 11. Current state (as of this handoff)
 
 - Latest release: **v0.3.2** (installer, APK, feed), published and live.
+- Unreleased on top of v0.3.2: the in-app window controls (commit `ed0ef4b`) and the memory
+  work (`e745b58`). The four version files already read 0.3.3.
 - v0.3.2 carries the installer shortcut cleanup: exactly one desktop shortcut, named QuotaVPN,
   with the legacy QuotaCards and Quota names removed from the user and shared desktops and both
   start menus on every install and in-app update, and the finish page no longer offering its
