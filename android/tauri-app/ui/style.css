@@ -574,7 +574,8 @@ button:disabled { opacity: 0.45; }
 .speed-sec .iconbtn svg{width:15px; height:15px}
 .speed-sec .iconbtn:active{background:var(--accent-bg); border-color:var(--accent-line); color:var(--accent-strong)}
 .speed-net{display:grid; grid-template-columns:1fr 1fr; margin-top:12px; border:1px solid var(--line); border-radius:12px; overflow:hidden}
-.speed-netcol{min-width:0; padding:9px 13px}
+.speed-netcol{min-width:0; padding:9px 13px; text-align:start; font:inherit; color:inherit; background:none; border-radius:0}
+.speed-netcol > span{display:block; max-width:100%}
 .speed-netcol + .speed-netcol{border-left:1px solid var(--line)}
 .speed-lab{font-size:10.5px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:var(--txt3)}
 .speed-b{margin-top:4px; font-size:14.5px; font-weight:600; color:var(--txt); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}

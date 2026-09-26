@@ -1151,7 +1151,7 @@ function spFromOokla(e) {
     detail: [country, km !== null ? km + " km" : ""].filter(Boolean).join(" · "),
     host: spDisplayHost(base),
     ping: base + "/latency.txt",
-    down: [base + "/random2000x2000.jpg", base + "/random1000x1000.jpg"],
+    down: [base + "/random7000x7000.jpg", base + "/random2000x2000.jpg", base + "/random1000x1000.jpg"],
     up: base + "/upload.php",
   };
 }
@@ -1217,7 +1217,17 @@ async function spPickFastest(pool) {
     const ms = times[i];
     if (ms !== null && ms < bestMs) { best = s; bestMs = ms; }
   });
-  return best;
+  // A server can answer a ping and still serve nothing (an empty body or a
+  // wall), which would leave the run at zero. Prove bytes before trusting it,
+  // and try the runners up before falling back to Cloudflare.
+  const alive = await call("speed_down", { urls: best.down, seconds: 0.7 });
+  if (alive && alive.bytes > 0) return best;
+  for (const s of cands) {
+    if (s === best) continue;
+    const r = await call("speed_down", { urls: s.down, seconds: 0.7 });
+    if (r && r.bytes > 0) return s;
+  }
+  return SP_CF;
 }
 function spFindInPool(id) {
   if (id === "own") return spOwnServer();
@@ -1483,8 +1493,8 @@ function spPaintRunState() {
   document.querySelectorAll(".sstat").forEach((b) => { b.disabled = !!spCtl; });
 }
 
-async function spRunPhase(which, signal) {
-  const target = spTargetDef();
+async function spRunPhase(which, signal, target) {
+  target = target || spTargetDef();
   if (which === "ping") {
     spSetPhase("ping", "pingTitle", "pingHint");
     spSamples = [];
@@ -1573,10 +1583,11 @@ async function spRun(which) {
   void spResolveNet();
   try {
     const want = which === "all" ? ["ping", "down", "up"] : which === "ping2" ? ["ping"] : [which];
+    const runTarget = spTargetDef();
     for (const w of want) {
       if (signal.aborted) break;
       try {
-        await spRunPhase(w, signal);
+        await spRunPhase(w, signal, runTarget);
       } catch (e) {
         if (signal.aborted) break;
         const hint = $("sp-hint");
@@ -1620,7 +1631,7 @@ $("sp-refresh").onclick = () => {
 };
 // The Server panel opens the target picker, the way the desktop's does.
 const spServerPanel = $("sp-server-panel");
-if (spServerPanel) spServerPanel.onclick = () => { if (!spCtl) openSheet("target"); };
+if (spServerPanel) spServerPanel.onclick = () => openSheet("target");
 document.querySelectorAll(".sstat").forEach((b) => {
   b.onclick = () => { if (!spCtl) void spRun(b.dataset.which); };
 });

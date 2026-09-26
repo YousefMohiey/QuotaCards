@@ -77,6 +77,8 @@ fn parse(url: &str) -> Result<Target, String> {
     Ok(Target { host, port, tls, path: path.to_string() })
 }
 
+/// The user agent every request carries: the same string the desktop sends.
+/// The public test servers answer a browser and stall or 500 anything else.
 fn host_header(t: &Target) -> String {
     let standard = (t.tls && t.port == 443) || (!t.tls && t.port == 80);
     if standard {
@@ -189,7 +191,7 @@ fn filler(len: usize, seed: u64) -> Vec<u8> {
 async fn fetch(url: &str, timeout: u64) -> Result<String, String> {
     let (mut c, t) = connect(url).await?;
     let req = format!(
-        "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: QuotaVPN\r\nAccept: */*\r\nConnection: close\r\n\r\n",
+        "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36\r\nAccept: */*\r\nConnection: close\r\n\r\n",
         t.path,
         host_header(&t)
     );
@@ -250,6 +252,84 @@ async fn fetch(url: &str, timeout: u64) -> Result<String, String> {
     Ok(out)
 }
 
+/// A response head is enough to decide: 2xx means the body can be read, 3xx
+/// means go to Location. speedtest.net's own servers answer 307 to their
+/// production host, which is why a client that ignores redirects measures
+/// nothing there while its latency probe still succeeds.
+fn split_head(buf: &[u8]) -> Option<(u16, String, usize)> {
+    let text = String::from_utf8_lossy(buf);
+    let end = text.find("\r\n\r\n")?;
+    let head = &text[..end];
+    let mut lines = head.split("\r\n");
+    let status = lines
+        .next()
+        .and_then(|l| l.split_whitespace().nth(1))
+        .and_then(|c| c.parse::<u16>().ok())?;
+    let mut location = String::new();
+    for l in lines {
+        if l.len() > 9 && l[..9].eq_ignore_ascii_case("location:") {
+            location = l[9..].trim().to_string();
+        }
+    }
+    Some((status, location, end + 4))
+}
+
+fn absolute(base: &str, location: &str) -> String {
+    if location.starts_with("http://") || location.starts_with("https://") {
+        return location.to_string();
+    }
+    let t = match parse(base) {
+        Ok(t) => t,
+        Err(_) => return location.to_string(),
+    };
+    let scheme = if t.tls { "https" } else { "http" };
+    let authority = host_header(&t);
+    if location.starts_with('/') {
+        format!("{scheme}://{authority}{location}")
+    } else {
+        format!("{scheme}://{authority}/{location}")
+    }
+}
+
+/// Opens a GET and follows up to `hops` redirects. Returns the live
+/// connection, the target it settled on, and any body bytes already read.
+async fn open_get(url: &str, hops: u32) -> Result<(Conn, Target, Vec<u8>), String> {
+    let (mut c, t) = connect(url).await?;
+    let req = format!(
+        "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36\r\nAccept: */*\r\nConnection: close\r\n\r\n",
+        t.path,
+        host_header(&t)
+    );
+    c.write(req.as_bytes()).await?;
+    let mut buf = vec![0u8; 8192];
+    let mut got: Vec<u8> = Vec::new();
+    loop {
+        match tokio::time::timeout(Duration::from_secs(8), c.read(&mut buf)).await {
+            Ok(Ok(0)) | Err(_) => break,
+            Ok(Err(e)) => return Err(format!("read: {e}")),
+            Ok(Ok(n)) => {
+                got.extend_from_slice(&buf[..n]);
+                if let Some((status, location, head_len)) = split_head(&got) {
+                    if (300..400).contains(&status) {
+                        if hops == 0 {
+                            return Err(format!("redirect loop ({status})"));
+                        }
+                        if location.is_empty() {
+                            return Err(format!("redirect without location ({status})"));
+                        }
+                        let next = absolute(url, &location);
+                        drop(c);
+                        return Box::pin(open_get(&next, hops - 1)).await;
+                    }
+                    let body = got[head_len..].to_vec();
+                    return Ok((c, t, body));
+                }
+            }
+        }
+    }
+    Ok((c, t, got))
+}
+
 /// Round trips to one URL, in milliseconds. A failed probe stops the series:
 /// eight probes against an unreachable host would spend eight connect timeouts
 /// before the caller can move on.
@@ -257,23 +337,10 @@ pub async fn latency(url: &str, probes: u32) -> Vec<f64> {
     let mut out = Vec::new();
     for _ in 0..probes {
         let t0 = Instant::now();
-        let (mut c, t) = match connect(url).await {
-            Ok(x) => x,
-            Err(_) => break,
-        };
-        let req = format!(
-            "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: QuotaVPN\r\nAccept: */*\r\nConnection: close\r\n\r\n",
-            bust(&t.path),
-            host_header(&t)
-        );
-        let ok = match c.write(req.as_bytes()).await {
-            Ok(()) => {
-                let mut buf = [0u8; 512];
-                match tokio::time::timeout(Duration::from_secs(6), c.read(&mut buf)).await {
-                    Ok(Ok(n)) => n > 0,
-                    _ => false,
-                }
-            }
+        // The whole chain counts: the public servers redirect to their real
+        // host, and a reading that skipped that hop would flatter them.
+        let ok = match open_get(&bust_url(url), 3).await {
+            Ok((_c, _t, _bytes)) => true,
             Err(_) => false,
         };
         if !ok {
@@ -282,6 +349,13 @@ pub async fn latency(url: &str, probes: u32) -> Vec<f64> {
         out.push(t0.elapsed().as_secs_f64() * 1000.0);
     }
     out
+}
+
+fn bust_url(url: &str) -> String {
+    match url.split_once('#') {
+        Some((base, _)) => bust(base),
+        None => bust(url),
+    }
 }
 
 /// Streams downloads until the window closes, cycling the URLs given (the
@@ -304,24 +378,19 @@ pub async fn download(urls: &[String], seconds: f64) -> SpeedOut {
     while start.elapsed().as_secs_f64() < seconds {
         let url = bust(&urls[i % urls.len()]);
         i += 1;
-        let (mut c, t) = match connect(&url).await {
+        let (mut c, _t, head_body) = match open_get(&url, 3).await {
             Ok(x) => x,
             Err(e) => {
                 note = format!("down: {e}");
                 break;
             }
         };
-        let req = format!(
-            "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: QuotaVPN\r\nAccept: */*\r\nConnection: close\r\n\r\n",
-            t.path,
-            host_header(&t)
-        );
-        if let Err(e) = c.write(req.as_bytes()).await {
-            note = format!("down: {e}");
-            break;
-        }
         let mut got_any = false;
         let mut buf = vec![0u8; 64 * 1024];
+        if !head_body.is_empty() {
+            got_any = true;
+            bytes += head_body.len() as u64;
+        }
         loop {
             if start.elapsed().as_secs_f64() >= seconds {
                 break;
@@ -367,26 +436,55 @@ pub async fn download(urls: &[String], seconds: f64) -> SpeedOut {
 /// sequential and the caller drops the first one (it only fills local and proxy
 /// buffers, so it reads the buffer, not the link).
 pub async fn upload_chunk(url: &str, chunk: &[u8]) -> Result<f64, String> {
-    let (mut c, t) = connect(url).await?;
-    let head = format!(
-        "POST {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: QuotaVPN\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-        t.path,
-        host_header(&t),
-        chunk.len()
-    );
     let t0 = Instant::now();
-    c.write(head.as_bytes()).await?;
-    for part in chunk.chunks(64 * 1024) {
-        c.write(part).await?;
+    let mut target_url = url.to_string();
+    for hop in 0..4 {
+        let (mut c, t) = connect(&target_url).await?;
+        let head = format!(
+            "POST {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            t.path,
+            host_header(&t),
+            chunk.len()
+        );
+        if hop > 3 {
+            break;
+        }
+        c.write(head.as_bytes()).await?;
+        for part in chunk.chunks(64 * 1024) {
+            c.write(part).await?;
+        }
+        c.flush().await?;
+        // Read the head: a redirect means posting the same body again at the
+        // real host (the public servers answer 307 from their vanity host).
+        let mut buf = vec![0u8; 8192];
+        let mut got: Vec<u8> = Vec::new();
+        loop {
+            match tokio::time::timeout(Duration::from_secs(12), c.read(&mut buf)).await {
+                Ok(Ok(0)) | Err(_) => break,
+                Ok(Err(e)) => return Err(format!("up: {e}")),
+                Ok(Ok(n)) => {
+                    got.extend_from_slice(&buf[..n]);
+                    if let Some((status, location, _)) = split_head(&got) {
+                        if (300..400).contains(&status) {
+                            if location.is_empty() {
+                                return Err(format!("up: redirect without location ({status})"));
+                            }
+                            target_url = absolute(&target_url, &location);
+                            got.clear();
+                            break;
+                        }
+                        return Ok(mbps(chunk.len() as u64, t0.elapsed().as_secs_f64()));
+                    }
+                }
+            }
+        }
+        if got.is_empty() {
+            // No head at all: the server took the body and said nothing, which
+            // the desktop treats as a completed chunk.
+            return Ok(mbps(chunk.len() as u64, t0.elapsed().as_secs_f64()));
+        }
     }
-    c.flush().await?;
-    let mut buf = [0u8; 1024];
-    match tokio::time::timeout(Duration::from_secs(12), c.read(&mut buf)).await {
-        Ok(Ok(0)) | Err(_) => return Err("up: no reply".into()),
-        Ok(Ok(_)) => {}
-        Ok(Err(e)) => return Err(format!("up: {e}")),
-    }
-    Ok(mbps(chunk.len() as u64, t0.elapsed().as_secs_f64()))
+    Err("up: too many redirects".into())
 }
 
 /// N chunks of `chunk_mb` megabytes, sequentially, inside `window` seconds.
