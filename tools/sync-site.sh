@@ -21,14 +21,17 @@ cp -r desktop/ui-next/dist docs/app
 # Anything the bundle still points at with a leading slash would resolve to the
 # domain root, not to /QuotaVPN/, so make those relative before shipping.
 python - <<'PY'
-import pathlib, re
+# newline="" on both ends: this file is a build artifact and every bare newline
+# in it is meaningful (one lives inside a template literal). Letting Python
+# translate them corrupts the bundle.
+import io, pathlib, re
 n = 0
 for f in (pathlib.Path("docs/app/assets")).glob("*.js"):
-    t = f.read_text(encoding="utf-8")
+    t = io.open(f, encoding="utf-8", newline="").read()
     t2 = re.sub(r'url\(/(?!/)', 'url(./', t)
-    t2 = re.sub(r'"/(?=[A-Za-z0-9_])', '"./', t2)
+    t2 = re.sub(r'"/assets/', '"./assets/', t2)
     if t2 != t:
-        f.write_text(t2, encoding="utf-8")
+        io.open(f, "w", encoding="utf-8", newline="").write(t2)
         n += 1
 print("absolute refs fixed in", n, "file(s)")
 PY
