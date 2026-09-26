@@ -55,7 +55,7 @@
     {
       "@type": "Question",
       "name": "Do I need an account?",
-      "acceptedAnswer": { "@type": "Answer", "text": "No. There is no sign up and no account. You add the server address and the profile that your server gives you, and the app connects." }
+      "acceptedAnswer": { "@type": "Answer", "text": "No. There is no sign up and no account. The build comes pointed at the QuotaVPN server, and the app connects." }
     },
     {
       "@type": "Question",
@@ -379,8 +379,6 @@
   .stage-head{display:flex; flex-direction:column; gap:10px; margin:0 0 16px}
   .win{background:var(--panel); border:1px solid var(--glass-line); border-radius:var(--r-panel);
     box-shadow:var(--sh-panel); overflow:hidden; margin-top:16px}
-  .win-ctrl{position:absolute; right:10px; top:8px; display:flex; gap:4px; color:var(--txt2); pointer-events:none}
-  .win-ctrl svg{width:36px; height:36px; padding:10px; box-sizing:border-box; border-radius:10px; opacity:.85}
   .win-body{position:relative; overflow:hidden; background:var(--bg)}
   .win-open{display:none}
   .win-shot{display:none}
@@ -429,6 +427,16 @@
   @media (max-width:760px){
     .win-body iframe{display:none}
   }
+  /* On a touch screen a live iframe eats the swipe, so the demo stays locked
+     until it is tapped, and a Done chip hands the page back. */
+  .frame-lock, .frame-rel{display:none}
+  .touch .stage-locked .frame-lock{display:flex; position:absolute; inset:0; z-index:4; align-items:center; justify-content:center;
+    border:0; background:rgb(16 20 28 / 0.35); color:var(--txt); font:inherit; cursor:pointer}
+  .touch .stage-locked .frame-lock span{padding:11px 18px; border-radius:var(--r-ctl); border:1px solid var(--brand-line);
+    background:rgb(10 14 20 / 0.94); font-size:13px; font-weight:570}
+  .touch .stage-locked iframe{pointer-events:none}
+  .touch .stage-unlocked .frame-rel{display:flex; position:absolute; right:10px; bottom:10px; z-index:4; padding:8px 14px;
+    border-radius:999px; border:1px solid var(--line-strong); background:rgb(10 14 20 / 0.92); color:var(--txt2); font-size:12px}
 </style>
 </head>
 <body>
@@ -474,11 +482,6 @@
       <div class="win-body" id="winBody">
         <iframe id="appFrame" src="app/index.html" title="QuotaVPN for Windows, live interactive demo" loading="lazy"></iframe>
         <img class="win-shot" src="assets/app-home.png" alt="QuotaVPN for Windows" loading="lazy">
-        <div class="win-ctrl" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></svg>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"><rect x="6.5" y="6.5" width="11" height="11" rx="1"/></svg>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>
-        </div>
         <a class="win-open" href="app/index.html" target="_blank" rel="noopener"><span>Open the live demo full screen</span></a>
       </div>
     </div>
@@ -501,6 +504,8 @@
         <div class="phone-shell">
           <div class="phone-screen" id="phoneScreen">
             <iframe id="phoneFrame" src="phone/index.html" title="QuotaVPN for Android, live interactive demo" loading="lazy"></iframe>
+            <button type="button" class="frame-lock" aria-label="Try the Android demo"><span>Tap to try the demo</span></button>
+            <button type="button" class="frame-rel" aria-label="Release the demo">Done</button>
           </div>
         </div>
         <div class="demo-cap">
@@ -520,7 +525,7 @@
           </div>
           <div class="row">
             <div class="k">Speed test</div>
-            <div class="v"><b>Measures the route you are on right now</b><p>Ping, jitter, download and upload run against your own server, so the number is the path your traffic actually takes. The last runs stay in a list.</p></div>
+            <div class="v"><b>Measures the route you are on right now</b><p>Ping, jitter, download and upload run against the QuotaVPN server, so the number is the path your traffic actually takes. The last runs stay in a list.</p></div>
           </div>
           <div class="row">
             <div class="k">Kept current</div>
@@ -540,7 +545,7 @@
   <div class="strip" id="facts">
     <div><b>Signed updates</b><span>The app installs its own updates, verified</span></div>
     <div><b>English and Arabic</b><span>The whole interface in both languages</span></div>
-    <div><b>Your own server</b><span>Bring a box, one script sets it up</span></div>
+    <div><b>Runs on its own server</b><span>Set up once and kept current</span></div>
   </div>
 </div>
 
@@ -677,7 +682,7 @@
       </details>
       <details>
         <summary>Do I need an account?</summary>
-        <p>No. There is no sign up and no account. You add the server address and the profile your server gives you, and the app connects.</p>
+        <p>No. There is no sign up and no account. The build comes pointed at the QuotaVPN server, and the app connects.</p>
       </details>
       <details>
         <summary>Is the Android build a real app or a wrapper?</summary>
@@ -814,6 +819,28 @@
   window.addEventListener('orientationchange', all);
   if(document.readyState === 'complete') all(); else window.addEventListener('load', all);
   all();
+})();
+</script>
+<script>
+(function(){
+  // Touch devices get the locked demo: the page scrolls, the demo opens on tap.
+  var touch = false;
+  try { touch = matchMedia("(hover: none)").matches; } catch(e){}
+  if (!touch) return;
+  document.documentElement.className += " touch";
+  var stage = document.getElementById("phoneScreen");
+  if (!stage) return;
+  stage.classList.add("stage-locked");
+  var lock = stage.querySelector(".frame-lock");
+  var rel = stage.querySelector(".frame-rel");
+  if (lock) lock.addEventListener("click", function(){
+    stage.classList.remove("stage-locked");
+    stage.classList.add("stage-unlocked");
+  });
+  if (rel) rel.addEventListener("click", function(){
+    stage.classList.add("stage-locked");
+    stage.classList.remove("stage-unlocked");
+  });
 })();
 </script>
 </body>

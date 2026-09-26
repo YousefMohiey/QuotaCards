@@ -80,11 +80,11 @@ const STR = {
     spReady: "Ready to test", spPinging: "Measuring ping", spDowning: "Measuring download",
     spUping: "Measuring upload", spDone: "Result", spFail: "No reply from the server.",
     peak: "Peak", yourConn: "Your connection", targetServer: "Server", findingServer: "Finding the nearest server",
-    srvName: "QuotaVPN server", srvOwnNote: "Through your server", pingTitle: "Ping", jitter: "Jitter",
+    srvName: "QuotaVPN server", srvOwnNote: "Through the QuotaVPN server", pingTitle: "Ping", jitter: "Jitter",
     chDown: "Down", chUp: "Up", mbps: "Mbps", ms: "ms", idle: "idle", done: "Done",
     measuring: "Measuring…", stop: "Stop", refresh: "Refresh", startTest: "Start test",
     pingHint: "Best of 8 samples through the active path.", downHint: "Download through the active path.",
-    upHint: "Upload through the active path.", noReply: "No reply.", cfName: "Cloudflare", srvPublic: "Public reference", pickServer: "Speed test server", cfDetail: "Cloudflare's own test endpoints",
+    upHint: "Upload through the active path.", noReply: "No reply.", cfName: "Cloudflare", srvPublic: "Public reference", pickServer: "Speed test server", srvAuto: "Nearest server", srvAutoNote: "Picked for you", cfDetail: "Cloudflare's own test endpoints",
     spStart: "Start test", spStop: "Stop", spPing: "Ping", spJitter: "Jitter", spDown: "Down", spUp: "Up",
     spHint: "Tests the route the card on Home is using.",
     spHistory: "Recent runs", spNone: "No runs yet.",
@@ -96,7 +96,7 @@ const STR = {
     bgBtnAllow: "Allow background running",
     bgBtnStop: "Disallow background running",
     vpnConnected: "VPN Connected", serverReady: "Server ready", notConnected: "Not connected",
-    working: "Working…", talking: "Talking to your server.", trafficThru: "All traffic goes through ",
+    working: "Working…", talking: "Talking to the server.", trafficThru: "All traffic goes through ",
     readySub: "Server is set up. Pick a card and connect.", idleSub: "Pick a card and connect.",
     connect: "Connect", disconnect: "Disconnect", connected: "Connected",
     vpnOn: "vpn on", ready: "ready", idle: "idle",
@@ -138,11 +138,11 @@ const STR = {
     spReady: "جاهز للاختبار", spPinging: "قياس البينج", spDowning: "قياس التحميل",
     spUping: "قياس الرفع", spDone: "النتيجة", spFail: "مفيش رد من السيرفر.",
     peak: "الذروة", yourConn: "اتصالك", targetServer: "الخادم", findingServer: "جارٍ العثور على أقرب خادم",
-    srvName: "خادم QuotaVPN", srvOwnNote: "عبر خادمك", pingTitle: "زمن الاستجابة", jitter: "التذبذب",
+    srvName: "خادم QuotaVPN", srvOwnNote: "عبر خادم QuotaVPN", pingTitle: "زمن الاستجابة", jitter: "التذبذب",
     chDown: "تنزيل", chUp: "رفع", mbps: "ميجابت", ms: "مللي ثانية", idle: "خامل", done: "تم",
     measuring: "جارٍ القياس…", stop: "إيقاف", refresh: "تحديث", startTest: "بدء الاختبار",
     pingHint: "أفضل 8 محاولات عبر المسار الحالي.", downHint: "قياس التحميل من الخادم عبر المسار الحالي.",
-    upHint: "قياس الرفع إلى الخادم عبر المسار الحالي.", noReply: "لا يوجد رد.", cfName: "Cloudflare", srvPublic: "مرجع عام", pickServer: "خادم اختبار السرعة", cfDetail: "نقاط اختبار Cloudflare نفسها",
+    upHint: "قياس الرفع إلى الخادم عبر المسار الحالي.", noReply: "لا يوجد رد.", cfName: "Cloudflare", srvPublic: "مرجع عام", pickServer: "خادم اختبار السرعة", srvAuto: "أقرب خادم", srvAutoNote: "يُختار تلقائيًا", cfDetail: "نقاط اختبار Cloudflare نفسها",
     spStart: "ابدأ الاختبار", spStop: "إيقاف", spPing: "بينج", spJitter: "تذبذب", spDown: "تحميل", spUp: "رفع",
     spHint: "بيختبر المسار اللي بطاقتك في الرئيسية بتستخدمه.",
     spHistory: "آخر الاختبارات", spNone: "مفيش اختبارات لسه.",
@@ -318,7 +318,7 @@ let barTimer = 0;
 const RUST_AR = {
   "Connected - server ready.": "السيرفر جاهز.",
   "No server set up.": "جهّز السيرفر الأول.",
-  "Set up your server first.": "جهّز السيرفر الأول.",
+  "The server is not set up yet.": "الخادم غير مهيأ بعد.",
   "No server set.": "جهّز السيرفر الأول.",
   "Card not found.": "البطاقة مش موجودة.",
 };
@@ -820,27 +820,40 @@ function openSheet(which) {
   const list = $("sheet-list");
   list.innerHTML = "";
   if (which === "target") {
-    // Which route the test measures: the public reference, or this app's own
-    // server. Same pair the desktop offers, same default.
+    // The pool the desktop shows: pick automatically, take one of the near
+    // servers by hand, or measure through the QuotaVPN server.
     $("sheet-title").textContent = t("pickServer");
-    const cur = spTargetDef().id;
-    list.append(optRow(t("cfName") + " · speed.cloudflare.com", t("srvPublic"), cur === "cloudflare", () => {
-      spTarget = "cloudflare";
-      try { localStorage.setItem("qc-speed-target", "cloudflare"); } catch (e) {}
+    const cur = spChoose;
+    list.append(optRow(t("srvAuto"), t("srvAutoNote"), cur === "auto", () => {
+      spChoose = "auto";
+      try { localStorage.setItem("qc-speed-target", "auto"); } catch (e) {}
+      spTarget = null;
       closeSheet();
-      spPaintTarget();
+      void spRefreshTarget();
     }));
-    if (serverHost) {
-      list.append(optRow(t("srvName") + " · " + serverHost, t("srvOwnNote"), cur === "own", () => {
-        spTarget = "own";
+    const own = spOwnServer();
+    if (own) {
+      list.append(optRow(own.label + " · " + own.host, own.detail, cur === "own", () => {
+        spChoose = "own";
         try { localStorage.setItem("qc-speed-target", "own"); } catch (e) {}
+        spTarget = own;
+        closeSheet();
+        spPaintTarget();
+      }));
+    }
+    for (const s of spPool.slice(0, 12)) {
+      if (s.id === "own") continue;
+      list.append(optRow(s.label + " · " + s.host, s.detail, cur === s.id, () => {
+        spChoose = s.id;
+        try { localStorage.setItem("qc-speed-target", s.id); } catch (e) {}
+        spTarget = s;
         closeSheet();
         spPaintTarget();
       }));
     }
     $("sheet-search").hidden = true;
-    const sp = $("sheet-primary");
-    if (sp) sp.hidden = true;
+    const spb = $("sheet-primary");
+    if (spb) spb.hidden = true;
     requestAnimationFrame(() => requestAnimationFrame(() => $("sheet").classList.add("open")));
     try { history.pushState({ qcSheet: true }, ""); } catch (e) {}
     return;
@@ -1087,30 +1100,158 @@ let spGateAt = 0;
 let spNet = null;
 let spLast = { ping: null, jitter: null, down: null, up: null };
 
-// The two targets the desktop offers, with the same default: the public
-// reference is Cloudflare's own speed endpoints, the host a browser speedtest
-// measures against; the other is this app's server, over the route the tunnel
-// uses. The pick survives restarts.
+// Where the test measures. Same rules as the desktop: gather the real public
+// test servers (speedtest.net's own list, ranked by distance from this
+// address, plus the LibreSpeed pool), probe the nearest few, run against the
+// winner. Cloudflare is always in the pool (anycast, so it is also a nearest
+// edge), and the QuotaVPN server is always offered by hand.
 const SP_CF = {
-  id: "cloudflare", host: "speed.cloudflare.com",
-  pingPath: "/__down?bytes=10000", downPath: "/__down?bytes=52428800", upPath: "/__up",
+  id: "cloudflare",
+  label: "Cloudflare",
+  detail: "Cloudflare, Inc.",
+  host: "speed.cloudflare.com",
+  ping: "https://speed.cloudflare.com/__down?bytes=10000",
+  down: ["https://speed.cloudflare.com/__down?bytes=52428800"],
+  up: "https://speed.cloudflare.com/__up",
 };
-let spTarget = "cloudflare";
-function spTargetDef() {
-  if (spTarget === "own" && serverHost) {
-    return {
-      id: "own", host: serverHost,
-      pingPath: "/speed/ping", downPath: "/speed/down?bytes=52428800", upPath: "/speed/up",
-    };
+function spOwnServer() {
+  if (!serverHost) return null;
+  return {
+    id: "own",
+    label: t("srvName"),
+    detail: t("srvOwnNote"),
+    host: serverHost,
+    ping: "https://" + serverHost + "/speed/ping",
+    down: ["https://" + serverHost + "/speed/down?bytes=52428800"],
+    up: "https://" + serverHost + "/speed/up",
+  };
+}
+let spPool = [];
+let spTarget = null;
+let spChoose = "auto"; // auto | own | <server id>
+let spPicking = false;
+
+function spDisplayHost(base) {
+  try { return new URL(base).host; } catch (e) { return String(base).replace(/^https?:\/\//, "").split("/")[0]; }
+}
+function spFromOokla(e) {
+  const raw = String((e && e.url) || "").trim();
+  if (!raw) return null;
+  // Entries point at upload.php; the base carries latency.txt, the random*.jpg
+  // downloads and the upload endpoint.
+  const base = raw.replace(/\/upload\.php.*$/i, "").replace(/\/+$/, "");
+  if (!base) return null;
+  const sponsor = String(e.sponsor || "").trim();
+  const place = String(e.name || "").trim();
+  const country = String(e.country || "").trim();
+  const km = typeof e.distance === "number" ? Math.round(e.distance) : null;
+  return {
+    id: "ookla-" + (String(e.host || "").trim() || base),
+    label: [sponsor, place].filter(Boolean).join(" · ") || spDisplayHost(base),
+    detail: [country, km !== null ? km + " km" : ""].filter(Boolean).join(" · "),
+    host: spDisplayHost(base),
+    ping: base + "/latency.txt",
+    down: [base + "/random2000x2000.jpg", base + "/random1000x1000.jpg"],
+    up: base + "/upload.php",
+  };
+}
+function spJoin(base, path) {
+  return String(base).replace(/\/+$/, "") + "/" + String(path).replace(/^\/+/, "");
+}
+function spFromLibre(e) {
+  const base = String((e && e.server) || "").trim();
+  if (!base || !e.dlURL || !e.ulURL || !e.pingURL) return null;
+  const whole = String(e.name || "").trim() || spDisplayHost(base);
+  const label = whole.split(" (")[0].trim() || spDisplayHost(base);
+  const inName = /\(([^)]+)\)/.exec(whole);
+  return {
+    id: "ls-" + spDisplayHost(base),
+    label: label,
+    detail: (String(e.sponsorName || "").trim() || (inName ? inName[1] : "")).trim(),
+    host: spDisplayHost(base),
+    ping: spJoin(base, e.pingURL) + "?cors=true",
+    down: [spJoin(base, e.dlURL) + "?ckSize=50&cors=true"],
+    up: spJoin(base, e.ulURL) + "?cors=true",
+  };
+}
+async function spLoadPool() {
+  let ookla = null;
+  let libre = null;
+  const raw = await call("speed_servers");
+  if (raw && typeof raw === "string") {
+    try {
+      const p = JSON.parse(raw);
+      if (Array.isArray(p.ookla)) ookla = p.ookla;
+      if (Array.isArray(p.librespeed)) libre = p.librespeed;
+    } catch (e) { /* fall through to Cloudflare alone */ }
   }
+  const pool = [];
+  (ookla || [])
+    .slice()
+    .sort((a, b) => ((a && a.distance) || 1e18) - ((b && b.distance) || 1e18))
+    .forEach((e) => { const s = spFromOokla(e); if (s) pool.push(s); });
+  pool.push(SP_CF);
+  (libre || []).forEach((e) => { const s = spFromLibre(e); if (s) pool.push(s); });
+  spPool = pool;
+  return pool;
+}
+/// Lowest round trip wins, among servers that can complete the whole path.
+async function spPickFastest(pool) {
+  const shortlist = pool.slice(0, 9);
+  if (shortlist.length <= 1) return pool[0] || SP_CF;
+  const reach = await Promise.all(
+    shortlist.map((s) => call("speed_latency", { url: s.ping, probes: 1 })
+      .then((r) => Array.isArray(r) && r.length > 0)
+      .catch(() => false)),
+  );
+  let cands = shortlist.filter((_, i) => reach[i]);
+  if (!cands.length) cands = [SP_CF];
+  const times = await Promise.all(
+    cands.map((s) => call("speed_latency", { url: s.ping, probes: 1 })
+      .then((r) => (Array.isArray(r) && r.length ? Math.min.apply(null, r) : null))
+      .catch(() => null)),
+  );
+  let best = cands[0];
+  let bestMs = Infinity;
+  cands.forEach((s, i) => {
+    const ms = times[i];
+    if (ms !== null && ms < bestMs) { best = s; bestMs = ms; }
+  });
+  return best;
+}
+function spFindInPool(id) {
+  if (id === "own") return spOwnServer();
+  for (const s of spPool) if (s.id === id) return s;
+  if (id === "cloudflare") return SP_CF;
+  return null;
+}
+function spTargetDef() {
+  if (spTarget) return spTarget;
+  if (spChoose === "own") { const own = spOwnServer(); if (own) return own; }
   return SP_CF;
 }
-function spTargetLabel() {
-  const d = spTargetDef();
-  return d.id === "own" ? t("srvName") : t("cfName");
-}
-function spTargetNote() {
-  return spTargetDef().id === "own" ? t("srvOwnNote") : t("srvPublic");
+function spTargetLabel() { return spSim() ? t("cfName") : spTargetDef().label; }
+function spTargetNote() { return spSim() ? t("srvPublic") : (spTargetDef().detail || ""); }
+/// Load the pool and pick, the way the desktop does on open and on refresh.
+async function spRefreshTarget() {
+  if (spSim() || spPicking) return;
+  spPicking = true;
+  const note = $("sp-note");
+  if (note) note.textContent = t("findingServer");
+  try {
+    const pool = await spLoadPool();
+    if (spChoose === "own") {
+      spTarget = spOwnServer() || SP_CF;
+    } else if (spChoose !== "auto") {
+      spTarget = spFindInPool(spChoose) || (await spPickFastest(pool));
+    } else {
+      spTarget = await spPickFastest(pool);
+    }
+  } catch (e) {
+    spTarget = spChoose === "own" ? spOwnServer() : SP_CF;
+  }
+  spPicking = false;
+  spPaintTarget();
 }
 
 const spSleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -1272,12 +1413,12 @@ async function spSimPhase(peak, seconds, signal) {
 // 250ms rhythm; the request never touches the webview's network stack.
 async function spNative(which, seconds, target) {
   if (which === "ping") {
-    return await call("speed_latency", { host: target.host, path: target.pingPath, probes: SP_PING_PROBES });
+    return await call("speed_latency", { url: target.ping, probes: SP_PING_PROBES });
   }
-  const args = { host: target.host, path: which === "down" ? target.downPath : target.upPath, seconds };
-  if (which === "down") return await call("speed_down", args);
-  args.chunkMb = 2;
-  return await call("speed_up", args);
+  if (which === "down") {
+    return await call("speed_down", { urls: target.down, seconds });
+  }
+  return await call("speed_up", { url: target.up, seconds, chunkMb: 2 });
 }
 
 function spBad(r) {
@@ -1473,9 +1614,9 @@ $("sp-stop").onclick = spStop;
 // Same job as the desktop's refresh button: re-read the connection you are on
 // and repaint the target panel, with the icon turning while it works.
 $("sp-refresh").onclick = () => {
-  if (spNetBusy) return;
+  if (spNetBusy || spPicking) return;
   void spResolveNet();
-  spPaintTarget();
+  void spRefreshTarget();
 };
 // The Server panel opens the target picker, the way the desktop's does.
 const spServerPanel = $("sp-server-panel");
@@ -1485,7 +1626,8 @@ document.querySelectorAll(".sstat").forEach((b) => {
 });
 try {
   const saved = localStorage.getItem("qc-speed-target");
-  if (saved === "own" || saved === "cloudflare") spTarget = saved;
+  if (saved) spChoose = saved;
+  if (spChoose === "own" || spChoose === "cloudflare") spTarget = spFindInPool(spChoose);
 } catch (e) {}
 spPaintTarget();
 spPaintReadout();
@@ -1502,6 +1644,10 @@ goTab = function (name, push) {
     spPaintTarget();
     spPaintReadout();
     spPaintHistory();
-    if (!spNetLoaded) { spNetLoaded = true; void spResolveNet(); }
+    if (!spNetLoaded) {
+      spNetLoaded = true;
+      void spResolveNet();
+      void spRefreshTarget();
+    }
   }
 };

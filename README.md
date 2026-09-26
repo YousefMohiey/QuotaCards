@@ -35,7 +35,7 @@ Your ISP classifies a connection from the TLS handshake at its start, and that i
 - **Two profiles, Gamerz and Streamerz**, each with its own server list (EA, Riot, Steam, YouTube, Meta, Prime Video and friends) plus any custom server you add.
 - **Three transports, honestly labelled.** Standard spends your package class; WireGuard and Hysteria2 spend general quota and are the raw-speed options.
 - **Per-app routing** on both platforms: whole device, only these apps, or everything except them.
-- **Speed screen** with ping, download and upload against your own server, plus history.
+- **Speed screen** with ping, download and upload against the QuotaVPN server, plus history.
 - **Full English and Arabic**, in both apps. The layout keeps its shape; nothing mirrors.
 - **Signed self-updates.** The app downloads the signed installer and applies it for you.
 

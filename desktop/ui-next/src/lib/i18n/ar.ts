@@ -28,7 +28,7 @@ export const ar = {
   "searchList": "ابحث…",
   "select": "تحديد",
   "selected": "المحدد",
-  "srvOwnNote": "عبر بطاقتك",
+  "srvOwnNote": "عبر الخادم",
   "srvPublic": "مرجع عام",
   "copied": "تم النسخ.",
   "copyResult": "نسخ النتيجة",

@@ -610,40 +610,51 @@ async fn tunnel_probe(app: tauri::AppHandle) -> Result<CmdResult, String> {
 //
 // The desktop learned this lesson first: a webview cannot read the bytes it is
 // timing, so the measurement lives on the backend there too. Here it also
-// sidesteps webview network policy entirely, which is why the phone's speed
-// screen can run the same test the desktop runs, against the same endpoints.
+// sidesteps webview network policy entirely, which is why the phone can run
+// the same test the desktop runs, against the same public servers.
+//
+// Every target is a full URL: the public test servers are not all HTTPS on 443
+// (speedtest.net's own answer on plain HTTP port 8080), so scheme, port and
+// path all come from the caller.
 // ---------------------------------------------------------------------------
 #[tauri::command]
 async fn net_info() -> Option<speed::NetInfo> {
     speed::net_info().await
 }
 
-/// One probe series against a path on `host`. Milliseconds, failures dropped.
+/// The public test-server lists (speedtest.net's, ranked by distance from this
+/// address, plus the LibreSpeed pool). Raw JSON; the UI ranks and picks.
 #[tauri::command]
-async fn speed_latency(host: String, path: String, probes: u32) -> Vec<f64> {
-    speed::latency(&host, &path, probes.clamp(1, 16)).await
+async fn speed_servers() -> String {
+    speed::servers().await
 }
 
-/// One download window. The UI calls this in short slices so the bars keep
-/// moving while the phase runs; bytes and seconds come back so the caller can
-/// keep a cumulative average over the whole phase, the desktop's rule.
+/// One probe series against a full URL. Milliseconds, failures dropped.
 #[tauri::command]
-async fn speed_down(host: String, path: String, seconds: f64) -> speed::SpeedOut {
-    let w = seconds.clamp(0.2, 20.0);
-    speed::download(&host, &path, w).await
+async fn speed_latency(url: String, probes: u32) -> Vec<f64> {
+    speed::latency(&url, probes.clamp(1, 16)).await
 }
 
-/// One upload window of sequential chunks. The per-chunk rates come back, so
-/// the caller applies the same median rule the desktop applies.
+/// A download window, cycling the URLs given. Bytes and seconds come back so
+/// the caller keeps a cumulative average over the whole phase.
 #[tauri::command]
-async fn speed_up(host: String, path: String, seconds: f64, chunk_mb: usize) -> speed::SpeedOut {
+async fn speed_down(urls: Vec<String>, seconds: f64) -> speed::SpeedOut {
+    speed::download(&urls, seconds.clamp(0.2, 20.0)).await
+}
+
+/// An upload window of sequential chunks; per-chunk rates come back so the
+/// caller applies the same median rule the desktop applies.
+#[tauri::command]
+async fn speed_up(url: String, seconds: f64, chunk_mb: usize) -> speed::SpeedOut {
     let w = seconds.clamp(0.2, 20.0);
     let seed = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.subsec_nanos() as u64)
         .unwrap_or(7);
-    speed::upload(&host, &path, w, chunk_mb.clamp(1, 16), seed).await
+    speed::upload(&url, w, chunk_mb.clamp(1, 16), seed).await
 }
+
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -677,6 +688,7 @@ pub fn run() {
             get_state,
             probe_server,
             net_info,
+            speed_servers,
             speed_latency,
             speed_down,
             speed_up,
