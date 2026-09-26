@@ -66,6 +66,9 @@
     apply_update: () => ({}),
   };
 
+  // No server behind the site copy: the speed screen ramps its own numbers.
+  window.__QVPN_SPEED_SIM__ = true;
+
   window.__TAURI_INTERNALS__ = {
     invoke: async (cmd, args) => {
       await wait(40);

@@ -46,6 +46,29 @@
     </div>
   </section>
 
+  <section class="view" id="view-speed">
+    <div class="sec speed-sec">
+      <div class="speed-top">
+        <span class="speed-cap" id="sp-cap" data-i18n="spReady">Ready to test</span>
+        <span class="speed-host" id="sp-host" dir="ltr"></span>
+      </div>
+      <div class="speed-read"><b id="sp-value">0.0</b><span id="sp-unit">Mbps</span></div>
+      <div class="speed-bars" id="sp-bars" aria-hidden="true"></div>
+      <p class="hint" id="sp-hint" data-i18n="spHint">Measures the route the card on Home is using right now.</p>
+      <div class="speed-stats">
+        <div class="sstat"><span data-i18n="spPing">Ping</span><b id="sp-ping">-</b></div>
+        <div class="sstat"><span data-i18n="spJitter">Jitter</span><b id="sp-jit">-</b></div>
+        <div class="sstat"><span data-i18n="spDown">Down</span><b id="sp-down">-</b></div>
+        <div class="sstat"><span data-i18n="spUp">Up</span><b id="sp-up">-</b></div>
+      </div>
+      <button class="second" id="sp-run" data-i18n="spStart">Start test</button>
+    </div>
+    <div class="sec">
+      <h2><span data-i18n="spHistory">Recent runs</span> <span class="count" id="sp-count"></span></h2>
+      <div class="sp-hist" id="sp-hist"></div>
+    </div>
+  </section>
+
   <section class="view" id="view-cards">
     <div class="sec cards-sec">
       <div class="cards-head"><h2><span data-i18n="myCards">My cards</span> <span class="count" id="cards-count"></span></h2><button id="btn-add-card" class="addbtn" data-i18n="addCard">+ New</button></div>
@@ -108,6 +131,10 @@
   <button data-tab="connect" class="on">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
     <span data-i18n="tabHome">Home</span>
+  </button>
+  <button data-tab="speed">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14 16 10"/><path d="M3.3 19a10 10 0 1 1 17.4 0"/></svg>
+    <span data-i18n="tabSpeed">Speed</span>
   </button>
   <button data-tab="cards">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="13" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2"/></svg>

@@ -58,7 +58,7 @@ const STR = {
     generateCard: "Generate card", myCards: "My cards", serverHint: "Automatic configuration.",
     host: "Address", language: "Language", reconnect: "Reconnect", testPort: "Check server", copyLog: "Copy log",
     secStatus: "Status", secConnection: "Connection", secGeneral: "General", secProtection: "Protection",
-    tabHome: "Home", tabCards: "Cards", tabServer: "Server", tabSettings: "Settings", howTo: "How to use",
+    tabHome: "Home", tabSpeed: "Speed", tabCards: "Cards", tabServer: "Server", tabSettings: "Settings", howTo: "How to use",
     tabApps: "Apps", vpnFor: "VPN for", appsAll: "All apps", appsOnly: "Only these", appsExcept: "All but these",
     appsHint: "Changes apply next time you connect.", appsSearch: "Search apps…",
     appsLoading: "Loading apps…", appsEmpty: "No applications found.",
@@ -77,6 +77,11 @@ const STR = {
     openVpnSettings: "Open VPN settings",
     updTitle: "Updates", updCheck: "Check for updates", updGet: "Download and install",
     updIdle: "Not checked yet.", updChecking: "Checking…",
+    spReady: "Ready to test", spPinging: "Measuring ping", spDowning: "Measuring download",
+    spUping: "Measuring upload", spDone: "Done", spFail: "No reply from the server.",
+    spStart: "Start test", spStop: "Stop", spPing: "Ping", spJitter: "Jitter", spDown: "Down", spUp: "Up",
+    spHint: "Measures the route the card on Home is using right now.",
+    spHistory: "Recent runs", spNone: "No runs yet.",
     updOut: "{v} is out.", updLatest: "{v} is the latest.", updFail: "Could not reach GitHub.",
     updDownloading: "Downloading the update…", updOpened: "Installer opened. Confirm to update.",
     updAllow: "Allow installs from QuotaVPN in the screen that opened, then tap again.",
@@ -105,7 +110,7 @@ const STR = {
     generateCard: "إنشاء بطاقة", myCards: "بطاقاتي", serverHint: "إعداد تلقائي",
     host: "العنوان", language: "اللغة", reconnect: "إعادة الاتصال", testPort: "فحص السيرفر", copyLog: "نسخ السجل",
     secStatus: "الحالة", secConnection: "الاتصال", secGeneral: "عام", secProtection: "الحماية",
-    tabHome: "الرئيسية", tabCards: "البطاقات", tabServer: "السيرفر", tabSettings: "الإعدادات", howTo: "طريقة الاستخدام",
+    tabHome: "الرئيسية", tabSpeed: "السرعة", tabCards: "البطاقات", tabServer: "السيرفر", tabSettings: "الإعدادات", howTo: "طريقة الاستخدام",
     tabApps: "التطبيقات", vpnFor: "الـVPN لـ", appsAll: "جميع التطبيقات", appsOnly: "المحددة فقط", appsExcept: "الجميع باستثناء",
     appsHint: "سيتم تطبيق التغييرات عند الاتصال التالي.", appsSearch: "ابحث عن تطبيق…",
     appsLoading: "جارٍ تحميل التطبيقات…", appsEmpty: "لا توجد تطبيقات بهذا الاسم.",
@@ -124,6 +129,11 @@ const STR = {
     openVpnSettings: "افتح إعدادات الـVPN",
     updTitle: "التحديثات", updCheck: "التحقق من التحديثات", updGet: "تنزيل وتثبيت",
     updIdle: "لم يتم التحقق بعد.", updChecking: "جارٍ التحقق…",
+    spReady: "جاهز للاختبار", spPinging: "قياس البينج", spDowning: "قياس التحميل",
+    spUping: "قياس الرفع", spDone: "خلص", spFail: "مفيش رد من السيرفر.",
+    spStart: "ابدأ الاختبار", spStop: "إيقاف", spPing: "بينج", spJitter: "تذبذب", spDown: "تحميل", spUp: "رفع",
+    spHint: "بيقيس المسار اللي البطاقة اللي في الرئيسية ماشية عليه دلوقتي.",
+    spHistory: "آخر الاختبارات", spNone: "مفيش اختبارات لسه.",
     updOut: "الإصدار {v} متاح.", updLatest: "{v} هو الأحدث.", updFail: "تعذر الوصول إلى GitHub.",
     updDownloading: "جارٍ تنزيل التحديث…", updOpened: "تم فتح المثبّت. أكّد التحديث.",
     updAllow: "اسمح بتثبيت التطبيقات من QuotaVPN من الشاشة المفتوحة ثم أعد المحاولة.",
@@ -1014,3 +1024,248 @@ document.querySelectorAll("svg").forEach((s) => s.setAttribute("aria-hidden", "t
   await pollTunnel();
   setInterval(pollTunnel, 4000);
 })();
+
+// ---------------------------------------------------------------------------
+// Speed test. Same first-party endpoint the desktop measures with: latency
+// probes, then a rolling-window download and a streamed upload, so whatever
+// route the WebView is on (through the tunnel or bare) is the route measured.
+// ---------------------------------------------------------------------------
+const SP_HIST = "qc-speed-history";
+let spCtl = null;
+let spSamples = [];
+let spLast = { ping: null, jitter: null, down: null, up: null };
+
+// The website copy of this screen has no server to hit: it sets the flag and
+// the run ramps like a real one. A placeholder host means the same thing.
+function spSim() {
+  return window.__QVPN_SPEED_SIM__ === true || !serverHost || /example\.com$/i.test(serverHost);
+}
+function spBase() { return "https://" + (serverHost || "qc-speed.example.com"); }
+const spSleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const spFmt = (v) => (v == null ? "-" : (v >= 100 ? v.toFixed(0) : v.toFixed(1)) + " Mbps");
+
+function spPaint() {
+  const el = $("sp-value");
+  if (!el) return;
+  const v = spSamples.length ? spSamples[spSamples.length - 1] : 0;
+  el.textContent = v >= 100 ? v.toFixed(0) : v.toFixed(1);
+  const bars = $("sp-bars");
+  const max = Math.max(1, ...spSamples);
+  bars.innerHTML = "";
+  for (const s of spSamples.slice(-72)) {
+    const i = document.createElement("i");
+    i.style.height = Math.max(3, Math.round((s / max) * 56)) + "px";
+    if (s >= max * 0.85) i.className = "hot";
+    bars.append(i);
+  }
+}
+function spPush(v) {
+  spSamples.push(v);
+  if (spSamples.length > 96) spSamples.shift();
+  spPaint();
+}
+function spSet(capKey, unit) {
+  $("sp-cap").textContent = t(capKey);
+  if (unit) $("sp-unit").textContent = unit;
+}
+function paintSpeedHost() {
+  const el = $("sp-host");
+  if (el) el.textContent = serverHost || "";
+}
+
+async function spPing(signal) {
+  const times = [];
+  for (let i = 0; i < 8 && !signal.aborted; i++) {
+    const t0 = performance.now();
+    try {
+      await fetch(spBase() + "/speed/down?bytes=1&r=" + Math.random(), { cache: "no-store", signal });
+      const dt = performance.now() - t0;
+      times.push(dt);
+      spPush(dt);
+    } catch (e) { if (signal.aborted) break; }
+  }
+  if (!times.length) return null;
+  let diff = 0;
+  for (let i = 1; i < times.length; i++) diff += Math.abs(times[i] - times[i - 1]);
+  return { ping: Math.round(Math.min(...times)), jitter: times.length > 1 ? diff / (times.length - 1) : 0 };
+}
+
+async function spDownload(signal) {
+  const deadline = performance.now() + 9000;
+  const win = [];
+  let total = 0, chunk = 1 << 20, best = 0;
+  while (performance.now() < deadline && !signal.aborted) {
+    const t0 = performance.now();
+    let got = 0;
+    try {
+      const r = await fetch(spBase() + "/speed/down?bytes=" + chunk + "&r=" + Math.random(), { cache: "no-store", signal });
+      got = (await r.arrayBuffer()).byteLength;
+    } catch (e) {
+      if (signal.aborted) break;
+      throw e;
+    }
+    const t1 = performance.now();
+    if (!got) break;
+    total += got;
+    win.push([t1, total]);
+    while (win.length > 2 && t1 - win[0][0] > 1500) win.shift();
+    const span = (t1 - win[0][0]) / 1000;
+    // Cumulative bytes across the window, never the sum of the chunks: a
+    // chunk was on the wire before the stamp that records it.
+    const speed = span >= 0.5 ? ((total - win[0][1]) * 8) / span / 1e6 : 0;
+    if (speed > best) best = speed;
+    spPush(speed);
+    const dt = (t1 - t0) / 1000;
+    if (dt < 0.7 && chunk < 32 << 20) chunk = Math.min(chunk * 2, 32 << 20);
+    else if (dt > 2.5 && chunk > 256 << 10) chunk = Math.max(chunk / 2, 256 << 10);
+  }
+  return best;
+}
+
+function spUploadRound(size, signal, onTick) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const body = new Uint8Array(size);
+    for (let i = 0; i < size; i += 4096) body[i] = (Math.random() * 255) | 0;
+    const win = [];
+    xhr.upload.onprogress = (e) => {
+      const now = performance.now();
+      win.push([now, e.loaded]);
+      while (win.length > 2 && now - win[0][0] > 1500) win.shift();
+      const span = (now - win[0][0]) / 1000;
+      if (span >= 0.5) onTick(((e.loaded - win[0][1]) * 8) / span / 1e6);
+    };
+    xhr.onload = () => resolve();
+    xhr.onerror = () => reject(new Error("upload failed"));
+    xhr.onabort = () => reject(new Error("aborted"));
+    signal.addEventListener("abort", () => xhr.abort(), { once: true });
+    xhr.open("POST", spBase() + "/speed/up?r=" + Math.random());
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.send(body);
+  });
+}
+
+async function spUpload(signal) {
+  const deadline = performance.now() + 9000;
+  let size = 4 << 20, best = 0;
+  while (performance.now() < deadline && !signal.aborted) {
+    const round = performance.now();
+    await spUploadRound(size, signal, (v) => {
+      if (v > best) best = v;
+      spPush(v);
+    });
+    const dt = (performance.now() - round) / 1000;
+    if (dt < 1.2 && size < 64 << 20) size *= 2;
+  }
+  return best;
+}
+
+// Stand-in ramp for the website copy: the number climbs the way a real one
+// does, so the screen reads the same without a server behind it.
+async function spSimPhase(peak, seconds, signal) {
+  const steps = Math.round((seconds * 1000) / 120);
+  let best = 0;
+  for (let i = 0; i < steps && !signal.aborted; i++) {
+    const p = i / steps;
+    const v = peak * (1 - Math.exp(-6 * p)) * (1 - 0.08 * Math.sin(p * 22));
+    if (v > best) best = v;
+    spPush(v);
+    await spSleep(120);
+  }
+  return best;
+}
+
+function spLoad() {
+  try {
+    const a = JSON.parse(localStorage.getItem(SP_HIST) || "[]");
+    return Array.isArray(a) ? a : [];
+  } catch (e) { return []; }
+}
+function spPaintHistory() {
+  const box = $("sp-hist");
+  if (!box) return;
+  const list = spLoad();
+  $("sp-count").textContent = list.length ? "(" + list.length + ")" : "";
+  box.innerHTML = "";
+  if (!list.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = t("spNone");
+    box.append(p);
+    return;
+  }
+  for (const r of list.slice(0, 8)) {
+    const row = document.createElement("div");
+    row.className = "sp-row";
+    const d = new Date(r.at || Date.now());
+    const when = d.toLocaleTimeString(lang === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit" });
+    const day = d.toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "numeric", month: "short" });
+    const left = document.createElement("span");
+    left.className = "when";
+    left.textContent = when + " · " + day;
+    const right = document.createElement("span");
+    right.className = "val";
+    right.textContent = "↓ " + spFmt(r.down) .replace(" Mbps", "") + "  ↑ " + spFmt(r.up).replace(" Mbps", "") + " Mbps";
+    row.append(left, right);
+    box.append(row);
+  }
+}
+function spStore() {
+  const list = spLoad();
+  list.unshift({ at: Date.now(), ping: spLast.ping, jitter: spLast.jitter, down: spLast.down, up: spLast.up, target: serverHost || "" });
+  try { localStorage.setItem(SP_HIST, JSON.stringify(list.slice(0, 100))); } catch (e) {}
+  spPaintHistory();
+}
+
+async function spToggle() {
+  const btn = $("sp-run");
+  if (spCtl) { spCtl.abort(); return; }
+  spCtl = new AbortController();
+  const signal = spCtl.signal;
+  btn.textContent = t("spStop");
+  spSamples = [];
+  spLast = { ping: null, jitter: null, down: null, up: null };
+  $("sp-ping").textContent = "-";
+  $("sp-jit").textContent = "-";
+  $("sp-down").textContent = "-";
+  $("sp-up").textContent = "-";
+  spPaint();
+  try {
+    spSet("spPinging", "ms");
+    const p = spSim() ? await spSimPhase(42, 1.2, signal).then((v) => ({ ping: Math.round(v), jitter: 2.4 })) : await spPing(signal);
+    if (p) {
+      spLast.ping = p.ping;
+      spLast.jitter = p.jitter;
+      $("sp-ping").textContent = p.ping + " ms";
+      $("sp-jit").textContent = p.jitter.toFixed(1) + " ms";
+    }
+    spSamples = [];
+    spSet("spDowning", "Mbps");
+    const d = spSim() ? await spSimPhase(240 + Math.random() * 40, 6, signal) : await spDownload(signal);
+    if (d) { spLast.down = d; $("sp-down").textContent = spFmt(d); }
+    spSamples = [];
+    spSet("spUping", "Mbps");
+    const u = spSim() ? await spSimPhase(34 + Math.random() * 8, 5, signal) : await spUpload(signal);
+    if (u) { spLast.up = u; $("sp-up").textContent = spFmt(u); }
+    spSet("spDone", "Mbps");
+    if (spLast.down || spLast.up) spStore();
+  } catch (e) {
+    if (!signal.aborted) $("sp-hint").textContent = t("spFail");
+  } finally {
+    spCtl = null;
+    btn.textContent = t("spStart");
+    spPaint();
+  }
+}
+
+$("sp-run").onclick = () => { spToggle(); };
+spPaintHistory();
+paintSpeedHost();
+
+// Repaint the screen whenever its tab comes up (values may have changed while
+// it was in the background).
+const qcGoTab = goTab;
+goTab = function (name, push) {
+  qcGoTab(name, push);
+  if (name === "speed") { paintSpeedHost(); spPaint(); spPaintHistory(); }
+};
