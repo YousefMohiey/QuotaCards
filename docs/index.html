@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QuotaVPN: your gaming and streaming packages, used on purpose</title>
-<meta name="description" content="QuotaVPN is a personal VPN for Windows and Android that makes your traffic ride the data package you pick: gaming, streaming, or general quota. English and Arabic.">
+<meta name="description" content="QuotaVPN is a personal VPN for Windows and Android that makes your traffic ride the data package you pick: gaming, streaming, or general quota. Try the interface right in your browser.">
 <link rel="canonical" href="https://yousefmohiey.github.io/QuotaVPN/">
 <meta name="theme-color" content="#10141c">
 <meta property="og:type" content="website">
@@ -49,8 +49,8 @@
     },
     {
       "@type": "Question",
-      "name": "Does it work with any ISP?",
-      "acceptedAnswer": { "@type": "Answer", "text": "It is built for ISPs that sell your line in quota buckets, where gaming, streaming and general traffic are counted separately. On a normal line it still works as a plain VPN." }
+      "name": "What is the Valorant voice chat helper?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Valorant voice chat is not available in some regions. The helper routes just the voice traffic through QuotaVPN while your game connection stays direct, so you can talk in game without moving the match itself onto the tunnel." }
     },
     {
       "@type": "Question",
@@ -67,27 +67,20 @@
 </script>
 <style>
   /* ==========================================================================
-     QuotaVPN website. Every value below is taken from the desktop app's own
-     design system (desktop/ui-next/src/index.css): the charcoal-navy surface
-     ladder, silver hairlines, one royal-blue accent, and the app's radii.
-     The app runs a true-black theme by owner call (no glow scene), so this
-     page is flat too. Same product, same skin.
+     QuotaVPN website. Every value here is taken from the desktop app's own
+     design system (desktop/ui-next/src): the charcoal-navy surface ladder,
+     silver hairlines, one royal-blue accent, the app's radii and type scale.
+     The app runs a true-black theme by owner call, so this page is flat too.
      ========================================================================== */
   :root{
-    /* surfaces */
     --bg:#10141c; --side:#131a29; --panel:#111826; --panel-hover:#161e30; --field:#1a2338;
-    /* lines */
     --line:rgb(255 255 255 / .08); --line-strong:rgb(255 255 255 / .14); --glass-line:rgb(255 255 255 / .12);
-    /* text */
     --txt:#eef1f6; --txt2:#a7b0bf; --txt3:#8b95a6;
-    /* one accent + muted semantics */
     --brand:#1f59b6; --brand-hi:#2870d1; --brand-strong:#5b8def;
     --brand-bg:rgb(31 89 182 / .14); --brand-line:rgb(31 89 182 / .4);
     --green:#5cb28e; --amber:#c49a58;
-    /* shape + elevation, as in the app */
     --r-sm:6px; --r-ctl:10px; --r-card:16px; --r-panel:20px; --r-hero:24px;
     --sh-panel:inset 0 -12px 24px rgb(0 0 0 / .18), 0 24px 60px rgb(0 0 0 / .35);
-    /* motion */
     --ease-out:cubic-bezier(.1,.9,.2,1);
   }
   *{box-sizing:border-box}
@@ -95,9 +88,11 @@
   body{
     margin:0; background:var(--bg); color:var(--txt);
     font:14px/1.5 "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
-    font-variant-numeric:tabular-nums;
-    -webkit-font-smoothing:antialiased;
+    font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased;
   }
+  @font-face{font-family:"Cairo"; src:url("assets/cairo-ar.woff2") format("woff2"); font-weight:200 1000; font-style:normal; font-display:swap;
+    unicode-range:U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+FB50-FDFF, U+FE70-FEFC}
+  [lang="ar"] .demo, [lang="ar"] .demo button, [lang="ar"] .demo input{font-family:"Cairo","Segoe UI",system-ui,sans-serif}
   a{color:inherit; text-decoration:none}
   img{max-width:100%; height:auto}
   ::-webkit-scrollbar{width:10px; height:10px}
@@ -107,16 +102,8 @@
   :focus-visible{outline:2px solid var(--brand-strong); outline-offset:2px}
   .wrap{max-width:1080px; margin:0 auto; padding:0 24px}
 
-  /* ---- the app's Panel + glass material, solid form ---------------------- */
-  .panel{
-    background:var(--bg); border:1px solid var(--glass-line); border-radius:var(--r-panel);
-    box-shadow:var(--sh-panel); overflow:hidden;
-  }
-  .panel-soft{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden}
-
-  /* ---- header (mirrors the app's sidebar header) ------------------------- */
-  .top{position:sticky; top:0; z-index:20; background:rgb(16 20 28 / .88); backdrop-filter:blur(20px) saturate(150%);
-    border-bottom:1px solid var(--line)}
+  /* header */
+  .top{position:sticky; top:0; z-index:30; background:rgb(16 20 28 / .88); backdrop-filter:blur(20px) saturate(150%); border-bottom:1px solid var(--line)}
   .top .in{display:flex; align-items:center; gap:10px; padding:12px 0}
   .top img{width:28px; height:28px; border-radius:8px; flex:none}
   .top .name{font-size:14.5px; font-weight:600; letter-spacing:.1px; white-space:nowrap}
@@ -131,7 +118,6 @@
     transition:color .18s var(--ease-out), border-color .18s var(--ease-out), background .18s var(--ease-out), transform .18s var(--ease-out)}
   .iconbtn:hover{color:var(--txt); border-color:var(--glass-line); background:rgb(255 255 255 / .06); transform:translateY(-1px)}
 
-  /* ---- buttons (the app's control radius + weights) ---------------------- */
   .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:var(--r-ctl);
     padding:11px 18px; font-size:13.5px; font-weight:570; letter-spacing:-.05px; border:1px solid transparent; cursor:pointer;
     transition:background .18s var(--ease-out), border-color .18s var(--ease-out), transform .18s var(--ease-out)}
@@ -140,115 +126,237 @@
   .btn.primary:hover{background:var(--brand-hi)}
   .btn.ghost{background:rgb(255 255 255 / .02); color:var(--txt); border-color:var(--line-strong)}
   .btn.ghost:hover{background:rgb(255 255 255 / .06)}
-  .btn.sm{padding:0 14px; height:32px; font-size:12.5px; border-radius:var(--r-ctl)}
+  .btn.sm{padding:0 14px; height:32px; font-size:12.5px}
   .btn.sm.nav{background:var(--brand); color:#fff; border-color:transparent}
   .btn.sm.nav:hover{background:var(--brand-hi)}
 
-  /* ---- shared bits ------------------------------------------------------- */
   .eyebrow{font-size:11px; font-weight:500; letter-spacing:.07em; text-transform:uppercase; color:var(--txt3)}
   h1{font-size:34px; line-height:1.16; letter-spacing:-.7px; font-weight:600; margin:0; text-wrap:balance}
   h2{font-size:20px; letter-spacing:-.25px; font-weight:600; margin:0; text-wrap:balance}
   .lead{color:var(--txt2); font-size:14.5px; line-height:1.6; margin:0; max-width:62ch; text-wrap:pretty}
-  .sub{color:var(--txt2); font-size:13.5px; margin:0; max-width:70ch; text-wrap:pretty}
-  section{padding:34px 0}
+  .sub{color:var(--txt2); font-size:13.5px; margin:0; max-width:72ch; text-wrap:pretty}
+  section{padding:32px 0}
 
-  /* ---- hero: copy, then the app itself as the main visual ---------------- */
-  .hero{padding:44px 0 24px; max-width:720px}
+  .hero{padding:44px 0 8px; max-width:760px}
   .hero .eyebrow{margin-bottom:12px}
   .hero h1{margin-bottom:14px}
-  .hero .lead{margin-bottom:24px}
+  .hero .lead{margin-bottom:22px}
   .cta{display:flex; gap:10px; flex-wrap:wrap}
-  .note{color:var(--txt3); font-size:12.5px; margin:16px 0 0}
+  .note{color:var(--txt3); font-size:12.5px; margin:14px 0 0}
 
-  /* the app shot: presented in the app's own material, full width */
-  .shot{display:block; margin-top:8px}
-  .shot img{display:block; width:100%; border-radius:calc(var(--r-hero) - 8px)}
-  .shot-frame{border:1px solid var(--glass-line); background:var(--bg); border-radius:var(--r-hero);
-    box-shadow:var(--sh-panel); padding:8px}
-  .shot-cap{display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; padding:14px 6px 0; color:var(--txt3); font-size:12.5px}
-  .shot-cap b{color:var(--txt2); font-weight:570}
-
-  /* ---- the facts strip: hairline cells, no cards ------------------------- */
-  .strip{display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
-  .strip > div{padding:16px 20px}
-  .strip > div + div{border-left:1px solid var(--line)}
-  .strip b{display:block; font-size:13.5px; font-weight:570; margin-bottom:2px}
-  .strip span{color:var(--txt3); font-size:12.5px}
-
-  /* ---- app-style rows: one panel, hairline separated --------------------- */
+  /* rows + panels */
   .rows{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-panel); overflow:hidden}
-  .row{display:flex; gap:20px; padding:14px 18px; border-bottom:1px solid var(--line); align-items:flex-start;
-    transition:background .18s var(--ease-out)}
+  .row{display:flex; gap:20px; padding:14px 18px; border-bottom:1px solid var(--line); align-items:flex-start; transition:background .18s var(--ease-out)}
   .row:last-child{border-bottom:0}
   .row:hover{background:rgb(255 255 255 / .02)}
   .row .k{flex:none; width:168px; color:var(--txt2); font-size:12.5px; padding-top:2px}
   .row .v{flex:1; min-width:0}
   .row .v b{display:block; font-size:13.5px; font-weight:570; margin-bottom:3px}
   .row .v p{margin:0; color:var(--txt2); font-size:13px; line-height:1.55}
-  .row .v code{background:rgb(255 255 255 / .05); border:1px solid var(--line); border-radius:6px; padding:1px 6px; font-size:12px}
 
-  /* ---- segmented, exactly like the app's transport picker ---------------- */
   .seg{display:inline-flex; border:1px solid var(--line); background:rgb(255 255 255 / .02); border-radius:var(--r-ctl); padding:2px}
   .seg button{appearance:none; border:0; background:transparent; color:var(--txt3); font:inherit; font-size:12.5px;
     padding:6px 12px; border-radius:8px; cursor:pointer; transition:color .18s var(--ease-out), background .18s var(--ease-out)}
   .seg button[aria-pressed="true"]{background:rgb(255 255 255 / .1); color:var(--txt)}
   .seg button:not([aria-pressed="true"]):hover{color:var(--txt2)}
-  .modes{margin-top:14px}
-  .mode-panel{margin-top:10px}
-  .mode{display:none}
-  .mode.on{display:block}
-  .mode .row:first-child{border-top:0}
 
-  /* ---- gallery ----------------------------------------------------------- */
   .gallery{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px}
   figure{margin:0}
   figcaption{color:var(--txt3); font-size:12.5px; margin-top:10px}
-  .gallery .pshot{border:1px solid var(--line); background:var(--panel); border-radius:var(--r-card); padding:6px;
-    transition:border-color .22s var(--ease-out), transform .22s var(--ease-out)}
-  .gallery .pshot img{display:block; width:100%; border-radius:calc(var(--r-card) - 4px)}
-  .gallery figure:hover .pshot{border-color:var(--glass-line); transform:translateY(-2px)}
 
-  /* ---- FAQ: the app's rows, as a disclosure list ------------------------- */
   details{border-bottom:1px solid var(--line); transition:background .18s var(--ease-out)}
   details:first-of-type{border-top:1px solid var(--line)}
   details:hover{background:rgb(255 255 255 / .02)}
-  summary{cursor:pointer; list-style:none; display:flex; justify-content:space-between; gap:16px; align-items:center;
-    padding:15px 18px; font-size:13.5px; font-weight:570}
+  summary{cursor:pointer; list-style:none; display:flex; justify-content:space-between; gap:16px; align-items:center; padding:15px 18px; font-size:13.5px; font-weight:570}
   summary::-webkit-details-marker{display:none}
   summary::after{content:"+"; color:var(--brand-strong); font-weight:600; font-size:16px; line-height:1; flex:none}
   details[open] summary::after{content:"\2212"}
   details p{margin:0; padding:0 18px 16px; color:var(--txt2); font-size:13px; line-height:1.6; max-width:78ch}
 
-  /* ---- download ---------------------------------------------------------- */
   .dl-actions{display:flex; gap:10px; flex-wrap:wrap; padding:16px 18px; border-top:1px solid var(--line); background:rgb(255 255 255 / .015)}
 
-  /* ---- footer ------------------------------------------------------------ */
   footer{border-top:1px solid var(--line); margin-top:10px; padding:22px 0 40px; color:var(--txt3); font-size:12.5px;
     display:flex; gap:18px; flex-wrap:wrap; align-items:center}
   footer a{color:var(--txt2); transition:color .18s var(--ease-out)}
   footer a:hover{color:var(--txt)}
   footer .sp{flex:1}
 
-  /* ---- motion ------------------------------------------------------------ */
+  /* ==========================================================================
+     The interactive app. Same tokens, same components, running for real.
+     ========================================================================== */
+  .demo{
+    border:1px solid var(--glass-line); border-radius:var(--r-hero); background:var(--bg);
+    box-shadow:var(--sh-panel); overflow:hidden; display:flex; flex-direction:column; min-height:560px;
+  }
+  .wstrip{flex:none; height:36px; display:flex; align-items:center; justify-content:flex-end; gap:16px;
+    padding:0 14px; border-bottom:1px solid var(--line); background:rgb(255 255 255 / .015); color:var(--txt3)}
+  .wstrip svg{width:15px; height:15px; opacity:.75}
+  .demo-body{flex:1; min-height:0; display:flex}
+  .demo-side{width:212px; flex:none; background:var(--side); border-right:1px solid var(--line);
+    display:flex; flex-direction:column; padding:12px}
+  .demo-id{display:flex; align-items:center; gap:10px; padding:2px 2px 12px}
+  .demo-id img{width:40px; height:40px; border-radius:10px; flex:none}
+  .demo-id .nm{font-size:13.5px; font-weight:600; line-height:1.2}
+  .demo-id .vv{font-size:10.5px; color:var(--txt3)}
+  .demo-tabs{display:flex; flex-direction:column; gap:2px}
+  .dtab{display:flex; align-items:center; gap:10px; width:100%; padding:8px 9px; border-radius:var(--r-ctl);
+    border:1px solid transparent; background:transparent; color:var(--txt2); font:inherit; font-size:12.5px; cursor:pointer;
+    transition:background .16s var(--ease-out), color .16s var(--ease-out), border-color .16s var(--ease-out); text-align:left}
+  .dtab svg{width:16px; height:16px; flex:none}
+  .dtab .vmark{width:16px; height:16px; flex:none; background-color:currentColor;
+    -webkit-mask:url("assets/valorant.png") center/contain no-repeat; mask:url("assets/valorant.png") center/contain no-repeat}
+  .dtab:hover{background:rgb(255 255 255 / .04); color:var(--txt)}
+  .dtab[aria-pressed="true"]{background:var(--brand-bg); border-color:var(--brand-line); color:var(--brand-strong)}
+  .demo-side .sp{flex:1}
+
+  .demo-main{flex:1; min-width:0; padding:16px; display:flex; flex-direction:column; gap:12px; overflow:hidden}
+  .dpage{display:none; flex-direction:column; gap:12px}
+  .dpage.on{display:flex}
+  .dhead{padding:0 2px}
+  .dhead h3{margin:0; font-size:15px; font-weight:600}
+  .dhead p{margin:2px 0 0; color:var(--txt3); font-size:12.5px}
+  .dpanel{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden}
+
+  /* home: dial */
+  .dial-wrap{display:flex; align-items:center; gap:22px; padding:18px; flex-wrap:wrap}
+  .dialbtn{position:relative; width:124px; height:124px; flex:none; border-radius:50%; cursor:pointer;
+    border:1px solid var(--line-strong); background:var(--field); color:var(--txt); font:inherit;
+    display:grid; place-items:center; transition:border-color .2s var(--ease-out), background .2s var(--ease-out)}
+  .dialbtn:hover{border-color:var(--brand-line)}
+  .dialbtn .ring{position:absolute; inset:-6px; border-radius:50%; padding:3px;
+    background:conic-gradient(var(--brand) calc(var(--p,0) * 1%), rgb(255 255 255 / .07) 0);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+    transition:background .3s linear}
+  .dialbtn .in{display:flex; flex-direction:column; align-items:center; gap:5px; position:relative}
+  .dialbtn .in svg{width:22px; height:22px}
+  .dialbtn .lbl{font-size:12px; font-weight:570; letter-spacing:.02em}
+  .dialbtn.on{border-color:var(--brand-line); background:var(--brand-bg)}
+  .dialbtn.on .lbl{color:var(--brand-strong)}
+  .dialmeta{min-width:0; flex:1; display:flex; flex-direction:column; gap:2px}
+  .dialmeta .cn{font-size:14px; font-weight:600}
+  .dialmeta .st{font-size:12.5px; color:var(--txt2)}
+  .dialmeta .sn{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11.5px; color:var(--txt3)}
+
+  .tiles{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border-top:1px solid var(--line)}
+  .tile{padding:11px 14px}
+  .tile + .tile{border-left:1px solid var(--line)}
+  .tile span{display:block; color:var(--txt3); font-size:11px; letter-spacing:.04em; text-transform:uppercase}
+  .tile b{font-size:15px; font-weight:600}
+  .spark{display:flex; align-items:flex-end; gap:2px; height:34px; padding:0 14px 12px}
+  .spark i{flex:1; min-width:2px; background:var(--brand); opacity:.75; border-radius:2px 2px 0 0; height:2px; transition:height .35s var(--ease-out), opacity .2s}
+
+  /* home: rows */
+  .presets{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; padding:12px; border-bottom:1px solid var(--line)}
+  .preset{min-height:62px; display:flex; flex-direction:column; justify-content:center; gap:3px; padding:8px 12px;
+    border:1px solid var(--line); border-radius:14px; background:rgb(255 255 255 / .02); color:var(--txt2);
+    font:inherit; cursor:pointer; text-align:left; transition:border-color .18s var(--ease-out), background .18s var(--ease-out)}
+  .preset:hover{border-color:var(--brand-line)}
+  .preset[aria-pressed="true"]{border-color:var(--brand-line); background:var(--brand-bg); color:var(--txt)}
+  .preset b{font-size:13px; font-weight:570}
+  .preset i{font-style:normal; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11px; color:var(--txt3)}
+  .drow{display:flex; gap:16px; align-items:center; padding:11px 14px; border-bottom:1px solid var(--line)}
+  .drow:last-child{border-bottom:0}
+  .drow .k{flex:none; width:118px; font-size:12.5px; color:var(--txt2)}
+  .drow .v{flex:1; min-width:0}
+  .pick{display:flex; width:100%; max-width:340px; align-items:center; justify-content:space-between; gap:10px;
+    padding:0 12px; height:38px; border:1px solid var(--line); border-radius:var(--r-ctl); background:rgb(255 255 255 / .02);
+    color:var(--txt); font:inherit; font-size:12.5px; cursor:pointer; transition:border-color .18s var(--ease-out), background .18s var(--ease-out)}
+  .pick:hover{border-color:var(--brand-line); background:var(--brand-bg)}
+  .pick svg{width:15px; height:15px; flex:none; color:var(--txt2)}
+  .segw{display:flex; flex-direction:column; gap:6px}
+  .segw .hint{font-size:11.5px; color:var(--txt3)}
+
+  /* voice page */
+  .vhead{display:flex; align-items:center; gap:12px; padding:4px 2px}
+  .vmark-lg{width:36px; height:36px; background-color:var(--txt); -webkit-mask:url("assets/valorant.png") center/contain no-repeat; mask:url("assets/valorant.png") center/contain no-repeat}
+  .badge{margin-left:auto; display:inline-flex; align-items:center; gap:7px; height:28px; padding:0 12px; border-radius:999px;
+    border:1px solid var(--line); background:rgb(255 255 255 / .02); color:var(--txt2); font-size:12px; font-weight:500; white-space:nowrap}
+  .badge.on{border-color:var(--brand-line); background:var(--brand-bg); color:var(--brand-strong)}
+  .badge .dot{width:6px; height:6px; border-radius:50%; background:rgb(255 255 255 / .25)}
+  .badge.on .dot{background:var(--brand)}
+  .vcard{padding:16px}
+  .vcard h4{margin:0 0 5px; font-size:13.5px; font-weight:600}
+  .vcard p{margin:0; color:var(--txt2); font-size:12.5px; line-height:1.6; max-width:62ch}
+  .vrow{margin-top:14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 14px; border-radius:14px;
+    border:1px solid var(--line); background:rgb(255 255 255 / .02); transition:border-color .2s var(--ease-out), background .2s var(--ease-out)}
+  .vrow.on{border-color:var(--brand-line); background:var(--brand-bg)}
+  .vrow .t{flex:1; min-width:200px}
+  .vrow .t b{display:block; font-size:13px; font-weight:600}
+  .vrow .t p{margin:2px 0 0; font-size:12px; color:var(--txt2)}
+  .vsteps .s{display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line); font-size:12.5px; color:var(--txt2)}
+  .vsteps .s:last-child{border-bottom:0}
+  .vsteps .n{width:20px; height:20px; flex:none; display:grid; place-items:center; border-radius:50%; border:1px solid var(--line);
+    background:rgb(255 255 255 / .03); font-size:10.5px; color:var(--txt3)}
+  .vsub{padding:10px 14px; border-bottom:1px solid var(--line); font-size:12px; font-weight:500; color:var(--txt2)}
+  .vinfo{padding:14px 16px}
+  .vinfo b{display:block; font-size:12.5px; font-weight:500; color:var(--txt2)}
+  .vinfo p{margin:4px 0 0; font-size:12px; color:var(--txt2); line-height:1.6; max-width:62ch}
+
+  /* speed page */
+  .sptop{padding:18px 16px 4px; text-align:center}
+  .spnum{font-size:44px; font-weight:600; letter-spacing:-1px; line-height:1}
+  .spun{font-size:12px; color:var(--txt3); margin-left:4px}
+  .spcap{margin-top:6px; font-size:12.5px; color:var(--txt2)}
+  .spbars{display:flex; align-items:flex-end; gap:2px; height:52px; padding:12px 16px 0}
+  .spbars i{flex:1; min-width:2px; height:2px; background:var(--brand); opacity:.7; border-radius:2px 2px 0 0; transition:height .3s var(--ease-out)}
+  .spact{display:flex; align-items:center; gap:12px; padding:14px 16px; border-top:1px solid var(--line); margin-top:12px; flex-wrap:wrap}
+  .spres{padding:14px 16px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border-top:1px solid var(--line)}
+  .spres div{padding:2px 0}
+  .spres span{display:block; color:var(--txt3); font-size:11px; text-transform:uppercase; letter-spacing:.04em}
+  .spres b{font-size:15px; font-weight:600}
+  .verd{display:flex; gap:8px; flex-wrap:wrap; padding:0 16px 14px}
+  .verd i{font-style:normal; font-size:11.5px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); background:rgb(255 255 255 / .02); color:var(--txt2)}
+
+  .hist .h{display:flex; justify-content:space-between; gap:12px; padding:11px 14px; border-bottom:1px solid var(--line); font-size:12.5px}
+  .hist .h:last-child{border-bottom:0}
+  .hist .h span{color:var(--txt3)}
+  .hist .h b{font-weight:570}
+  .empty{padding:26px 16px; text-align:center; color:var(--txt3); font-size:12.5px}
+
+  .setrow{display:flex; gap:16px; align-items:center; padding:12px 14px; border-bottom:1px solid var(--line); flex-wrap:wrap}
+  .setrow:last-child{border-bottom:0}
+  .setrow .k{flex:none; width:118px; font-size:12.5px; color:var(--txt2)}
+  .setrow .v{flex:1; min-width:0; font-size:12.5px; color:var(--txt)}
+  .demo-cap{display:flex; gap:14px; flex-wrap:wrap; align-items:center; color:var(--txt3); font-size:12.5px; padding:12px 4px 0}
+  .demo-cap b{color:var(--txt2); font-weight:570}
+
   @keyframes rise{from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none}}
   .reveal{opacity:0}
   .reveal.in{animation:rise .5s var(--ease-out) both}
-  .hero{animation:rise .6s var(--ease-out) both}
-  .hero .shot{animation-delay:.05s}
+  .hero{animation:rise .55s var(--ease-out) both}
 
-  /* ---- responsive -------------------------------------------------------- */
   @media (max-width:860px){
-    .hero{padding:26px 0 18px}
+    .hero{padding:26px 0 6px}
     h1{font-size:26px; letter-spacing:-.4px}
     h2{font-size:18px}
-    section{padding:26px 0}
-    .strip{grid-template-columns:1fr}
-    .strip > div + div{border-left:0; border-top:1px solid var(--line)}
+    section{padding:24px 0}
     .row{flex-direction:column; gap:6px; padding:13px 16px}
-    .row .k{width:auto; padding-top:0}
+    .row .k{width:auto}
     .gallery{grid-template-columns:1fr}
     .top nav a.txt{display:none}
     .top nav{gap:10px}
+    .demo{min-height:0}
+    .demo-body{flex-direction:column}
+    .demo-side{width:100%; flex:0 0 auto; border-right:0; border-bottom:1px solid var(--line); flex-direction:row; flex-wrap:wrap; gap:4px; padding:8px}
+    .wstrip{height:30px}
+    .demo-id{width:100%; padding:2px 4px 6px}
+    .demo-id img{width:32px; height:32px}
+    .demo-tabs{flex-direction:row; flex:1; gap:2px}
+    .dtab{flex-direction:column; gap:4px; padding:7px 4px; font-size:10.5px; justify-content:center; text-align:center; flex:1; min-width:0}
+    .dtab svg,.dtab .vmark{width:16px; height:16px}
+    .demo-side .sp{display:none}
+    .demo-main{padding:12px}
+    .dialbtn{width:104px; height:104px; margin:0 auto}
+    .dial-wrap{justify-content:center; text-align:center; gap:14px}
+    .dialmeta{align-items:center; flex-basis:100%}
+    .drow{flex-direction:column; align-items:stretch; gap:6px}
+    .drow .k{width:auto}
+    .pick{max-width:none}
+    .presets{grid-template-columns:1fr}
+    .tiles{grid-template-columns:repeat(3,1fr)}
+    .spres{grid-template-columns:repeat(3,1fr); gap:8px}
+    .spnum{font-size:38px}
   }
   @media (max-width:420px){
     .top .name{display:none}
@@ -256,12 +364,14 @@
     .cta .btn{width:100%}
     .cta .btn.ghost{order:-1; background:var(--brand); color:#fff; border-color:transparent}
     .cta .btn.primary{background:rgb(255 255 255 / .02); color:var(--txt); border-color:var(--line-strong)}
+    .tiles{grid-template-columns:1fr}
+    .tile + .tile{border-left:0; border-top:1px solid var(--line)}
   }
   @media (prefers-reduced-motion:reduce){
     html{scroll-behavior:auto}
     .reveal,.reveal.in,.hero{opacity:1; animation:none; transform:none}
-    .btn,.row,.iconbtn,.gallery .pshot{transition:none}
-    .iconbtn:hover,.gallery figure:hover .pshot{transform:none}
+    .btn,.row,.iconbtn,.dtab,.preset,.dialbtn{transition:none}
+    .iconbtn:hover{transform:none}
   }
 </style>
 </head>
@@ -274,8 +384,9 @@
     <span class="ver" id="ver" title="Latest release">v0.3.4</span>
     <span class="sp"></span>
     <nav>
+      <a class="txt" href="#demo">Try it</a>
       <a class="txt" href="#features">Features</a>
-      <a class="txt" href="#how">How it works</a>
+      <a class="txt" href="#voice">Valorant</a>
       <a class="txt" href="#faq">FAQ</a>
       <a class="iconbtn" href="https://github.com/YousefMohiey/QuotaVPN" aria-label="QuotaVPN on GitHub" title="GitHub">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.1c-3.2.7-3.87-1.36-3.87-1.36-.53-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.24 2.76.12 3.05.74.81 1.18 1.83 1.18 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.13v3.16c0 .31.2.67.8.55A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
@@ -288,29 +399,242 @@
 <div class="wrap hero">
   <div class="eyebrow">Windows 10/11 and Android</div>
   <h1>Your gaming and streaming packages, used on purpose.</h1>
-  <p class="lead">Your ISP reads the TLS handshake to decide which quota a session counts against. QuotaVPN puts a server name from the package you picked on it.</p>
+  <p class="lead">Your ISP reads the TLS handshake to decide which quota a session counts against. QuotaVPN puts a server name from the package you picked on it. The interface below is the app itself.</p>
   <div class="cta">
     <a class="btn primary" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.2 4.5v7.1H3V5.5Zm0 13 7.2 1v-7H3v6Zm8.4 1.2L21 21V12.6h-9.6v7.1ZM11.4 4.3 21 3v8.6h-9.6V4.3Z"/></svg>Download for Windows</a>
     <a class="btn ghost" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.6 9.2h8.8c.3 0 .5.2.5.5v6.5c0 .8-.6 1.4-1.4 1.4h-.4v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-2.1v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-.4c-.8 0-1.4-.6-1.4-1.4v-6.5c0-.3.2-.5.5-.5Zm-2.3.1c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1Zm13.4 0c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1ZM15.1 4.3l.9-1.6a.3.3 0 0 0-.5-.3l-.9 1.6a5.6 5.6 0 0 0-5.2 0L8.5 2.4a.3.3 0 0 0-.5.3l.9 1.6A4.6 4.6 0 0 0 6.5 8h11a4.6 4.6 0 0 0-2.4-3.7Z"/></svg>Android APK</a>
   </div>
-  <p class="note">Free and open source, no account, MIT licensed. Both apps update themselves from the releases page.</p>
+  <p class="note">Free and open source, no account, MIT licensed.</p>
+</div>
+
+<div class="wrap" id="demo">
+  <section class="reveal">
+    <div class="demo" lang="en" id="app">
+      <div class="wstrip" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 12h12"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>
+      </div>
+      <div class="demo-body">
+      <aside class="demo-side">
+        <div class="demo-id">
+          <img src="assets/icon.png" alt="">
+          <div>
+            <div class="nm">QuotaVPN</div>
+            <div class="vv">v0.3.4</div>
+          </div>
+        </div>
+        <div class="demo-tabs" role="tablist">
+          <button class="dtab" data-tab="home" aria-pressed="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.2 12 3l9 7.2V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-7h6v7"/></svg>
+            <span data-t="tHome">Home</span>
+          </button>
+          <button class="dtab" data-tab="voice" aria-pressed="false">
+            <span class="vmark" aria-hidden="true"></span>
+            <span data-t="tVoice">Valorant</span>
+          </button>
+          <button class="dtab" data-tab="speed" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 14 16 10"/><path d="M3.3 19a10 10 0 1 1 17.4 0"/></svg>
+            <span data-t="tSpeed">Speed</span>
+          </button>
+          <button class="dtab" data-tab="history" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.8 9.8 0 0 0-6.8 2.8L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3.5 2"/></svg>
+            <span data-t="tHist">History</span>
+          </button>
+        </div>
+        <span class="sp"></span>
+        <div class="demo-tabs">
+          <button class="dtab" data-tab="settings" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1.5 14h5M9.5 8h5M17.5 16h5"/></svg>
+            <span data-t="tSet">Settings</span>
+          </button>
+        </div>
+      </aside>
+
+      <div class="demo-main">
+        <!-- home -->
+        <div class="dpage on" data-page="home">
+          <div class="dpanel">
+            <div class="dial-wrap">
+              <button class="dialbtn" id="dial" type="button">
+                <span class="ring" id="ring" style="--p:0"></span>
+                <span class="in">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/><path d="M12 2v10"/></svg>
+                  <span class="lbl" id="dialLbl" data-t="connect">Connect</span>
+                </span>
+              </button>
+              <div class="dialmeta">
+                <div class="cn" id="cardName">Gamerz / PS</div>
+                <div class="st" id="dialSub" data-t="idleSub">Pick a card and connect.</div>
+                <div class="sn" id="cardSni">ea.com</div>
+              </div>
+            </div>
+            <div class="tiles">
+              <div class="tile"><span data-t="sess">Session</span><b id="tSess">00:00</b></div>
+              <div class="tile"><span data-t="down">Down</span><b id="tDown">0 KB</b></div>
+              <div class="tile"><span data-t="up">Up</span><b id="tUp">0 KB</b></div>
+            </div>
+            <div class="spark" id="spark" aria-hidden="true"></div>
+          </div>
+
+          <div class="dpanel">
+            <div class="presets">
+              <button class="preset" data-preset="Gamerz" aria-pressed="true" type="button">
+                <b>Gamerz / PS</b><i data-sni-g="ea.com">ea.com</i>
+              </button>
+              <button class="preset" data-preset="Streamerz" aria-pressed="false" type="button">
+                <b>Streamerz</b><i data-sni-s="youtube.com">youtube.com</i>
+              </button>
+            </div>
+            <div class="drow">
+              <span class="k" data-t="srvRow">Server</span>
+              <div class="v">
+                <button class="pick" id="pickServer" type="button">
+                  <span id="srvVal">ea.com</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="drow">
+              <span class="k" data-t="routing">App routing</span>
+              <div class="v">
+                <button class="pick" id="pickRouting" type="button">
+                  <span id="routingVal" data-t="wholeDevice">Whole device</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="drow">
+              <span class="k" data-t="conn">Connection</span>
+              <div class="v">
+                <div class="segw">
+                  <div class="seg" id="seg" role="group">
+                    <button type="button" aria-pressed="true" data-mode="vless" data-t="trStandard">Standard</button>
+                    <button type="button" aria-pressed="false" data-mode="wg" data-t="trWg">WireGuard</button>
+                    <button type="button" aria-pressed="false" data-mode="hy2">Hysteria2</button>
+                  </div>
+                  <span class="hint" id="segHint" data-t="trNoteVless">Default traffic</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- voice -->
+        <div class="dpage" data-page="voice">
+          <div class="vhead">
+            <span class="vmark-lg" aria-hidden="true"></span>
+            <div style="min-width:0">
+              <h3 style="margin:0; font-size:15px; font-weight:600" data-t="vTitle">Valorant</h3>
+              <p style="margin:2px 0 0; color:var(--txt3); font-size:12.5px" data-t="vSub">Enable Valorant voice chat through QuotaVPN.</p>
+            </div>
+            <span class="badge" id="vBadge"><span class="dot"></span><span id="vBadgeTxt" data-t="vBadgeOff">Voice Chat Helper Off</span></span>
+          </div>
+          <div class="dpanel">
+            <div class="vcard">
+              <h4 data-t="vCardTitle">Valorant Voice Chat</h4>
+              <p data-t="vCardBody">Can't use Valorant voice chat in your region? QuotaVPN can help connect it through the VPN while keeping your game connection direct.</p>
+              <div class="vrow" id="vRow">
+                <div class="t">
+                  <b data-t="vHelper">Voice Chat Helper</b>
+                  <p id="vState" data-t="vHelperOff">Enable this if Valorant voice chat isn't available for you.</p>
+                </div>
+                <button class="btn" id="vBtn" type="button" style="height:40px; padding:0 18px">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/><path d="M12 2v10"/></svg>
+                  <span id="vBtnTxt" data-t="vOn">Enable</span>
+                </button>
+              </div>
+              <p style="margin-top:10px; font-size:11.5px; color:var(--txt3)" data-t="vNote">Keep QuotaVPN VPN running while playing Valorant.</p>
+            </div>
+          </div>
+          <div class="dpanel vsteps">
+            <div class="vsub" data-t="vHow">How it works</div>
+            <div class="s"><span class="n">1</span><span data-t="vS1">Turn on Voice Chat Helper</span></div>
+            <div class="s"><span class="n">2</span><span data-t="vS2">Open Valorant</span></div>
+            <div class="s"><span class="n">3</span><span data-t="vS3">Use Valorant voice chat normally</span></div>
+          </div>
+          <div class="dpanel vinfo">
+            <b data-t="vInfoT">Made for regions where Valorant voice chat isn't available.</b>
+            <p data-t="vInfoB">Your game connection stays normal. This feature is only designed to help with Valorant voice chat.</p>
+          </div>
+        </div>
+
+        <!-- speed -->
+        <div class="dpage" data-page="speed">
+          <div class="dhead">
+            <h3 data-t="spTitle">Speed</h3>
+            <p data-t="spIdle">Run a test to measure the connection through your card.</p>
+          </div>
+          <div class="dpanel">
+            <div class="sptop">
+              <div><span class="spnum" id="spNum">0</span><span class="spun" id="spUnit">Mbps</span></div>
+              <div class="spcap" id="spCap" data-t="spReady">Ready when you are.</div>
+            </div>
+            <div class="spbars" id="spBars" aria-hidden="true"></div>
+            <div class="spact">
+              <button class="btn primary" id="spBtn" type="button" data-t="startTest">Start test</button>
+              <span style="font-size:12px; color:var(--txt3)" id="spHint"></span>
+            </div>
+            <div class="spres" id="spRes" hidden>
+              <div><span data-t="ping">Ping</span><b id="rPing">-</b></div>
+              <div><span data-t="spDown">Download</span><b id="rDown">-</b></div>
+              <div><span data-t="spUp">Upload</span><b id="rUp">-</b></div>
+            </div>
+            <div class="verd" id="spVerd" hidden></div>
+          </div>
+        </div>
+
+        <!-- history -->
+        <div class="dpage" data-page="history">
+          <div class="dhead">
+            <h3 data-t="tHist">History</h3>
+            <p data-t="histSub">Runs from this session.</p>
+          </div>
+          <div class="dpanel hist" id="histList"></div>
+        </div>
+
+        <!-- settings -->
+        <div class="dpage" data-page="settings">
+          <div class="dhead">
+            <h3 data-t="tSet">Settings</h3>
+            <p data-t="setSub">Appearance, language and updates.</p>
+          </div>
+          <div class="dpanel">
+            <div class="setrow">
+              <span class="k" data-t="setLang">Language</span>
+              <div class="v">
+                <div class="seg" id="langSeg" role="group">
+                  <button type="button" aria-pressed="true" data-lang="en">English</button>
+                  <button type="button" aria-pressed="false" data-lang="ar">العربية</button>
+                </div>
+              </div>
+            </div>
+            <div class="setrow">
+              <span class="k" data-t="updRow">Update check</span>
+              <div class="v" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+                <button class="btn ghost sm" id="upBtn" type="button" data-t="upCheck">Check for updates</button>
+                <span id="upState" data-t="upIdle">Not checked yet.</span>
+              </div>
+            </div>
+            <div class="setrow">
+              <span class="k" data-t="verRow">Version</span>
+              <div class="v" id="verRowV">You run v0.3.4.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+      </div>
+    <div class="demo-cap">
+      <span><b>Interactive preview</b> of the Windows app</span>
+      <span>Click Connect, switch cards, run a speed test, open the Valorant tab</span>
+      <span>No install, nothing is routed</span>
+    </div>
+  </section>
 </div>
 
 <div class="wrap">
-  <div class="shot-frame">
-    <a class="shot" href="assets/app-home.png" title="Open the full screenshot">
-      <img src="assets/app-home.png" alt="QuotaVPN for Windows connected to a gaming profile, showing live traffic, session counters and the server and routing rows" width="1322" height="872">
-    </a>
-  </div>
-  <div class="shot-cap">
-    <span><b>Windows app, connected</b> to the Gamerz profile</span>
-    <span>Live traffic and session counters</span>
-    <span>Server, per-app routing and transport on one screen</span>
-  </div>
-</div>
-
-<div class="wrap">
-  <div class="strip" style="margin-top:26px">
+  <div class="strip" id="facts">
     <div><b>Signed updates</b><span>The app installs its own updates, verified</span></div>
     <div><b>English and Arabic</b><span>The whole interface in both languages</span></div>
     <div><b>Your own server</b><span>Bring a box, one script sets it up</span></div>
@@ -327,6 +651,13 @@
         <div class="v">
           <b>Counts against the package you pick</b>
           <p>Gamerz and Streamerz profiles each carry their own server list, so a game or a stream rides the package that should pay for it instead of your general quota.</p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="k">Valorant voice</div>
+        <div class="v">
+          <b>Voice chat, when your region blocks it</b>
+          <p>Your game connection stays direct. QuotaVPN carries only the voice traffic, so region locks stop being the reason you play without a mic.</p>
         </div>
       </div>
       <div class="row">
@@ -355,39 +686,30 @@
 </div>
 
 <div class="wrap">
-  <section id="how" class="reveal">
-    <h2>How it works</h2>
-    <p class="sub" style="margin-top:8px">Pick a mode to see what a session counts against. The engine is sing-box on both platforms: wintun on Windows, VpnService on Android.</p>
-    <div class="modes">
-      <div class="seg" role="group" aria-label="Transport mode">
-        <button type="button" aria-pressed="true" data-mode="standard">Standard</button>
-        <button type="button" aria-pressed="false" data-mode="wg">WireGuard</button>
-        <button type="button" aria-pressed="false" data-mode="hy2">Hysteria2</button>
+  <section id="voice" class="reveal">
+    <h2>Valorant voice chat</h2>
+    <p class="sub" style="margin-top:8px">Valorant voice chat is not available in some regions, and your ISP or region filter is usually the reason. The app has a page for exactly this: one card, one switch.</p>
+    <div class="rows" style="margin-top:18px">
+      <div class="row">
+        <div class="k">What it does</div>
+        <div class="v">
+          <b>Carries the voice traffic, leaves the game where it is</b>
+          <p>Voice chat is handled through QuotaVPN while your match connection stays direct, so your ping in game does not move for the sake of a headset.</p>
+        </div>
       </div>
-      <div class="panel-soft mode-panel">
-        <div class="row mode on" data-mode="standard">
-          <div class="k">Transport</div>
-          <div class="v"><b>VLESS on TCP 443 with the class SNI</b><p>A TLS handshake that carries a server name from your package's own whitelist, so the ISP files the session under that package.</p></div>
+      <div class="row">
+        <div class="k">Using it</div>
+        <div class="v">
+          <b>Turn on Voice Chat Helper, then open Valorant</b>
+          <p>Keep QuotaVPN running while you play. Switching the helper off does not restart the rest of your session.</p>
         </div>
-        <div class="row mode on" data-mode="standard">
-          <div class="k">Counts from</div>
-          <div class="v"><b>Your package</b><p>Gamerz or Streamerz, whichever card you are on.</p></div>
-        </div>
-        <div class="row mode" data-mode="wg">
-          <div class="k">Transport</div>
-          <div class="v"><b>Raw UDP, no TLS handshake</b><p>Nothing for the ISP to read at the start of the connection, which is why it is the raw-speed option.</p></div>
-        </div>
-        <div class="row mode" data-mode="wg">
-          <div class="k">Counts from</div>
-          <div class="v"><b>General quota</b><p>Port 51820, with a port 53 fallback for lines that filter it.</p></div>
-        </div>
-        <div class="row mode" data-mode="hy2">
-          <div class="k">Transport</div>
-          <div class="v"><b>UDP 443 with the same SNI</b><p>QUIC-style and fast, with the same server name as Standard.</p></div>
-        </div>
-        <div class="row mode" data-mode="hy2">
-          <div class="k">Counts from</div>
-          <div class="v"><b>General quota</b><p>ISPs read SNI off TCP only, so a UDP session is counted as general traffic.</p></div>
+      </div>
+      <div class="row">
+        <div class="k">Where it lives</div>
+        <div class="v">
+          <b>Its own tab in both apps, next to Home</b>
+          <p>Open the Valorant tab in the preview above to see the switch and the three steps.</p>
+          <button class="btn ghost" id="openVoice" type="button" style="margin-top:10px; height:36px">Open the Valorant tab</button>
         </div>
       </div>
     </div>
@@ -395,18 +717,41 @@
 </div>
 
 <div class="wrap">
-  <section class="reveal">
-    <h2>Every profile carries its own servers</h2>
-    <p class="sub" style="margin-top:8px">A card is a profile: a name, a domain to ride, the transport, and a server list you can extend with your own address at any time.</p>
-    <div class="gallery" style="margin-top:18px">
-      <figure>
-        <div class="pshot"><img src="assets/app-speed.png" alt="QuotaVPN speed screen with ping, download and upload against your own server" width="1322" height="872"></div>
-        <figcaption>Ping, download and upload against your own server, with history.</figcaption>
-      </figure>
-      <figure>
-        <div class="pshot"><img src="assets/app-valorant.png" alt="QuotaVPN profile tiles with the Valorant profile selected" width="1322" height="872"></div>
-        <figcaption>Profile tiles pick the quota class. Session counters run while you are on.</figcaption>
-      </figure>
+  <section id="how" class="reveal">
+    <h2>How it works</h2>
+    <p class="sub" style="margin-top:8px">Pick a mode to see what a session counts against. The engine is sing-box on both platforms: wintun on Windows, VpnService on Android.</p>
+    <div class="modes" style="margin-top:16px">
+      <div class="seg" role="group" aria-label="Transport mode" id="howSeg">
+        <button type="button" aria-pressed="true" data-mode="standard">Standard</button>
+        <button type="button" aria-pressed="false" data-mode="wg">WireGuard</button>
+        <button type="button" aria-pressed="false" data-mode="hy2">Hysteria2</button>
+      </div>
+      <div class="rows" style="margin-top:10px">
+        <div class="row howrow" data-mode="standard">
+          <div class="k">Transport</div>
+          <div class="v"><b>VLESS on TCP 443 with the class SNI</b><p>A TLS handshake that carries a server name from your package's own whitelist, so the ISP files the session under that package.</p></div>
+        </div>
+        <div class="row howrow" data-mode="standard">
+          <div class="k">Counts from</div>
+          <div class="v"><b>Your package</b><p>Gamerz or Streamerz, whichever card you are on.</p></div>
+        </div>
+        <div class="row howrow" data-mode="wg" style="display:none">
+          <div class="k">Transport</div>
+          <div class="v"><b>Raw UDP, no TLS handshake</b><p>Nothing for the ISP to read at the start of the connection, which is why it is the raw-speed option.</p></div>
+        </div>
+        <div class="row howrow" data-mode="wg" style="display:none">
+          <div class="k">Counts from</div>
+          <div class="v"><b>General quota</b><p>Port 51820, with a port 53 fallback for lines that filter it.</p></div>
+        </div>
+        <div class="row howrow" data-mode="hy2" style="display:none">
+          <div class="k">Transport</div>
+          <div class="v"><b>UDP 443 with the same SNI</b><p>QUIC-style and fast, with the same server name as Standard.</p></div>
+        </div>
+        <div class="row howrow" data-mode="hy2" style="display:none">
+          <div class="k">Counts from</div>
+          <div class="v"><b>General quota</b><p>ISPs read SNI off TCP only, so a UDP session is counted as general traffic.</p></div>
+        </div>
+      </div>
     </div>
   </section>
 </div>
@@ -418,6 +763,10 @@
       <details open>
         <summary>What does QuotaVPN actually change?</summary>
         <p>Your ISP decides which quota a connection counts against from the TLS handshake at its start. QuotaVPN gives each connection a server name from the package you picked, so the session lands in that bucket instead of your general quota.</p>
+      </details>
+      <details>
+        <summary>What is the Valorant voice chat helper?</summary>
+        <p>Valorant voice chat is not available in some regions. The helper routes just the voice traffic through QuotaVPN while your game connection stays direct, so you can talk in game without moving the match itself onto the tunnel.</p>
       </details>
       <details>
         <summary>Does it work with any ISP?</summary>
@@ -438,10 +787,10 @@
 <div class="wrap">
   <section class="reveal" id="download">
     <h2>Get the build</h2>
-    <div class="panel-soft" style="margin-top:16px">
+    <div class="rows" style="margin-top:16px">
       <div class="row">
         <div class="k">Windows 10/11</div>
-        <div class="v"><b>QuotaVPN &lt;version&gt; x64 installer</b><p>Installs per user, no admin needed. After that the app updates itself: Settings, Updates, or the tray.</p></div>
+        <div class="v"><b>QuotaVPN x64 installer</b><p>Installs per user, no admin needed. After that the app updates itself: Settings, Updates, or the tray.</p></div>
       </div>
       <div class="row">
         <div class="k">Android</div>
@@ -468,27 +817,15 @@
 <script>
 (function(){
   var el = document.getElementById('ver'); if(!el) return;
-  function set(v){ el.textContent = v; }
   try{
     var c = sessionStorage.getItem('qvVer');
-    if(c){ set(c); return; }
+    if(c){ el.textContent = c; return; }
     fetch('https://api.github.com/repos/YousefMohiey/QuotaVPN/releases/latest')
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(d){
-        if(d && d.tag_name){ var v = String(d.tag_name).replace(/^v/i,''); set('v' + v); try{ sessionStorage.setItem('qvVer','v'+v); }catch(e){} }
+        if(d && d.tag_name){ var v = 'v' + String(d.tag_name).replace(/^v/i,''); el.textContent = v; try{ sessionStorage.setItem('qvVer', v); }catch(e){} }
       })['catch'](function(){});
   }catch(e){}
-})();
-(function(){
-  var buttons = document.querySelectorAll('.seg button');
-  var panels = document.querySelectorAll('.mode');
-  function pick(mode){
-    for(var i=0;i<buttons.length;i++){ buttons[i].setAttribute('aria-pressed', String(buttons[i].dataset.mode === mode)); }
-    for(var j=0;j<panels.length;j++){ panels[j].classList.toggle('on', panels[j].dataset.mode === mode); }
-  }
-  for(var i=0;i<buttons.length;i++){
-    buttons[i].addEventListener('click', function(){ pick(this.dataset.mode); });
-  }
 })();
 (function(){
   var els = document.querySelectorAll('.reveal');
@@ -503,6 +840,372 @@
     list.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
   }, {rootMargin:'0px 0px -8% 0px', threshold:0.06});
   for(var i=0;i<els.length;i++) io.observe(els[i]);
+})();
+(function(){
+  var seg = document.getElementById('howSeg');
+  if(!seg) return;
+  var btns = seg.querySelectorAll('button');
+  var rows = document.querySelectorAll('.howrow');
+  function pick(mode){
+    for(var i=0;i<btns.length;i++) btns[i].setAttribute('aria-pressed', String(btns[i].dataset.mode === mode));
+    for(var j=0;j<rows.length;j++) rows[j].style.display = rows[j].dataset.mode === mode ? '' : 'none';
+  }
+  for(var i=0;i<btns.length;i++) btns[i].addEventListener('click', function(){ pick(this.dataset.mode); });
+})();
+</script>
+
+<script>
+/* ============================================================================
+   The interactive app. Runs entirely in the browser: no network calls, no
+   install. Same components as the desktop build, scaled down.
+   ========================================================================== */
+(function(){
+  var app = document.getElementById('app');
+  if(!app) return;
+
+  var T = {
+    en: {
+      tHome:"Home", tVoice:"Valorant", tSpeed:"Speed", tHist:"History", tSet:"Settings",
+      connect:"Connect", connecting:"Connecting", connected:"Connected", disconnect:"Disconnect",
+      idleSub:"Pick a card and connect.", onSub:"Traffic is running through your card.", offSub:"Session closed.",
+      sess:"Session", down:"Down", up:"Up",
+      srvRow:"Server", routing:"App routing", conn:"Connection",
+      wholeDevice:"Whole device", onlyApps:"Only these apps", exceptApps:"All except these apps",
+      trStandard:"Standard", trWg:"WireGuard",
+      trNoteVless:"Default traffic", trNoteWg:"WireGuard: lightest, may be blocked on some networks.", trNoteHy2:"Game: fastest for play, counts from general quota.",
+      vTitle:"Valorant", vSub:"Enable Valorant voice chat through QuotaVPN.",
+      vBadgeOn:"Voice Chat Available", vBadgeOff:"Voice Chat Helper Off",
+      vCardTitle:"Valorant Voice Chat",
+      vCardBody:"Can't use Valorant voice chat in your region? QuotaVPN can help connect it through the VPN while keeping your game connection direct.",
+      vHelper:"Voice Chat Helper", vHelperOn:"Enabled. Valorant voice chat is being handled through QuotaVPN.",
+      vHelperOff:"Enable this if Valorant voice chat isn't available for you.", vOn:"Enable", vOff:"Disable",
+      vNote:"Keep QuotaVPN VPN running while playing Valorant.", vHow:"How it works",
+      vS1:"Turn on Voice Chat Helper", vS2:"Open Valorant", vS3:"Use Valorant voice chat normally",
+      vInfoT:"Made for regions where Valorant voice chat isn't available.",
+      vInfoB:"Your game connection stays normal. This feature is only designed to help with Valorant voice chat.",
+      spTitle:"Speed", spIdle:"Run a test to measure the connection through your card.", spReady:"Ready when you are.",
+      startTest:"Start test", measuring:"Measuring", pingTitle:"Ping", chDown:"Download", chUp:"Upload",
+      pingHint:"Best of 4 samples through the active path.", downHint:"Download through the active path.", upHint:"Upload through the active path.",
+      resultTitle:"Result", readyFor:"Ready for", vCompReady:"Competitive ready", vCasual:"Casual play", vLag:"Expect lag",
+      v4k:"4K ready", v1080:"1080p smooth", v720:"720p okay", vSlow:"Too slow for video", vCallsOk:"Clear calls",
+      histSub:"Runs from this session.", histEmpty:"No runs yet. Run a speed test.",
+      setSub:"Language and updates.", setLang:"Language", updRow:"Update check", upCheck:"Check for updates", upIdle:"Not checked yet.",
+      upChecking:"Checking", upLatest:"is the latest.", upCur:"You run", verRow:"Version", offlineSub:"Connect to run a test."
+    },
+    ar: {
+      tHome:"الرئيسية", tVoice:"فالورانت", tSpeed:"السرعة", tHist:"السجل", tSet:"الإعدادات",
+      connect:"اتصال", connecting:"جارٍ الاتصال", connected:"متصل", disconnect:"قطع الاتصال",
+      idleSub:"اختر بطاقة ثم اتصل.", onSub:"المرور يمر عبر بطاقتك.", offSub:"أُغلقت الجلسة.",
+      sess:"الجلسة", down:"تنزيل", up:"رفع",
+      srvRow:"الخادم", routing:"توجيه التطبيقات", conn:"الاتصال",
+      wholeDevice:"كل الجهاز", onlyApps:"هذه التطبيقات فقط", exceptApps:"كل شيء عدا هذه التطبيقات",
+      trStandard:"قياسي", trWg:"واير جارد",
+      trNoteVless:"المرور الافتراضي", trNoteWg:"واير جارد: الأخف، وقد يُحجب في بعض الشبكات.", trNoteHy2:"اللعبة: الأسرع للعب، ويُحسب من الاستهلاك العام.",
+      vTitle:"فالورانت", vSub:"فعّل صوت فالورانت عبر QuotaVPN.",
+      vBadgeOn:"صوت اللعبة متاح", vBadgeOff:"مساعد الصوت متوقف",
+      vCardTitle:"صوت فالورانت",
+      vCardBody:"لا يمكنك استخدام صوت فالورانت في منطقتك؟ يساعدك QuotaVPN على تشغيله عبر الشبكة الافتراضية مع الحفاظ على اتصال اللعبة المباشر.",
+      vHelper:"مساعد الصوت", vHelperOn:"مفعّل. يتولى QuotaVPN توصيل صوت فالورانت.",
+      vHelperOff:"فعّله إذا لم يكن صوت فالورانت متاحًا لديك.", vOn:"تفعيل", vOff:"إيقاف",
+      vNote:"اترك QuotaVPN تعمل أثناء لعب فالورانت.", vHow:"كيف يعمل",
+      vS1:"فعّل مساعد الصوت", vS2:"افتح فالورانت", vS3:"استخدم صوت فالورانت كالمعتاد",
+      vInfoT:"صُمم للمناطق التي لا يتوفر فيها صوت فالورانت.",
+      vInfoB:"يبقى اتصال اللعبة طبيعيًا. هذه الميزة مخصصة فقط لمساعدة صوت فالورانت.",
+      spTitle:"السرعة", spIdle:"شغّل اختبارًا لقياس الاتصال عبر بطاقتك.", spReady:"جاهز عندما تكون جاهزًا.",
+      startTest:"ابدأ الاختبار", measuring:"جارٍ القياس", pingTitle:"البينج", chDown:"التنزيل", chUp:"الرفع",
+      pingHint:"أفضل 4 قياسات عبر المسار النشط.", downHint:"التنزيل عبر المسار النشط.", upHint:"الرفع عبر المسار النشط.",
+      resultTitle:"النتيجة", readyFor:"مناسب لـ", vCompReady:"جاهز للمنافسات", vCasual:"لعب عادي", vLag:"توقّع تقطيعًا",
+      v4k:"جاهز لـ4K", v1080:"1080p سلس", v720:"720p مقبول", vSlow:"أبطأ من الفيديو", vCallsOk:"مكالمات واضحة",
+      histSub:"نتائج هذه الجلسة.", histEmpty:"لا توجد نتائج بعد. شغّل اختبار سرعة.",
+      setSub:"اللغة والتحديثات.", setLang:"اللغة", updRow:"فحص التحديثات", upCheck:"افحص التحديثات", upIdle:"لم يُفحص بعد.",
+      upChecking:"جارٍ الفحص", upLatest:"هو الأحدث.", upCur:"أنت تستخدم", verRow:"الإصدار", offlineSub:"اتصل أولًا لبدء الاختبار."
+    }
+  };
+  var lang = 'en';
+  function t(k){ return (T[lang] && T[lang][k]) || T.en[k] || k; }
+
+  /* --- state ---------------------------------------------------------------- */
+  var S = {
+    tab:'home', phase:'idle', preset:'Gamerz', sni:'ea.com', routing:0, mode:'vless',
+    sessStart:0, rx:0, tx:0, voice:false, runs:[], speed:{value:0, unit:'Mbps', caption:'', busy:false, gate:0},
+    serverIdx:0
+  };
+  var SNIS = ['ea.com','riotgames.com','steamcommunity.com','callofduty.com','pubg.com','youtube.com','netflix.com','twitch.tv'];
+  var ROUTES = ['wholeDevice','onlyApps','exceptApps'];
+  var modeHints = { vless:'trNoteVless', wg:'trNoteWg', hy2:'trNoteHy2' };
+
+  function $(id){ return document.getElementById(id); }
+  function fmtBytes(n){
+    if(n < 1024) return n.toFixed(0) + ' KB';
+    if(n < 1024*1024) return (n/1024).toFixed(1) + ' MB';
+    return (n/1048576).toFixed(2) + ' GB';
+  }
+  function fmtClock(ms){
+    var s = Math.max(0, Math.floor(ms/1000));
+    var m = Math.floor(s/60), sec = s%60, hh = Math.floor(m/60);
+    var mm = m%60;
+    function p(v){ return (v<10?'0':'') + v; }
+    return (hh>0 ? p(hh)+':' : '') + p(mm) + ':' + p(sec);
+  }
+  function applyLang(){
+    app.setAttribute('lang', lang);
+    var nodes = app.querySelectorAll('[data-t]');
+    for(var i=0;i<nodes.length;i++){
+      nodes[i].textContent = t(nodes[i].getAttribute('data-t'));
+    }
+    var rtl = lang === 'ar';
+    var texts = app.querySelectorAll('.dialmeta .cn, .dialmeta .st, .vcard h4, .vcard p, .vrow .t b, .vrow .t p, .vsteps .s span, .vinfo b, .vinfo p, .dhead h3, .dhead p, .hist .h b, .setrow .v, .demo-cap');
+    for(var j=0;j<texts.length;j++){
+      texts[j].setAttribute('dir', rtl ? 'rtl' : 'ltr');
+      texts[j].style.textAlign = rtl ? 'right' : '';
+    }
+    var heads = app.querySelectorAll('.dhead');
+    for(var k=0;k<heads.length;k++){ heads[k].style.textAlign = rtl ? 'right' : ''; }
+    refreshStatic();
+  }
+  function refreshStatic(){
+    $('dialLbl').textContent = S.phase === 'on' ? t('disconnect') : S.phase === 'connecting' ? t('connecting') : t('connect');
+    $('dialSub').textContent = S.phase === 'on' ? t('onSub') : t('idleSub');
+    $('segHint').textContent = t(modeHints[S.mode]);
+    $('routingVal').textContent = t(ROUTES[S.routing]);
+    $('vBadgeTxt').textContent = S.voice ? t('vBadgeOn') : t('vBadgeOff');
+    $('vState').textContent = S.voice ? t('vHelperOn') : t('vHelperOff');
+    $('vBtnTxt').textContent = S.voice ? t('vOff') : t('vOn');
+    $('spBtn').textContent = S.speed.busy ? t('measuring') : t('startTest');
+    $('spCap').textContent = S.speed.caption || t('spReady');
+    $('verRowV').textContent = t('upCur') + ' v0.3.4.';
+    if(!S.voice) $('vRow').classList.remove('on'); 
+  }
+
+  /* --- tabs ----------------------------------------------------------------- */
+  var tabs = app.querySelectorAll('.dtab');
+  for(var i=0;i<tabs.length;i++){
+    tabs[i].addEventListener('click', function(){ go(this.getAttribute('data-tab')); });
+  }
+  function go(tab){
+    S.tab = tab;
+    for(var i=0;i<tabs.length;i++) tabs[i].setAttribute('aria-pressed', String(tabs[i].getAttribute('data-tab') === tab));
+    var pages = app.querySelectorAll('.dpage');
+    for(var j=0;j<pages.length;j++) pages[j].classList.toggle('on', pages[j].getAttribute('data-page') === tab);
+    if(tab === 'history') renderHistory();
+  }
+
+  /* --- dial + session ------------------------------------------------------- */
+  var ring = $('ring'), dial = $('dial'), spark = $('spark');
+  var BARS = 26, bars = [];
+  for(var b=0;b<BARS;b++){ var el = document.createElement('i'); spark.appendChild(el); bars.push(el); }
+  function pushBar(v){
+    bars.shift().remove();
+    var el = document.createElement('i');
+    el.style.height = Math.max(2, Math.min(34, v)) + 'px';
+    el.style.opacity = v <= 3 ? 0.14 : 0.85;
+    spark.appendChild(el);
+    bars.push(el);
+  }
+  for(var z=0;z<BARS;z++) pushBar(2);
+
+  var ringP = 0;
+  function setRing(p, on){ ring.style.setProperty('--p', p); dial.classList.toggle('on', !!on); }
+
+  dial.addEventListener('click', function(){
+    if(S.phase === 'on'){
+      S.phase = 'idle'; setRing(0,false); S.sessStart = 0; S.rx = 0; S.tx = 0;
+      $('tSess').textContent = '00:00'; $('tDown').textContent = '0 KB'; $('tUp').textContent = '0 KB';
+      for(var i=0;i<BARS;i++) pushBar(2);
+      refreshStatic(); return;
+    }
+    if(S.phase === 'connecting') return;
+    S.phase = 'connecting'; refreshStatic();
+    var p = 0;
+    var iv = setInterval(function(){
+      p += 7; if(p > 100) p = 100;
+      setRing(Math.min(p, 96), false);
+      if(p >= 100){
+        clearInterval(iv);
+        S.phase = 'on'; S.sessStart = Date.now(); setRing(100, true); refreshStatic();
+        $('tSess').textContent = '00:00'; pushBar(10);
+      }
+    }, 52);
+  });
+
+  setInterval(function(){
+    if(S.phase !== 'on') return;
+    $('tSess').textContent = fmtClock(Date.now() - S.sessStart);
+  }, 250);
+  setInterval(function(){
+    if(S.phase !== 'on'){ pushBar(2); return; }
+    var v = 6 + Math.random() * 26;
+    pushBar(v);
+    S.rx += v * 220; S.tx += v * 95;
+    $('tDown').textContent = fmtBytes(S.rx); $('tUp').textContent = fmtBytes(S.tx);
+  }, 450);
+
+  /* --- presets, server, routing, transport ---------------------------------- */
+  var presets = app.querySelectorAll('.preset');
+  for(var p2=0;p2<presets.length;p2++){
+    presets[p2].addEventListener('click', function(){
+      var kind = this.getAttribute('data-preset');
+      S.preset = kind;
+      for(var q=0;q<presets.length;q++) presets[q].setAttribute('aria-pressed', String(presets[q].getAttribute('data-preset') === kind));
+      var dom = kind === 'Gamerz' ? 'ea.com' : 'youtube.com';
+      S.sni = dom; S.serverIdx = SNIS.indexOf(dom) >= 0 ? SNIS.indexOf(dom) : 0;
+      $('cardName').textContent = kind === 'Gamerz' ? 'Gamerz / PS' : 'Streamerz';
+      $('cardSni').textContent = dom; $('srvVal').textContent = dom;
+    });
+  }
+  $('pickServer').addEventListener('click', function(){
+    S.serverIdx = (S.serverIdx + 1) % SNIS.length;
+    S.sni = SNIS[S.serverIdx];
+    $('srvVal').textContent = S.sni;
+  });
+  $('pickRouting').addEventListener('click', function(){
+    S.routing = (S.routing + 1) % ROUTES.length;
+    $('routingVal').textContent = t(ROUTES[S.routing]);
+  });
+  var segBtns = app.querySelectorAll('#seg button');
+  for(var s2=0;s2<segBtns.length;s2++){
+    segBtns[s2].addEventListener('click', function(){
+      S.mode = this.getAttribute('data-mode');
+      for(var q=0;q<segBtns.length;q++) segBtns[q].setAttribute('aria-pressed', String(segBtns[q].getAttribute('data-mode') === S.mode));
+      $('segHint').textContent = t(modeHints[S.mode]);
+    });
+  }
+
+  /* --- voice ---------------------------------------------------------------- */
+  $('vBtn').addEventListener('click', function(){
+    S.voice = !S.voice;
+    $('vRow').classList.toggle('on', S.voice);
+    refreshStatic();
+  });
+
+  /* --- speed test ----------------------------------------------------------- */
+  var spBars = $('spBars'); var sbars = [];
+  for(var s3=0;s3<34;s3++){ var se = document.createElement('i'); spBars.appendChild(se); sbars.push(se); }
+  function pushSp(v, max){
+    sbars.shift().remove();
+    var el = document.createElement('i');
+    el.style.height = Math.max(2, Math.round(Math.min(v / max, 1) * 46)) + 'px';
+    spBars.appendChild(el); sbars.push(el);
+  }
+  for(var s4=0;s4<34;s4++) pushSp(0, 1);
+
+  var spNum = $('spNum'), spUnit = $('spUnit');
+  function spShow(v, unit){ spNum.textContent = v.toFixed(unit === 'ms' ? 0 : 1); spUnit.textContent = unit; }
+
+  function runTest(){
+    if(S.speed.busy) return;
+    if(S.phase !== 'on'){
+      $('spCap').textContent = t('offlineSub');
+      $('spCap').setAttribute('data-tt', 'offlineSub');
+      return;
+    }
+    S.speed.busy = true; S.speed.caption = t('pingTitle'); S.speed.unit = 'ms';
+    $('spCap').textContent = t('pingTitle'); $('spHint').textContent = t('pingHint');
+    $('spRes').hidden = true; $('spVerd').hidden = true;
+    $('spBtn').textContent = t('measuring');
+    for(var i=0;i<34;i++) pushSp(0,1);
+    spShow(0, 'ms');
+
+    var pingSamples = [];
+    var n = 0;
+    var pv = setInterval(function(){
+      var v = 14 + Math.random() * 22;
+      pingSamples.push(v); n++;
+      spShow(v, 'ms'); pushSp(v, 60);
+      if(n >= 4){
+        clearInterval(pv);
+        var ping = Math.min.apply(null, pingSamples);
+        S.speed.caption = t('chDown'); $('spCap').textContent = t('chDown'); $('spHint').textContent = t('downHint');
+        var target = 120 + Math.random() * 150;
+        var d = 0;
+        var dv = setInterval(function(){
+          d += target / 22 + (Math.random() * 24 - 8);
+          if(d < 0) d = 0;
+          if(d >= target){ d = target; clearInterval(dv);
+            var down = d;
+            S.speed.caption = t('chUp'); $('spCap').textContent = t('chUp'); $('spHint').textContent = t('upHint');
+            var upTarget = 18 + Math.random() * 40; var u = 0;
+            var uv = setInterval(function(){
+              u += upTarget / 18 + (Math.random() * 10 - 4);
+              if(u < 0) u = 0;
+              spShow(u, 'Mbps'); pushSp(u, 320);
+              if(u >= upTarget){ u = upTarget; clearInterval(uv);
+                var up = u;
+                spShow(down, 'Mbps');
+                finishRun(ping, down, up);
+              }
+            }, 110);
+          } else { spShow(d, 'Mbps'); pushSp(d, 320); }
+        }, 110);
+      }
+    }, 330);
+  }
+  function finishRun(ping, down, up){
+    S.speed.busy = false;
+    S.speed.caption = t('resultTitle'); $('spCap').textContent = t('resultTitle');
+    $('spBtn').textContent = t('startTest'); $('spHint').textContent = '';
+    $('rPing').textContent = Math.round(ping) + ' ms';
+    $('rDown').textContent = down.toFixed(1) + ' Mbps';
+    $('rUp').textContent = up.toFixed(1) + ' Mbps';
+    $('spRes').hidden = false;
+    var verdicts = [];
+    if(down >= 150) verdicts.push(t('vCompReady')); else if(down >= 60) verdicts.push(t('vCasual')); else verdicts.push(t('vLag'));
+    if(down >= 120) verdicts.push(t('v4k')); else if(down >= 50) verdicts.push(t('v1080')); else if(down >= 25) verdicts.push(t('v720')); else verdicts.push(t('vSlow'));
+    if(ping < 60) verdicts.push(t('vCallsOk'));
+    var vd = $('spVerd'); vd.innerHTML = '';
+    for(var i=0;i<verdicts.length;i++){ var s = document.createElement('i'); s.textContent = verdicts[i]; vd.appendChild(s); }
+    vd.hidden = false;
+    S.runs.unshift({ at: Date.now(), ping: Math.round(ping), down: down, up: up });
+  }
+  $('spBtn').addEventListener('click', runTest);
+
+  function renderHistory(){
+    var list = $('histList');
+    list.innerHTML = '';
+    if(!S.runs.length){
+      var e = document.createElement('div'); e.className = 'empty'; e.textContent = t('histEmpty'); list.appendChild(e); return;
+    }
+    for(var i=0;i<S.runs.length;i++){
+      var r = S.runs[i];
+      var d = new Date(r.at);
+      var hm = ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2);
+      var row = document.createElement('div'); row.className = 'h';
+      var left = document.createElement('b'); left.textContent = hm + '  ·  ' + r.ping + ' ms';
+      var right = document.createElement('span');
+      right.textContent = r.down.toFixed(1) + ' / ' + r.up.toFixed(1) + ' Mbps';
+      row.appendChild(left); row.appendChild(right);
+      list.appendChild(row);
+    }
+  }
+  function renderHistoryIfOpen(){ if(S.tab === 'history') renderHistory(); }
+
+  /* --- settings: language + updates ---------------------------------------- */
+  var langBtns = app.querySelectorAll('#langSeg button');
+  for(var l=0;l<langBtns.length;l++){
+    langBtns[l].addEventListener('click', function(){
+      lang = this.getAttribute('data-lang');
+      for(var q=0;q<langBtns.length;q++) langBtns[q].setAttribute('aria-pressed', String(langBtns[q].getAttribute('data-lang') === lang));
+      applyLang(); renderHistoryIfOpen();
+    });
+  }
+  $('upBtn').addEventListener('click', function(){
+    $('upState').textContent = t('upChecking');
+    var self = this;
+    self.disabled = true;
+    setTimeout(function(){
+      $('upState').textContent = 'v0.3.4 ' + t('upLatest');
+      self.disabled = false;
+    }, 1100);
+  });
+
+  /* --- the Valorant section button opens the tab ---------------------------- */
+  var ov = document.getElementById('openVoice');
+  if(ov) ov.addEventListener('click', function(){
+    go('voice');
+    document.getElementById('demo').scrollIntoView({ behavior:'smooth', block:'start' });
+  });
+
+  refreshStatic();
 })();
 </script>
 </body>
