@@ -581,3 +581,6 @@ button:disabled { opacity: 0.45; }
 .sp-row .when{flex:1; min-width:0; color:var(--txt3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .sp-row .val{color:var(--txt2); font-variant-numeric:tabular-nums; flex:none}
 .sp-hist .empty{margin:4px 2px}
+
+#sp-run{background:var(--accent); border-color:transparent; color:#fff; font-weight:600; font-size:14px}
+#sp-run:active{filter:brightness(1.1)}

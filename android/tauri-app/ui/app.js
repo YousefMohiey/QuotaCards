@@ -78,9 +78,9 @@ const STR = {
     updTitle: "Updates", updCheck: "Check for updates", updGet: "Download and install",
     updIdle: "Not checked yet.", updChecking: "Checking…",
     spReady: "Ready to test", spPinging: "Measuring ping", spDowning: "Measuring download",
-    spUping: "Measuring upload", spDone: "Done", spFail: "No reply from the server.",
+    spUping: "Measuring upload", spDone: "Result", spFail: "No reply from the server.",
     spStart: "Start test", spStop: "Stop", spPing: "Ping", spJitter: "Jitter", spDown: "Down", spUp: "Up",
-    spHint: "Measures the route the card on Home is using right now.",
+    spHint: "Tests the route the card on Home is using.",
     spHistory: "Recent runs", spNone: "No runs yet.",
     updOut: "{v} is out.", updLatest: "{v} is the latest.", updFail: "Could not reach GitHub.",
     updDownloading: "Downloading the update…", updOpened: "Installer opened. Confirm to update.",
@@ -130,9 +130,9 @@ const STR = {
     updTitle: "التحديثات", updCheck: "التحقق من التحديثات", updGet: "تنزيل وتثبيت",
     updIdle: "لم يتم التحقق بعد.", updChecking: "جارٍ التحقق…",
     spReady: "جاهز للاختبار", spPinging: "قياس البينج", spDowning: "قياس التحميل",
-    spUping: "قياس الرفع", spDone: "خلص", spFail: "مفيش رد من السيرفر.",
+    spUping: "قياس الرفع", spDone: "النتيجة", spFail: "مفيش رد من السيرفر.",
     spStart: "ابدأ الاختبار", spStop: "إيقاف", spPing: "بينج", spJitter: "تذبذب", spDown: "تحميل", spUp: "رفع",
-    spHint: "بيقيس المسار اللي البطاقة اللي في الرئيسية ماشية عليه دلوقتي.",
+    spHint: "بيختبر المسار اللي بطاقتك في الرئيسية بتستخدمه.",
     spHistory: "آخر الاختبارات", spNone: "مفيش اختبارات لسه.",
     updOut: "الإصدار {v} متاح.", updLatest: "{v} هو الأحدث.", updFail: "تعذر الوصول إلى GitHub.",
     updDownloading: "جارٍ تنزيل التحديث…", updOpened: "تم فتح المثبّت. أكّد التحديث.",
@@ -1248,6 +1248,8 @@ async function spToggle() {
     const u = spSim() ? await spSimPhase(34 + Math.random() * 8, 5, signal) : await spUpload(signal);
     if (u) { spLast.up = u; $("sp-up").textContent = spFmt(u); }
     spSet("spDone", "Mbps");
+    // the headline number settles on what the last phase reached
+    if (u) { spSamples = [u]; spPaint(); }
     if (spLast.down || spLast.up) spStore();
   } catch (e) {
     if (!signal.aborted) $("sp-hint").textContent = t("spFail");
