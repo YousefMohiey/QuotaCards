@@ -373,6 +373,35 @@
     .btn,.row,.iconbtn,.dtab,.preset,.dialbtn{transition:none}
     .iconbtn:hover{transform:none}
   }
+
+  /* ---- the two live demos: real builds in a window and a phone shell ---- */
+  .stage-head{display:flex; flex-direction:column; gap:10px; margin:0 0 16px}
+  .win{background:var(--panel); border:1px solid var(--glass-line); border-radius:var(--r-panel);
+    box-shadow:var(--sh-panel); overflow:hidden; margin-top:16px}
+  .win-bar{display:flex; align-items:center; justify-content:space-between; gap:12px; height:40px;
+    padding:0 14px; border-bottom:1px solid var(--line); background:var(--side); color:var(--txt3); font-size:12.5px}
+  .win-id{display:inline-flex; align-items:center; gap:9px; color:var(--txt2); font-weight:570; min-width:0}
+  .win-id img{width:17px; height:17px; border-radius:4px; display:block}
+  .win-id em{font-style:normal; color:var(--txt3); font-weight:500}
+  .win-ctrls{display:inline-flex; align-items:center; gap:12px; color:var(--txt3); flex:none}
+  .win-ctrls svg{width:15px; height:15px}
+  .win-body{position:relative; overflow:hidden; background:var(--bg)}
+  .win-body iframe{position:absolute; top:0; left:0; display:block; border:0; transform-origin:0 0; background:var(--bg)}
+  .phone-stage{display:grid; grid-template-columns:auto minmax(0,1fr); gap:34px; align-items:start; margin-top:16px}
+  .phone{display:flex; flex-direction:column}
+  .phone-shell{box-sizing:border-box; padding:10px; border:1px solid var(--line-strong); border-radius:34px; background:var(--side);
+    box-shadow:var(--sh-panel); width:410px; max-width:100%; min-width:0}
+  .phone-screen{position:relative; overflow:hidden; border-radius:26px; background:var(--bg); width:100%}
+  .phone-screen iframe{position:absolute; top:0; left:0; display:block; border:0; transform-origin:0 0; background:var(--bg)}
+  .phone-copy{display:flex; flex-direction:column; gap:18px}
+  .phone-copy .rows{margin-top:0}
+  .phone .demo-cap{padding:12px 4px 0}
+  @media (max-width:900px){
+    .phone-stage{grid-template-columns:minmax(0,1fr); gap:22px}
+    .phone{min-width:0; width:100%; max-width:410px; margin:0 auto}
+    .phone .demo-cap{justify-content:center; text-align:center}
+    .phone-copy{min-width:0}
+  }
 </style>
 </head>
 <body>
@@ -402,233 +431,76 @@
   <p class="lead">Your ISP reads the TLS handshake to decide which quota a session counts against. QuotaVPN puts a server name from the package you picked on it. The interface below is the app itself.</p>
   <div class="cta">
     <a class="btn primary" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.2 4.5v7.1H3V5.5Zm0 13 7.2 1v-7H3v6Zm8.4 1.2L21 21V12.6h-9.6v7.1ZM11.4 4.3 21 3v8.6h-9.6V4.3Z"/></svg>Download for Windows</a>
-    <a class="btn ghost" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.6 9.2h8.8c.3 0 .5.2.5.5v6.5c0 .8-.6 1.4-1.4 1.4h-.4v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-2.1v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-.4c-.8 0-1.4-.6-1.4-1.4v-6.5c0-.3.2-.5.5-.5Zm-2.3.1c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1Zm13.4 0c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1ZM15.1 4.3l.9-1.6a.3.3 0 0 0-.5-.3l-.9 1.6a5.6 5.6 0 0 0-5.2 0L8.5 2.4a.3.3 0 0 0-.5.3l.9 1.6A4.6 4.6 0 0 0 6.5 8h11a4.6 4.6 0 0 0-2.4-3.7Z"/></svg>Android APK</a>
+    <a class="btn ghost" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest/download/QuotaVPN-mobile-signed.apk"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.6 9.2h8.8c.3 0 .5.2.5.5v6.5c0 .8-.6 1.4-1.4 1.4h-.4v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-2.1v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-.4c-.8 0-1.4-.6-1.4-1.4v-6.5c0-.3.2-.5.5-.5Zm-2.3.1c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1Zm13.4 0c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1ZM15.1 4.3l.9-1.6a.3.3 0 0 0-.5-.3l-.9 1.6a5.6 5.6 0 0 0-5.2 0L8.5 2.4a.3.3 0 0 0-.5.3l.9 1.6A4.6 4.6 0 0 0 6.5 8h11a4.6 4.6 0 0 0-2.4-3.7Z"/></svg>Android APK</a>
   </div>
   <p class="note">Free and open source, no account, MIT licensed.</p>
 </div>
 
 <div class="wrap" id="demo">
   <section class="reveal">
-    <div class="demo" lang="en" id="app">
-      <div class="wstrip" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 12h12"/></svg>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>
+    <div class="stage-head">
+      <h2>The Windows app, running right here</h2>
+      <p class="sub">This is the real interface, the same build you install: same screens, same animations. Press Connect, move around, run a speed test. Nothing on this machine changes.</p>
+    </div>
+    <div class="win">
+      <div class="win-bar">
+        <span class="win-id"><img src="assets/icon.png" alt=""> QuotaVPN <em id="verWin">v0.3.5</em></span>
+        <span class="win-ctrls" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 12h12"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>
+        </span>
       </div>
-      <div class="demo-body">
-      <aside class="demo-side">
-        <div class="demo-id">
-          <img src="assets/icon.png" alt="">
-          <div>
-            <div class="nm">QuotaVPN</div>
-            <div class="vv">v0.3.4</div>
-          </div>
-        </div>
-        <div class="demo-tabs" role="tablist">
-          <button class="dtab" data-tab="home" aria-pressed="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.2 12 3l9 7.2V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-7h6v7"/></svg>
-            <span data-t="tHome">Home</span>
-          </button>
-          <button class="dtab" data-tab="voice" aria-pressed="false">
-            <span class="vmark" aria-hidden="true"></span>
-            <span data-t="tVoice">Valorant</span>
-          </button>
-          <button class="dtab" data-tab="speed" aria-pressed="false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 14 16 10"/><path d="M3.3 19a10 10 0 1 1 17.4 0"/></svg>
-            <span data-t="tSpeed">Speed</span>
-          </button>
-          <button class="dtab" data-tab="history" aria-pressed="false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.8 9.8 0 0 0-6.8 2.8L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3.5 2"/></svg>
-            <span data-t="tHist">History</span>
-          </button>
-        </div>
-        <span class="sp"></span>
-        <div class="demo-tabs">
-          <button class="dtab" data-tab="settings" aria-pressed="false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1.5 14h5M9.5 8h5M17.5 16h5"/></svg>
-            <span data-t="tSet">Settings</span>
-          </button>
-        </div>
-      </aside>
-
-      <div class="demo-main">
-        <!-- home -->
-        <div class="dpage on" data-page="home">
-          <div class="dpanel">
-            <div class="dial-wrap">
-              <button class="dialbtn" id="dial" type="button">
-                <span class="ring" id="ring" style="--p:0"></span>
-                <span class="in">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/><path d="M12 2v10"/></svg>
-                  <span class="lbl" id="dialLbl" data-t="connect">Connect</span>
-                </span>
-              </button>
-              <div class="dialmeta">
-                <div class="cn" id="cardName">Gamerz / PS</div>
-                <div class="st" id="dialSub" data-t="idleSub">Pick a card and connect.</div>
-                <div class="sn" id="cardSni">ea.com</div>
-              </div>
-            </div>
-            <div class="tiles">
-              <div class="tile"><span data-t="sess">Session</span><b id="tSess">00:00</b></div>
-              <div class="tile"><span data-t="down">Down</span><b id="tDown">0 KB</b></div>
-              <div class="tile"><span data-t="up">Up</span><b id="tUp">0 KB</b></div>
-            </div>
-            <div class="spark" id="spark" aria-hidden="true"></div>
-          </div>
-
-          <div class="dpanel">
-            <div class="presets">
-              <button class="preset" data-preset="Gamerz" aria-pressed="true" type="button">
-                <b>Gamerz / PS</b><i data-sni-g="ea.com">ea.com</i>
-              </button>
-              <button class="preset" data-preset="Streamerz" aria-pressed="false" type="button">
-                <b>Streamerz</b><i data-sni-s="youtube.com">youtube.com</i>
-              </button>
-            </div>
-            <div class="drow">
-              <span class="k" data-t="srvRow">Server</span>
-              <div class="v">
-                <button class="pick" id="pickServer" type="button">
-                  <span id="srvVal">ea.com</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="drow">
-              <span class="k" data-t="routing">App routing</span>
-              <div class="v">
-                <button class="pick" id="pickRouting" type="button">
-                  <span id="routingVal" data-t="wholeDevice">Whole device</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="drow">
-              <span class="k" data-t="conn">Connection</span>
-              <div class="v">
-                <div class="segw">
-                  <div class="seg" id="seg" role="group">
-                    <button type="button" aria-pressed="true" data-mode="vless" data-t="trStandard">Standard</button>
-                    <button type="button" aria-pressed="false" data-mode="wg" data-t="trWg">WireGuard</button>
-                    <button type="button" aria-pressed="false" data-mode="hy2">Hysteria2</button>
-                  </div>
-                  <span class="hint" id="segHint" data-t="trNoteVless">Default traffic</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- voice -->
-        <div class="dpage" data-page="voice">
-          <div class="vhead">
-            <span class="vmark-lg" aria-hidden="true"></span>
-            <div style="min-width:0">
-              <h3 style="margin:0; font-size:15px; font-weight:600" data-t="vTitle">Valorant</h3>
-              <p style="margin:2px 0 0; color:var(--txt3); font-size:12.5px" data-t="vSub">Enable Valorant voice chat through QuotaVPN.</p>
-            </div>
-            <span class="badge" id="vBadge"><span class="dot"></span><span id="vBadgeTxt" data-t="vBadgeOff">Voice Chat Helper Off</span></span>
-          </div>
-          <div class="dpanel">
-            <div class="vcard">
-              <h4 data-t="vCardTitle">Valorant Voice Chat</h4>
-              <p data-t="vCardBody">Can't use Valorant voice chat in your region? QuotaVPN can help connect it through the VPN while keeping your game connection direct.</p>
-              <div class="vrow" id="vRow">
-                <div class="t">
-                  <b data-t="vHelper">Voice Chat Helper</b>
-                  <p id="vState" data-t="vHelperOff">Enable this if Valorant voice chat isn't available for you.</p>
-                </div>
-                <button class="btn" id="vBtn" type="button" style="height:40px; padding:0 18px">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/><path d="M12 2v10"/></svg>
-                  <span id="vBtnTxt" data-t="vOn">Enable</span>
-                </button>
-              </div>
-              <p style="margin-top:10px; font-size:11.5px; color:var(--txt3)" data-t="vNote">Keep QuotaVPN VPN running while playing Valorant.</p>
-            </div>
-          </div>
-          <div class="dpanel vsteps">
-            <div class="vsub" data-t="vHow">How it works</div>
-            <div class="s"><span class="n">1</span><span data-t="vS1">Turn on Voice Chat Helper</span></div>
-            <div class="s"><span class="n">2</span><span data-t="vS2">Open Valorant</span></div>
-            <div class="s"><span class="n">3</span><span data-t="vS3">Use Valorant voice chat normally</span></div>
-          </div>
-          <div class="dpanel vinfo">
-            <b data-t="vInfoT">Made for regions where Valorant voice chat isn't available.</b>
-            <p data-t="vInfoB">Your game connection stays normal. This feature is only designed to help with Valorant voice chat.</p>
-          </div>
-        </div>
-
-        <!-- speed -->
-        <div class="dpage" data-page="speed">
-          <div class="dhead">
-            <h3 data-t="spTitle">Speed</h3>
-            <p data-t="spIdle">Run a test to measure the connection through your card.</p>
-          </div>
-          <div class="dpanel">
-            <div class="sptop">
-              <div><span class="spnum" id="spNum">0</span><span class="spun" id="spUnit">Mbps</span></div>
-              <div class="spcap" id="spCap" data-t="spReady">Ready when you are.</div>
-            </div>
-            <div class="spbars" id="spBars" aria-hidden="true"></div>
-            <div class="spact">
-              <button class="btn primary" id="spBtn" type="button" data-t="startTest">Start test</button>
-              <span style="font-size:12px; color:var(--txt3)" id="spHint"></span>
-            </div>
-            <div class="spres" id="spRes" hidden>
-              <div><span data-t="ping">Ping</span><b id="rPing">-</b></div>
-              <div><span data-t="spDown">Download</span><b id="rDown">-</b></div>
-              <div><span data-t="spUp">Upload</span><b id="rUp">-</b></div>
-            </div>
-            <div class="verd" id="spVerd" hidden></div>
-          </div>
-        </div>
-
-        <!-- history -->
-        <div class="dpage" data-page="history">
-          <div class="dhead">
-            <h3 data-t="tHist">History</h3>
-            <p data-t="histSub">Runs from this session.</p>
-          </div>
-          <div class="dpanel hist" id="histList"></div>
-        </div>
-
-        <!-- settings -->
-        <div class="dpage" data-page="settings">
-          <div class="dhead">
-            <h3 data-t="tSet">Settings</h3>
-            <p data-t="setSub">Appearance, language and updates.</p>
-          </div>
-          <div class="dpanel">
-            <div class="setrow">
-              <span class="k" data-t="setLang">Language</span>
-              <div class="v">
-                <div class="seg" id="langSeg" role="group">
-                  <button type="button" aria-pressed="true" data-lang="en">English</button>
-                  <button type="button" aria-pressed="false" data-lang="ar">العربية</button>
-                </div>
-              </div>
-            </div>
-            <div class="setrow">
-              <span class="k" data-t="updRow">Update check</span>
-              <div class="v" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
-                <button class="btn ghost sm" id="upBtn" type="button" data-t="upCheck">Check for updates</button>
-                <span id="upState" data-t="upIdle">Not checked yet.</span>
-              </div>
-            </div>
-            <div class="setrow">
-              <span class="k" data-t="verRow">Version</span>
-              <div class="v" id="verRowV">You run v0.3.4.</div>
-            </div>
-          </div>
-        </div>
+      <div class="win-body" id="winBody">
+        <iframe id="appFrame" src="app/index.html" title="QuotaVPN for Windows, live interactive demo" loading="lazy"></iframe>
       </div>
     </div>
-      </div>
     <div class="demo-cap">
-      <span><b>Interactive preview</b> of the Windows app</span>
-      <span>Click Connect, switch cards, run a speed test, open the Valorant tab</span>
-      <span>No install, nothing is routed</span>
+      <span><b>Live, not a mock-up</b></span>
+      <span>Connect, switch screens, run a speed test</span>
+      <span><a href="app/index.html" target="_blank" rel="noopener">Open the app demo full screen</a></span>
+    </div>
+  </section>
+</div>
+
+<div class="wrap" id="android">
+  <section class="reveal">
+    <div class="stage-head">
+      <h2>The same app in your pocket</h2>
+      <p class="sub">The Android build carries this exact theme: the same surfaces, the same accent, the same dial. Tap the dial below to connect.</p>
+    </div>
+    <div class="phone-stage">
+      <div class="phone">
+        <div class="phone-shell">
+          <div class="phone-screen" id="phoneScreen">
+            <iframe id="phoneFrame" src="phone/index.html" title="QuotaVPN for Android, live interactive demo" loading="lazy"></iframe>
+          </div>
+        </div>
+        <div class="demo-cap">
+          <span><b>Live Android build</b></span>
+          <span>Home, Cards and Settings all work</span>
+        </div>
+      </div>
+      <div class="phone-copy">
+        <div class="rows">
+          <div class="row">
+            <div class="k">One dial</div>
+            <div class="v"><b>Connect and disconnect from the same circle</b><p>It stays grey when idle, turns blue while it works, and green once traffic is running through your card.</p></div>
+          </div>
+          <div class="row">
+            <div class="k">Same cards</div>
+            <div class="v"><b>Your Gamerz and Streamerz cards, on the phone</b><p>Create them on either app. Copy or revoke any of them from the list, and pick the one the VPN rides on.</p></div>
+          </div>
+          <div class="row">
+            <div class="k">Kept current</div>
+            <div class="v"><b>The app updates itself</b><p>Settings, Updates pulls the newest signed APK from the releases page and installs it over the old one.</p></div>
+          </div>
+        </div>
+        <div class="dl-actions">
+          <a class="btn primary" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest/download/QuotaVPN-mobile-signed.apk"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.6 9.2h8.8c.3 0 .5.2.5.5v6.5c0 .8-.6 1.4-1.4 1.4h-.4v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-2.1v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-.4c-.8 0-1.4-.6-1.4-1.4v-6.5c0-.3.2-.5.5-.5Zm-2.3.1c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1Zm13.4 0c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1ZM15.1 4.3l.9-1.6a.3.3 0 0 0-.5-.3l-.9 1.6a5.6 5.6 0 0 0-5.2 0L8.5 2.4a.3.3 0 0 0-.5.3l.9 1.6A4.6 4.6 0 0 0 6.5 8h11a4.6 4.6 0 0 0-2.4-3.7Z"/></svg>Signed Android APK</a>
+          <a class="btn ghost" href="https://github.com/YousefMohiey/QuotaVPN/releases">All releases</a>
+        </div>
+      </div>
     </div>
   </section>
 </div>
@@ -798,7 +670,7 @@
       </div>
       <div class="dl-actions">
         <a class="btn primary" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.2 4.5v7.1H3V5.5Zm0 13 7.2 1v-7H3v6Zm8.4 1.2L21 21V12.6h-9.6v7.1ZM11.4 4.3 21 3v8.6h-9.6V4.3Z"/></svg>Windows installer</a>
-        <a class="btn ghost" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.6 9.2h8.8c.3 0 .5.2.5.5v6.5c0 .8-.6 1.4-1.4 1.4h-.4v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-2.1v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-.4c-.8 0-1.4-.6-1.4-1.4v-6.5c0-.3.2-.5.5-.5Zm-2.3.1c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1Zm13.4 0c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1ZM15.1 4.3l.9-1.6a.3.3 0 0 0-.5-.3l-.9 1.6a5.6 5.6 0 0 0-5.2 0L8.5 2.4a.3.3 0 0 0-.5.3l.9 1.6A4.6 4.6 0 0 0 6.5 8h11a4.6 4.6 0 0 0-2.4-3.7Z"/></svg>Android APK</a>
+        <a class="btn ghost" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest/download/QuotaVPN-mobile-signed.apk"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.6 9.2h8.8c.3 0 .5.2.5.5v6.5c0 .8-.6 1.4-1.4 1.4h-.4v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-2.1v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-.4c-.8 0-1.4-.6-1.4-1.4v-6.5c0-.3.2-.5.5-.5Zm-2.3.1c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1Zm13.4 0c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1ZM15.1 4.3l.9-1.6a.3.3 0 0 0-.5-.3l-.9 1.6a5.6 5.6 0 0 0-5.2 0L8.5 2.4a.3.3 0 0 0-.5.3l.9 1.6A4.6 4.6 0 0 0 6.5 8h11a4.6 4.6 0 0 0-2.4-3.7Z"/></svg>Android APK</a>
       </div>
     </div>
   </section>
@@ -816,14 +688,14 @@
 
 <script>
 (function(){
-  var el = document.getElementById('ver'); if(!el) return;
+  function put(v){ var ids=['ver','verWin'], i; for(i=0;i<ids.length;i++){ var e=document.getElementById(ids[i]); if(e) e.textContent = v; } }
   try{
     var c = sessionStorage.getItem('qvVer');
-    if(c){ el.textContent = c; return; }
+    if(c){ put(c); return; }
     fetch('https://api.github.com/repos/YousefMohiey/QuotaVPN/releases/latest')
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(d){
-        if(d && d.tag_name){ var v = 'v' + String(d.tag_name).replace(/^v/i,''); el.textContent = v; try{ sessionStorage.setItem('qvVer', v); }catch(e){} }
+        if(d && d.tag_name){ var v = 'v' + String(d.tag_name).replace(/^v/i,''); put(v); try{ sessionStorage.setItem('qvVer', v); }catch(e){} }
       })['catch'](function(){});
   }catch(e){}
 })();
@@ -856,356 +728,32 @@
 
 <script>
 /* ============================================================================
-   The interactive app. Runs entirely in the browser: no network calls, no
-   install. Same components as the desktop build, scaled down.
+   Both demos are the real builds, served from this site:
+     /app    the Windows interface, compiled from the source the app ships
+     /phone  the Android interface, exactly the files packed into the APK
+   They keep their own layout and animation. All that happens here is fitting
+   the fixed app viewport into whatever width the page has.
    ========================================================================== */
 (function(){
-  var app = document.getElementById('app');
-  if(!app) return;
-
-  var T = {
-    en: {
-      tHome:"Home", tVoice:"Valorant", tSpeed:"Speed", tHist:"History", tSet:"Settings",
-      connect:"Connect", connecting:"Connecting", connected:"Connected", disconnect:"Disconnect",
-      idleSub:"Pick a card and connect.", onSub:"Traffic is running through your card.", offSub:"Session closed.",
-      sess:"Session", down:"Down", up:"Up",
-      srvRow:"Server", routing:"App routing", conn:"Connection",
-      wholeDevice:"Whole device", onlyApps:"Only these apps", exceptApps:"All except these apps",
-      trStandard:"Standard", trWg:"WireGuard",
-      trNoteVless:"Default traffic", trNoteWg:"WireGuard: lightest, may be blocked on some networks.", trNoteHy2:"Game: fastest for play, counts from general quota.",
-      vTitle:"Valorant", vSub:"Enable Valorant voice chat through QuotaVPN.",
-      vBadgeOn:"Voice Chat Available", vBadgeOff:"Voice Chat Helper Off",
-      vCardTitle:"Valorant Voice Chat",
-      vCardBody:"Can't use Valorant voice chat in your region? QuotaVPN can help connect it through the VPN while keeping your game connection direct.",
-      vHelper:"Voice Chat Helper", vHelperOn:"Enabled. Valorant voice chat is being handled through QuotaVPN.",
-      vHelperOff:"Enable this if Valorant voice chat isn't available for you.", vOn:"Enable", vOff:"Disable",
-      vNote:"Keep QuotaVPN VPN running while playing Valorant.", vHow:"How it works",
-      vS1:"Turn on Voice Chat Helper", vS2:"Open Valorant", vS3:"Use Valorant voice chat normally",
-      vInfoT:"Made for regions where Valorant voice chat isn't available.",
-      vInfoB:"Your game connection stays normal. This feature is only designed to help with Valorant voice chat.",
-      spTitle:"Speed", spIdle:"Run a test to measure the connection through your card.", spReady:"Ready when you are.",
-      startTest:"Start test", measuring:"Measuring", pingTitle:"Ping", chDown:"Download", chUp:"Upload",
-      pingHint:"Best of 4 samples through the active path.", downHint:"Download through the active path.", upHint:"Upload through the active path.",
-      resultTitle:"Result", readyFor:"Ready for", vCompReady:"Competitive ready", vCasual:"Casual play", vLag:"Expect lag",
-      v4k:"4K ready", v1080:"1080p smooth", v720:"720p okay", vSlow:"Too slow for video", vCallsOk:"Clear calls",
-      histSub:"Runs from this session.", histEmpty:"No runs yet. Run a speed test.",
-      setSub:"Language and updates.", setLang:"Language", updRow:"Update check", upCheck:"Check for updates", upIdle:"Not checked yet.",
-      upChecking:"Checking", upLatest:"is the latest.", upCur:"You run", verRow:"Version", offlineSub:"Connect to run a test."
-    },
-    ar: {
-      tHome:"الرئيسية", tVoice:"فالورانت", tSpeed:"السرعة", tHist:"السجل", tSet:"الإعدادات",
-      connect:"اتصال", connecting:"جارٍ الاتصال", connected:"متصل", disconnect:"قطع الاتصال",
-      idleSub:"اختر بطاقة ثم اتصل.", onSub:"المرور يمر عبر بطاقتك.", offSub:"أُغلقت الجلسة.",
-      sess:"الجلسة", down:"تنزيل", up:"رفع",
-      srvRow:"الخادم", routing:"توجيه التطبيقات", conn:"الاتصال",
-      wholeDevice:"كل الجهاز", onlyApps:"هذه التطبيقات فقط", exceptApps:"كل شيء عدا هذه التطبيقات",
-      trStandard:"قياسي", trWg:"واير جارد",
-      trNoteVless:"المرور الافتراضي", trNoteWg:"واير جارد: الأخف، وقد يُحجب في بعض الشبكات.", trNoteHy2:"اللعبة: الأسرع للعب، ويُحسب من الاستهلاك العام.",
-      vTitle:"فالورانت", vSub:"فعّل صوت فالورانت عبر QuotaVPN.",
-      vBadgeOn:"صوت اللعبة متاح", vBadgeOff:"مساعد الصوت متوقف",
-      vCardTitle:"صوت فالورانت",
-      vCardBody:"لا يمكنك استخدام صوت فالورانت في منطقتك؟ يساعدك QuotaVPN على تشغيله عبر الشبكة الافتراضية مع الحفاظ على اتصال اللعبة المباشر.",
-      vHelper:"مساعد الصوت", vHelperOn:"مفعّل. يتولى QuotaVPN توصيل صوت فالورانت.",
-      vHelperOff:"فعّله إذا لم يكن صوت فالورانت متاحًا لديك.", vOn:"تفعيل", vOff:"إيقاف",
-      vNote:"اترك QuotaVPN تعمل أثناء لعب فالورانت.", vHow:"كيف يعمل",
-      vS1:"فعّل مساعد الصوت", vS2:"افتح فالورانت", vS3:"استخدم صوت فالورانت كالمعتاد",
-      vInfoT:"صُمم للمناطق التي لا يتوفر فيها صوت فالورانت.",
-      vInfoB:"يبقى اتصال اللعبة طبيعيًا. هذه الميزة مخصصة فقط لمساعدة صوت فالورانت.",
-      spTitle:"السرعة", spIdle:"شغّل اختبارًا لقياس الاتصال عبر بطاقتك.", spReady:"جاهز عندما تكون جاهزًا.",
-      startTest:"ابدأ الاختبار", measuring:"جارٍ القياس", pingTitle:"البينج", chDown:"التنزيل", chUp:"الرفع",
-      pingHint:"أفضل 4 قياسات عبر المسار النشط.", downHint:"التنزيل عبر المسار النشط.", upHint:"الرفع عبر المسار النشط.",
-      resultTitle:"النتيجة", readyFor:"مناسب لـ", vCompReady:"جاهز للمنافسات", vCasual:"لعب عادي", vLag:"توقّع تقطيعًا",
-      v4k:"جاهز لـ4K", v1080:"1080p سلس", v720:"720p مقبول", vSlow:"أبطأ من الفيديو", vCallsOk:"مكالمات واضحة",
-      histSub:"نتائج هذه الجلسة.", histEmpty:"لا توجد نتائج بعد. شغّل اختبار سرعة.",
-      setSub:"اللغة والتحديثات.", setLang:"اللغة", updRow:"فحص التحديثات", upCheck:"افحص التحديثات", upIdle:"لم يُفحص بعد.",
-      upChecking:"جارٍ الفحص", upLatest:"هو الأحدث.", upCur:"أنت تستخدم", verRow:"الإصدار", offlineSub:"اتصل أولًا لبدء الاختبار."
-    }
-  };
-  var lang = 'en';
-  function t(k){ return (T[lang] && T[lang][k]) || T.en[k] || k; }
-
-  /* --- state ---------------------------------------------------------------- */
-  var S = {
-    tab:'home', phase:'idle', preset:'Gamerz', sni:'ea.com', routing:0, mode:'vless',
-    sessStart:0, rx:0, tx:0, voice:false, runs:[], speed:{value:0, unit:'Mbps', caption:'', busy:false, gate:0},
-    serverIdx:0
-  };
-  var SNIS = ['ea.com','riotgames.com','steamcommunity.com','callofduty.com','pubg.com','youtube.com','netflix.com','twitch.tv'];
-  var ROUTES = ['wholeDevice','onlyApps','exceptApps'];
-  var modeHints = { vless:'trNoteVless', wg:'trNoteWg', hy2:'trNoteHy2' };
-
-  function $(id){ return document.getElementById(id); }
-  function fmtBytes(n){
-    if(n < 1024) return n.toFixed(0) + ' KB';
-    if(n < 1024*1024) return (n/1024).toFixed(1) + ' MB';
-    return (n/1048576).toFixed(2) + ' GB';
+  function fit(boxId, w, h){
+    var box = document.getElementById(boxId);
+    if(!box) return;
+    var f = box.querySelector('iframe');
+    if(!f) return;
+    var s = Math.min(1, (box.clientWidth || w) / w);
+    f.style.width = w + 'px';
+    f.style.height = h + 'px';
+    f.style.transform = 'scale(' + s + ')';
+    box.style.height = Math.round(h * s) + 'px';
   }
-  function fmtClock(ms){
-    var s = Math.max(0, Math.floor(ms/1000));
-    var m = Math.floor(s/60), sec = s%60, hh = Math.floor(m/60);
-    var mm = m%60;
-    function p(v){ return (v<10?'0':'') + v; }
-    return (hh>0 ? p(hh)+':' : '') + p(mm) + ':' + p(sec);
+  function all(){
+    fit('winBody', 1060, 700);
+    fit('phoneScreen', 390, 844);
   }
-  function applyLang(){
-    app.setAttribute('lang', lang);
-    var nodes = app.querySelectorAll('[data-t]');
-    for(var i=0;i<nodes.length;i++){
-      nodes[i].textContent = t(nodes[i].getAttribute('data-t'));
-    }
-    var rtl = lang === 'ar';
-    var texts = app.querySelectorAll('.dialmeta .cn, .dialmeta .st, .vcard h4, .vcard p, .vrow .t b, .vrow .t p, .vsteps .s span, .vinfo b, .vinfo p, .dhead h3, .dhead p, .hist .h b, .setrow .v, .demo-cap');
-    for(var j=0;j<texts.length;j++){
-      texts[j].setAttribute('dir', rtl ? 'rtl' : 'ltr');
-      texts[j].style.textAlign = rtl ? 'right' : '';
-    }
-    var heads = app.querySelectorAll('.dhead');
-    for(var k=0;k<heads.length;k++){ heads[k].style.textAlign = rtl ? 'right' : ''; }
-    refreshStatic();
-  }
-  function refreshStatic(){
-    $('dialLbl').textContent = S.phase === 'on' ? t('disconnect') : S.phase === 'connecting' ? t('connecting') : t('connect');
-    $('dialSub').textContent = S.phase === 'on' ? t('onSub') : t('idleSub');
-    $('segHint').textContent = t(modeHints[S.mode]);
-    $('routingVal').textContent = t(ROUTES[S.routing]);
-    $('vBadgeTxt').textContent = S.voice ? t('vBadgeOn') : t('vBadgeOff');
-    $('vState').textContent = S.voice ? t('vHelperOn') : t('vHelperOff');
-    $('vBtnTxt').textContent = S.voice ? t('vOff') : t('vOn');
-    $('spBtn').textContent = S.speed.busy ? t('measuring') : t('startTest');
-    $('spCap').textContent = S.speed.caption || t('spReady');
-    $('verRowV').textContent = t('upCur') + ' v0.3.4.';
-    if(!S.voice) $('vRow').classList.remove('on'); 
-  }
-
-  /* --- tabs ----------------------------------------------------------------- */
-  var tabs = app.querySelectorAll('.dtab');
-  for(var i=0;i<tabs.length;i++){
-    tabs[i].addEventListener('click', function(){ go(this.getAttribute('data-tab')); });
-  }
-  function go(tab){
-    S.tab = tab;
-    for(var i=0;i<tabs.length;i++) tabs[i].setAttribute('aria-pressed', String(tabs[i].getAttribute('data-tab') === tab));
-    var pages = app.querySelectorAll('.dpage');
-    for(var j=0;j<pages.length;j++) pages[j].classList.toggle('on', pages[j].getAttribute('data-page') === tab);
-    if(tab === 'history') renderHistory();
-  }
-
-  /* --- dial + session ------------------------------------------------------- */
-  var ring = $('ring'), dial = $('dial'), spark = $('spark');
-  var BARS = 26, bars = [];
-  for(var b=0;b<BARS;b++){ var el = document.createElement('i'); spark.appendChild(el); bars.push(el); }
-  function pushBar(v){
-    bars.shift().remove();
-    var el = document.createElement('i');
-    el.style.height = Math.max(2, Math.min(34, v)) + 'px';
-    el.style.opacity = v <= 3 ? 0.14 : 0.85;
-    spark.appendChild(el);
-    bars.push(el);
-  }
-  for(var z=0;z<BARS;z++) pushBar(2);
-
-  var ringP = 0;
-  function setRing(p, on){ ring.style.setProperty('--p', p); dial.classList.toggle('on', !!on); }
-
-  dial.addEventListener('click', function(){
-    if(S.phase === 'on'){
-      S.phase = 'idle'; setRing(0,false); S.sessStart = 0; S.rx = 0; S.tx = 0;
-      $('tSess').textContent = '00:00'; $('tDown').textContent = '0 KB'; $('tUp').textContent = '0 KB';
-      for(var i=0;i<BARS;i++) pushBar(2);
-      refreshStatic(); return;
-    }
-    if(S.phase === 'connecting') return;
-    S.phase = 'connecting'; refreshStatic();
-    var p = 0;
-    var iv = setInterval(function(){
-      p += 7; if(p > 100) p = 100;
-      setRing(Math.min(p, 96), false);
-      if(p >= 100){
-        clearInterval(iv);
-        S.phase = 'on'; S.sessStart = Date.now(); setRing(100, true); refreshStatic();
-        $('tSess').textContent = '00:00'; pushBar(10);
-      }
-    }, 52);
-  });
-
-  setInterval(function(){
-    if(S.phase !== 'on') return;
-    $('tSess').textContent = fmtClock(Date.now() - S.sessStart);
-  }, 250);
-  setInterval(function(){
-    if(S.phase !== 'on'){ pushBar(2); return; }
-    var v = 6 + Math.random() * 26;
-    pushBar(v);
-    S.rx += v * 220; S.tx += v * 95;
-    $('tDown').textContent = fmtBytes(S.rx); $('tUp').textContent = fmtBytes(S.tx);
-  }, 450);
-
-  /* --- presets, server, routing, transport ---------------------------------- */
-  var presets = app.querySelectorAll('.preset');
-  for(var p2=0;p2<presets.length;p2++){
-    presets[p2].addEventListener('click', function(){
-      var kind = this.getAttribute('data-preset');
-      S.preset = kind;
-      for(var q=0;q<presets.length;q++) presets[q].setAttribute('aria-pressed', String(presets[q].getAttribute('data-preset') === kind));
-      var dom = kind === 'Gamerz' ? 'ea.com' : 'youtube.com';
-      S.sni = dom; S.serverIdx = SNIS.indexOf(dom) >= 0 ? SNIS.indexOf(dom) : 0;
-      $('cardName').textContent = kind === 'Gamerz' ? 'Gamerz / PS' : 'Streamerz';
-      $('cardSni').textContent = dom; $('srvVal').textContent = dom;
-    });
-  }
-  $('pickServer').addEventListener('click', function(){
-    S.serverIdx = (S.serverIdx + 1) % SNIS.length;
-    S.sni = SNIS[S.serverIdx];
-    $('srvVal').textContent = S.sni;
-  });
-  $('pickRouting').addEventListener('click', function(){
-    S.routing = (S.routing + 1) % ROUTES.length;
-    $('routingVal').textContent = t(ROUTES[S.routing]);
-  });
-  var segBtns = app.querySelectorAll('#seg button');
-  for(var s2=0;s2<segBtns.length;s2++){
-    segBtns[s2].addEventListener('click', function(){
-      S.mode = this.getAttribute('data-mode');
-      for(var q=0;q<segBtns.length;q++) segBtns[q].setAttribute('aria-pressed', String(segBtns[q].getAttribute('data-mode') === S.mode));
-      $('segHint').textContent = t(modeHints[S.mode]);
-    });
-  }
-
-  /* --- voice ---------------------------------------------------------------- */
-  $('vBtn').addEventListener('click', function(){
-    S.voice = !S.voice;
-    $('vRow').classList.toggle('on', S.voice);
-    refreshStatic();
-  });
-
-  /* --- speed test ----------------------------------------------------------- */
-  var spBars = $('spBars'); var sbars = [];
-  for(var s3=0;s3<34;s3++){ var se = document.createElement('i'); spBars.appendChild(se); sbars.push(se); }
-  function pushSp(v, max){
-    sbars.shift().remove();
-    var el = document.createElement('i');
-    el.style.height = Math.max(2, Math.round(Math.min(v / max, 1) * 46)) + 'px';
-    spBars.appendChild(el); sbars.push(el);
-  }
-  for(var s4=0;s4<34;s4++) pushSp(0, 1);
-
-  var spNum = $('spNum'), spUnit = $('spUnit');
-  function spShow(v, unit){ spNum.textContent = v.toFixed(unit === 'ms' ? 0 : 1); spUnit.textContent = unit; }
-
-  function runTest(){
-    if(S.speed.busy) return;
-    if(S.phase !== 'on'){
-      $('spCap').textContent = t('offlineSub');
-      $('spCap').setAttribute('data-tt', 'offlineSub');
-      return;
-    }
-    S.speed.busy = true; S.speed.caption = t('pingTitle'); S.speed.unit = 'ms';
-    $('spCap').textContent = t('pingTitle'); $('spHint').textContent = t('pingHint');
-    $('spRes').hidden = true; $('spVerd').hidden = true;
-    $('spBtn').textContent = t('measuring');
-    for(var i=0;i<34;i++) pushSp(0,1);
-    spShow(0, 'ms');
-
-    var pingSamples = [];
-    var n = 0;
-    var pv = setInterval(function(){
-      var v = 14 + Math.random() * 22;
-      pingSamples.push(v); n++;
-      spShow(v, 'ms'); pushSp(v, 60);
-      if(n >= 4){
-        clearInterval(pv);
-        var ping = Math.min.apply(null, pingSamples);
-        S.speed.caption = t('chDown'); $('spCap').textContent = t('chDown'); $('spHint').textContent = t('downHint');
-        var target = 120 + Math.random() * 150;
-        var d = 0;
-        var dv = setInterval(function(){
-          d += target / 22 + (Math.random() * 24 - 8);
-          if(d < 0) d = 0;
-          if(d >= target){ d = target; clearInterval(dv);
-            var down = d;
-            S.speed.caption = t('chUp'); $('spCap').textContent = t('chUp'); $('spHint').textContent = t('upHint');
-            var upTarget = 18 + Math.random() * 40; var u = 0;
-            var uv = setInterval(function(){
-              u += upTarget / 18 + (Math.random() * 10 - 4);
-              if(u < 0) u = 0;
-              spShow(u, 'Mbps'); pushSp(u, 320);
-              if(u >= upTarget){ u = upTarget; clearInterval(uv);
-                var up = u;
-                spShow(down, 'Mbps');
-                finishRun(ping, down, up);
-              }
-            }, 110);
-          } else { spShow(d, 'Mbps'); pushSp(d, 320); }
-        }, 110);
-      }
-    }, 330);
-  }
-  function finishRun(ping, down, up){
-    S.speed.busy = false;
-    S.speed.caption = t('resultTitle'); $('spCap').textContent = t('resultTitle');
-    $('spBtn').textContent = t('startTest'); $('spHint').textContent = '';
-    $('rPing').textContent = Math.round(ping) + ' ms';
-    $('rDown').textContent = down.toFixed(1) + ' Mbps';
-    $('rUp').textContent = up.toFixed(1) + ' Mbps';
-    $('spRes').hidden = false;
-    var verdicts = [];
-    if(down >= 150) verdicts.push(t('vCompReady')); else if(down >= 60) verdicts.push(t('vCasual')); else verdicts.push(t('vLag'));
-    if(down >= 120) verdicts.push(t('v4k')); else if(down >= 50) verdicts.push(t('v1080')); else if(down >= 25) verdicts.push(t('v720')); else verdicts.push(t('vSlow'));
-    if(ping < 60) verdicts.push(t('vCallsOk'));
-    var vd = $('spVerd'); vd.innerHTML = '';
-    for(var i=0;i<verdicts.length;i++){ var s = document.createElement('i'); s.textContent = verdicts[i]; vd.appendChild(s); }
-    vd.hidden = false;
-    S.runs.unshift({ at: Date.now(), ping: Math.round(ping), down: down, up: up });
-  }
-  $('spBtn').addEventListener('click', runTest);
-
-  function renderHistory(){
-    var list = $('histList');
-    list.innerHTML = '';
-    if(!S.runs.length){
-      var e = document.createElement('div'); e.className = 'empty'; e.textContent = t('histEmpty'); list.appendChild(e); return;
-    }
-    for(var i=0;i<S.runs.length;i++){
-      var r = S.runs[i];
-      var d = new Date(r.at);
-      var hm = ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2);
-      var row = document.createElement('div'); row.className = 'h';
-      var left = document.createElement('b'); left.textContent = hm + '  ·  ' + r.ping + ' ms';
-      var right = document.createElement('span');
-      right.textContent = r.down.toFixed(1) + ' / ' + r.up.toFixed(1) + ' Mbps';
-      row.appendChild(left); row.appendChild(right);
-      list.appendChild(row);
-    }
-  }
-  function renderHistoryIfOpen(){ if(S.tab === 'history') renderHistory(); }
-
-  /* --- settings: language + updates ---------------------------------------- */
-  var langBtns = app.querySelectorAll('#langSeg button');
-  for(var l=0;l<langBtns.length;l++){
-    langBtns[l].addEventListener('click', function(){
-      lang = this.getAttribute('data-lang');
-      for(var q=0;q<langBtns.length;q++) langBtns[q].setAttribute('aria-pressed', String(langBtns[q].getAttribute('data-lang') === lang));
-      applyLang(); renderHistoryIfOpen();
-    });
-  }
-  $('upBtn').addEventListener('click', function(){
-    $('upState').textContent = t('upChecking');
-    var self = this;
-    self.disabled = true;
-    setTimeout(function(){
-      $('upState').textContent = 'v0.3.4 ' + t('upLatest');
-      self.disabled = false;
-    }, 1100);
-  });
-
-  /* --- the Valorant section button opens the tab ---------------------------- */
-  var ov = document.getElementById('openVoice');
-  if(ov) ov.addEventListener('click', function(){
-    go('voice');
-    document.getElementById('demo').scrollIntoView({ behavior:'smooth', block:'start' });
-  });
-
-  refreshStatic();
+  window.addEventListener('resize', all);
+  window.addEventListener('orientationchange', all);
+  if(document.readyState === 'complete') all(); else window.addEventListener('load', all);
+  all();
 })();
 </script>
 </body>

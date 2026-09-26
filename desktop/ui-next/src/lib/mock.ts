@@ -7,8 +7,8 @@
 import type { Card, CmdResult, TrafficState, TunnelState, UpdateInfo } from "./ipc"
 
 const cards: Card[] = [
-  { name: "PC Main (playvalorant.com)", uuid: "11111111-1111-4111-8111-111111111111", card_type: "Gamerz", sni: "playvalorant.com", wg_private: "", wg_addr: "" },
-  { name: "Phone (youtube.com)", uuid: "22222222-2222-4222-8222-222222222222", card_type: "Streamerz", sni: "youtube.com", wg_private: "", wg_addr: "" },
+  { name: "Gamerz (playvalorant.com)", uuid: "11111111-1111-4111-8111-111111111111", card_type: "Gamerz", sni: "playvalorant.com", wg_private: "", wg_addr: "" },
+  { name: "Streamerz (youtube.com)", uuid: "22222222-2222-4222-8222-222222222222", card_type: "Streamerz", sni: "youtube.com", wg_private: "", wg_addr: "" },
 ]
 
 let running = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("vpn") === "1"
@@ -27,7 +27,7 @@ export async function mockCall<T>(cmd: string, args?: Record<string, unknown>): 
   const ok = (msg = ""): CmdResult => ({ ok: true, msg })
   switch (cmd) {
     case "get_state":
-      return { server_ip: "qc-speed.example.com", ssh_user: "ubuntu", ssh_port: 22, cards, version: "0.3.0" } as T
+      return { server_ip: "qc-speed.example.com", ssh_user: "ubuntu", ssh_port: 22, cards, version: "0.3.5" } as T
     case "probe_server":
       return ok("Server reachable.") as T
     case "generate_card": {
@@ -79,7 +79,7 @@ export async function mockCall<T>(cmd: string, args?: Record<string, unknown>): 
       // The "update ready" reminder appears only when asked for (?upd=1);
       // the real check reports available only when GitHub says so.
       const wantUpd = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("upd") === "1"
-      return { current: "0.3.0", latest: "0.3.1", available: wantUpd, url: "#", notes: "Hotfix: Valorant voice audio" } as UpdateInfo as T
+      return { current: "0.3.5", latest: "0.3.6", available: wantUpd, url: "#", notes: "Hotfix: Valorant voice audio" } as UpdateInfo as T
     }
     case "apply_update":
       return "Up to date." as T

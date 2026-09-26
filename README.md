@@ -19,6 +19,15 @@ A personal VPN for Windows and Android that makes your traffic ride the data pac
 | Windows 10/11 | `QuotaVPN_<version>_x64-setup.exe` | Installs per user, no admin needed. Updates itself after that. |
 | Android | `QuotaVPN-mobile-signed.apk` | Sideload once. Updates itself from the same releases page. |
 
+## Try it without installing
+
+The website carries two live demos, both built from the same source the apps ship:
+
+- Windows interface: https://yousefmohiey.github.io/QuotaVPN/app/
+- Android interface: https://yousefmohiey.github.io/QuotaVPN/phone/
+
+Press Connect, move between screens, run a speed test. Nothing is routed and nothing is installed.
+
 ## What it does
 
 Your ISP classifies a connection from the TLS handshake at its start, and that is what decides which quota it counts against. QuotaVPN puts a server name from your chosen package on that handshake, so the session lands in the bucket you picked.
