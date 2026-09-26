@@ -387,6 +387,16 @@
   .win-ctrls{display:inline-flex; align-items:center; gap:12px; color:var(--txt3); flex:none}
   .win-ctrls svg{width:15px; height:15px}
   .win-body{position:relative; overflow:hidden; background:var(--bg)}
+  .win-open{display:none}
+  @media (max-width:760px){
+    /* A 1060px app scaled into a phone is a postage stamp: the frame becomes a
+       poster that opens the demo at full size in its own tab. */
+    .win-body iframe{pointer-events:none}
+    .win-open{display:flex; position:absolute; inset:0; align-items:flex-end; justify-content:center; padding:14px;
+      background:linear-gradient(to top, rgb(16 20 28 / .88), rgb(16 20 28 / .12) 62%)}
+    .win-open span{display:inline-flex; align-items:center; gap:8px; border:1px solid var(--brand-line);
+      background:var(--brand-bg); color:var(--txt); border-radius:var(--r-ctl); padding:10px 16px; font-size:13px; font-weight:570}
+  }
   .win-body iframe{position:absolute; top:0; left:0; display:block; border:0; transform-origin:0 0; background:var(--bg)}
   .phone-stage{display:grid; grid-template-columns:auto minmax(0,1fr); gap:34px; align-items:start; margin-top:16px}
   .phone{display:flex; flex-direction:column}
@@ -455,6 +465,7 @@
       </div>
       <div class="win-body" id="winBody">
         <iframe id="appFrame" src="app/index.html" title="QuotaVPN for Windows, live interactive demo" loading="lazy"></iframe>
+        <a class="win-open" href="app/index.html" target="_blank" rel="noopener"><span>Open the live demo full screen</span></a>
       </div>
     </div>
     <div class="demo-cap">
