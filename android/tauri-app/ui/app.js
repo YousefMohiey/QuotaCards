@@ -84,7 +84,7 @@ const STR = {
     chDown: "Down", chUp: "Up", mbps: "Mbps", ms: "ms", idle: "idle", done: "Done",
     measuring: "Measuring…", stop: "Stop", refresh: "Refresh", startTest: "Start test",
     pingHint: "Best of 8 samples through the active path.", downHint: "Download through the active path.",
-    upHint: "Upload through the active path.", noReply: "No reply.", cfName: "Cloudflare", srvPublic: "Public reference", pickServer: "Speed test server", srvAuto: "Nearest server", srvAutoNote: "Picked for you", cfDetail: "Cloudflare's own test endpoints",
+    upHint: "Upload through the active path.", noReply: "No reply.", cfName: "Cloudflare", srvPublic: "Public reference", pickServer: "Speed test server", srvAuto: "Nearest server", srvAutoNote: "Picked for you", viaReference: "(measured against the public reference)", cfDetail: "Cloudflare's own test endpoints",
     spStart: "Start test", spStop: "Stop", spPing: "Ping", spJitter: "Jitter", spDown: "Down", spUp: "Up",
     spHint: "Tests the route the card on Home is using.",
     spHistory: "Recent runs", spNone: "No runs yet.",
@@ -142,7 +142,7 @@ const STR = {
     chDown: "تنزيل", chUp: "رفع", mbps: "ميجابت", ms: "مللي ثانية", idle: "خامل", done: "تم",
     measuring: "جارٍ القياس…", stop: "إيقاف", refresh: "تحديث", startTest: "بدء الاختبار",
     pingHint: "أفضل 8 محاولات عبر المسار الحالي.", downHint: "قياس التحميل من الخادم عبر المسار الحالي.",
-    upHint: "قياس الرفع إلى الخادم عبر المسار الحالي.", noReply: "لا يوجد رد.", cfName: "Cloudflare", srvPublic: "مرجع عام", pickServer: "خادم اختبار السرعة", srvAuto: "أقرب خادم", srvAutoNote: "يُختار تلقائيًا", cfDetail: "نقاط اختبار Cloudflare نفسها",
+    upHint: "قياس الرفع إلى الخادم عبر المسار الحالي.", noReply: "لا يوجد رد.", cfName: "Cloudflare", srvPublic: "مرجع عام", pickServer: "خادم اختبار السرعة", srvAuto: "أقرب خادم", srvAutoNote: "يُختار تلقائيًا", viaReference: "(قياس عبر المرجع العام)", cfDetail: "نقاط اختبار Cloudflare نفسها",
     spStart: "ابدأ الاختبار", spStop: "إيقاف", spPing: "بينج", spJitter: "تذبذب", spDown: "تحميل", spUp: "رفع",
     spHint: "بيختبر المسار اللي بطاقتك في الرئيسية بتستخدمه.",
     spHistory: "آخر الاختبارات", spNone: "مفيش اختبارات لسه.",
@@ -824,6 +824,7 @@ function openSheet(which) {
     // servers by hand, or measure through the QuotaVPN server.
     $("sheet-title").textContent = t("pickServer");
     const cur = spChoose;
+    if (!spPool.length && !spPicking) void spRefreshTarget();
     list.append(optRow(t("srvAuto"), t("srvAutoNote"), cur === "auto", () => {
       spChoose = "auto";
       try { localStorage.setItem("qc-speed-target", "auto"); } catch (e) {}
@@ -1220,12 +1221,16 @@ async function spPickFastest(pool) {
   // A server can answer a ping and still serve nothing (an empty body or a
   // wall), which would leave the run at zero. Prove bytes before trusting it,
   // and try the runners up before falling back to Cloudflare.
-  const alive = await call("speed_down", { urls: best.down, seconds: 0.7 });
-  if (alive && alive.bytes > 0) return best;
+  const okBoth = async (s) => {
+    const d = await call("speed_down", { urls: s.down, seconds: 0.7 });
+    if (!d || !d.bytes) return false;
+    const u = await call("speed_up", { url: s.up, seconds: 0.8, chunkMb: 1 });
+    return !!(u && u.samples && u.samples.length && u.mbps > 0);
+  };
+  if (await okBoth(best)) return best;
   for (const s of cands) {
     if (s === best) continue;
-    const r = await call("speed_down", { urls: s.down, seconds: 0.7 });
-    if (r && r.bytes > 0) return s;
+    if (await okBoth(s)) return s;
   }
   return SP_CF;
 }
@@ -1428,7 +1433,7 @@ async function spNative(which, seconds, target) {
   if (which === "down") {
     return await call("speed_down", { urls: target.down, seconds });
   }
-  return await call("speed_up", { url: target.up, seconds, chunkMb: 2 });
+  return await call("speed_up", { url: target.up, seconds, chunkMb: 1 });
 }
 
 function spBad(r) {
@@ -1529,22 +1534,34 @@ async function spRunPhase(which, signal, target) {
   spGateAt = 0;
   spPaintReadout();
 
-  const SLICES = 9;
+  const SLICES = 15;
+  const SLICE_S = 0.6;
   let bytes = 0;
   let secs = 0;
   const rates = [];
   for (let i = 0; i < SLICES && !signal.aborted; i++) {
     if (spSim()) {
       const v = await spSimPhase(down ? 260 : 36, 1, signal);
-      if (down) { bytes += Math.round((v * 1e6) / 8); secs += 1; } else rates.push(v);
+      if (down) { bytes += Math.round((v * 1e6) / 8); secs += SLICE_S; } else rates.push(v);
       continue;
     }
-    const r = await spNative(which, 1, target);
+    let r = await spNative(which, SLICE_S, target);
+    if (!down && (spBad(r) || !(r && r.samples && r.samples.length))) {
+      // A server that answers a ping and serves a download can still refuse an
+      // upload. The reading matters more than whose server took it, so the
+      // public reference finishes the phase and says so.
+      const cf = await spNative("up", SLICE_S, SP_CF);
+      if (!spBad(cf) && cf && cf.samples && cf.samples.length) {
+        r = cf;
+        const hint = $("sp-hint");
+        if (hint && spPhase === "upload") hint.textContent = t("upHint") + " " + t("viaReference");
+      }
+    }
     if (spBad(r)) throw new Error(spReason(r));
     for (const v of (r.samples || [])) {
       if (signal.aborted || typeof v !== "number") break;
       spPush(v);
-      await spSleep(55);
+      await spSleep(45);
     }
     if (down) {
       bytes += r.bytes || 0;

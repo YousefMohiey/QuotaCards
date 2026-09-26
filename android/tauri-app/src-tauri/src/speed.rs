@@ -409,7 +409,7 @@ pub async fn download(urls: &[String], seconds: f64) -> SpeedOut {
                     got_any = true;
                     bytes += n as u64;
                     let now = Instant::now();
-                    if now.duration_since(last_tick) >= Duration::from_millis(250) {
+                    if now.duration_since(last_tick) >= Duration::from_millis(150) {
                         samples.push(mbps(bytes, now.duration_since(start).as_secs_f64()));
                         last_tick = now;
                     }
