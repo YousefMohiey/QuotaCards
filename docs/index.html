@@ -81,7 +81,10 @@
   *{box-sizing:border-box}
   html{-webkit-text-size-adjust:100%; color-scheme:dark; scroll-behavior:smooth}
   body{
-    margin:0; background:var(--bg); color:var(--txt);
+    margin:0; background:
+      radial-gradient(980px 460px at 82% -14%, rgb(31 89 182 / .12), transparent 62%),
+      radial-gradient(700px 380px at 6% -10%, rgb(91 141 239 / .06), transparent 60%),
+      var(--bg); color:var(--txt);
     font:16px/1.6 "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
@@ -95,13 +98,13 @@
     border-bottom:1px solid var(--line)}
   .top .in{display:flex; align-items:center; gap:11px; padding:13px 0}
   .top img{width:30px; height:30px; border-radius:8px}
-  .top .name{font-weight:650; font-size:15.5px; letter-spacing:.2px}
+  .top .name{font-weight:600; font-size:15.5px; letter-spacing:.1px}
   .top .sp{flex:1}
   .top nav{display:flex; gap:22px; align-items:center; font-size:14px; color:var(--txt2)}
   .top nav a:hover{color:var(--txt)}
 
   .btn{display:inline-flex; align-items:center; justify-content:center; gap:9px; border-radius:var(--r-ctl);
-    padding:12px 20px; font-size:15px; font-weight:620; border:1px solid transparent;
+    padding:12px 20px; font-size:15px; font-weight:570; letter-spacing:-.1px; border:1px solid transparent;
     transition:background .18s var(--ease-out), border-color .18s var(--ease-out), transform .18s var(--ease-out)}
   .btn:active{transform:translateY(1px)}
   .btn.primary{background:var(--brand); color:#fff}
@@ -128,9 +131,9 @@
   /* hero */
   .hero{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.06fr); gap:48px; align-items:center; padding:56px 0 40px}
   .eyebrow{font-size:13.5px; color:var(--txt3); letter-spacing:.3px; margin-bottom:14px}
-  h1{font-size:46px; line-height:1.08; letter-spacing:-.9px; margin:0 0 16px; font-weight:660}
+  h1{font-size:47px; line-height:1.06; letter-spacing:-1.1px; margin:0 0 16px; font-weight:600; text-wrap:balance}
   h1 span{color:var(--brand-strong)}
-  .lead{color:var(--txt2); font-size:16.5px; max-width:50ch; margin:0}
+  .lead{color:var(--txt2); font-size:16.8px; line-height:1.62; max-width:50ch; margin:0; text-wrap:pretty}
   .cta{display:flex; gap:12px; flex-wrap:wrap; margin-top:26px}
   .note{color:var(--txt3); font-size:13px; margin-top:14px}
 
@@ -144,19 +147,19 @@
   .strip{display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
   .strip div{padding:20px 26px}
   .strip div + div{border-left:1px solid var(--line)}
-  .strip b{display:block; font-size:17px; font-weight:650; margin-bottom:2px}
+  .strip b{display:block; font-size:16.5px; font-weight:570; margin-bottom:3px}
   .strip span{color:var(--txt2); font-size:14px}
 
   section{padding:64px 0}
   section.tinted{background:var(--side); border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
-  h2{font-size:27px; letter-spacing:-.3px; margin:0 0 10px; font-weight:650}
-  .sub{color:var(--txt2); margin:0 0 34px; max-width:64ch}
+  h2{font-size:27px; letter-spacing:-.5px; margin:0 0 10px; font-weight:560; text-wrap:balance}
+  .sub{color:var(--txt2); margin:0 0 34px; max-width:64ch; text-wrap:pretty}
 
   .cards{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px}
   .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-card); padding:22px 24px;
     transition:border-color .18s var(--ease-out), background .18s var(--ease-out)}
   .card:hover{border-color:var(--line-strong); background:var(--panel-hover)}
-  .card h3{margin:0 0 7px; font-size:16.5px; font-weight:620}
+  .card h3{margin:0 0 7px; font-size:16.5px; font-weight:570}
   .card p{margin:0; color:var(--txt2); font-size:14.8px}
 
   table{width:100%; border-collapse:collapse; font-size:14.8px}
@@ -258,8 +261,8 @@
       <h1>Your gaming and streaming packages, <span>used on purpose</span>.</h1>
       <p class="lead">QuotaVPN is a personal VPN for lines sold in quota buckets. Pick the package, and your traffic counts against it.</p>
       <div class="cta">
-        <a class="btn primary" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest">Download for Windows</a>
-        <a class="btn ghost" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest">Android APK</a>
+        <a class="btn primary" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.2 4.5v7.1H3V5.5Zm0 13 7.2 1v-7H3v6Zm8.4 1.2L21 21V12.6h-9.6v7.1ZM11.4 4.3 21 3v8.6h-9.6V4.3Z"/></svg>Download for Windows
+        <a class="btn ghost" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.6 9.2h8.8c.3 0 .5.2.5.5v6.5c0 .8-.6 1.4-1.4 1.4h-.4v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-2.1v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-.4c-.8 0-1.4-.6-1.4-1.4v-6.5c0-.3.2-.5.5-.5Zm-2.3.1c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1Zm13.4 0c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1ZM15.1 4.3l.9-1.6a.3.3 0 0 0-.5-.3l-.9 1.6a5.6 5.6 0 0 0-5.2 0L8.5 2.4a.3.3 0 0 0-.5.3l.9 1.6A4.6 4.6 0 0 0 6.5 8h11a4.6 4.6 0 0 0-2.4-3.7Z"/></svg>Android APK
       </div>
       <p class="note">Free and open source. No account, no sign up.</p>
     </div>
