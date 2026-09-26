@@ -108,7 +108,16 @@
   .btn.primary:hover{background:#2870d1}
   .btn.ghost{background:var(--field); color:var(--txt); border-color:var(--line-strong)}
   .btn.ghost:hover{background:var(--panel-hover)}
-  .btn.small{padding:8px 14px; font-size:13.5px; border-radius:9px}
+  .btn.small{padding:0 15px; height:34px; font-size:13.5px; border-radius:var(--r-ctl)}
+  .btn.small.nav{background:var(--brand); border-color:transparent; color:#fff}
+  .btn.small.nav:hover{background:#2870d1}
+  .cta .btn{min-width:180px}
+  .ver{margin-left:5px; font-size:12px; color:var(--brand-strong); background:var(--brand-bg); border:1px solid var(--brand-line);
+    border-radius:var(--r-pill); padding:2px 9px; letter-spacing:.2px; font-variant-numeric:tabular-nums}
+  .iconbtn{display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px;
+    border-radius:var(--r-ctl); border:1px solid var(--line-strong); color:var(--txt2); background:var(--field);
+    transition:color .18s var(--ease-out), border-color .18s var(--ease-out), background .18s var(--ease-out), transform .18s var(--ease-out)}
+  .iconbtn:hover{color:var(--txt); border-color:var(--brand-line); background:var(--panel-hover); transform:translateY(-1px)}
   .btn.small.nav{background:var(--brand-bg); border-color:var(--brand-line); color:var(--brand-strong)}
   .btn.small.nav:hover{background:rgb(31 89 182 / .22)}
   .cta .btn{min-width:180px}
@@ -188,7 +197,8 @@
     .hero{grid-template-columns:1fr; gap:30px; padding:38px 0 34px}
     h1{font-size:33px; letter-spacing:-.5px}
     .top nav{display:none}
-    .top nav a:not(.btn){display:none}
+    .top nav a:not(.btn):not(.iconbtn){display:none}
+    @media (max-width:560px){ .ver{display:none} }
     .cta{flex-direction:column; gap:10px; margin-top:22px}
     .cta .btn{width:100%}
     .cta .btn.ghost{order:-1}
@@ -204,7 +214,20 @@
     .tblwrap{overflow-x:auto}
     table{min-width:520px}
   }
+  /* motion: entrance on load, reveal on scroll, lift on hover */
+  @keyframes rise{from{opacity:0; transform:translateY(14px)} to{opacity:1; transform:none}}
+  .reveal{opacity:0}
+  .reveal.in{animation:rise .62s var(--ease-out) both}
+  .hero > div{animation:rise .7s var(--ease-out) both}
+  .hero > div:nth-child(2){animation-delay:.09s}
+  .card:hover{transform:translateY(-2px); border-color:var(--brand-line)}
+  .card,.window,.strip div,summary{transition:transform .22s var(--ease-out), border-color .22s var(--ease-out), background .22s var(--ease-out)}
+  .window:hover,figure:hover .window{transform:translateY(-2px); border-color:var(--brand-line)}
+  summary:hover{color:var(--brand-strong)}
+  footer a{transition:color .18s var(--ease-out)}
   @media (prefers-reduced-motion:reduce){
+    .reveal,.reveal.in,.hero > div{opacity:1; animation:none; transform:none}
+    .card:hover,.window:hover,figure:hover .window,.iconbtn:hover{transform:none}
     html{scroll-behavior:auto}
     .btn,.card{transition:none}
   }
@@ -215,13 +238,16 @@
 <div class="top"><div class="wrap in">
   <img src="assets/icon.png" alt="">
   <span class="name">QuotaVPN</span>
+  <span class="ver" id="ver" title="Latest release">v0.3.4</span>
   <span class="sp"></span>
   <nav>
     <a href="#features">Features</a>
     <a href="#how">How it works</a>
     <a href="#faq">FAQ</a>
-    <a href="https://github.com/YousefMohiey/QuotaVPN">GitHub</a>
-  <a class="btn small nav" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest">Download</a>
+    <a class="iconbtn" href="https://github.com/YousefMohiey/QuotaVPN" aria-label="QuotaVPN on GitHub" title="GitHub">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.1c-3.2.7-3.87-1.36-3.87-1.36-.53-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.24 2.76.12 3.05.74.81 1.18 1.83 1.18 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.13v3.16c0 .31.2.67.8.55A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
+    </a>
+    <a class="btn small nav" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest">Download</a>
   </nav>
 </div></div>
 
@@ -248,7 +274,7 @@
 </div></div>
 
 <div class="wrap">
-  <section id="features">
+  <section id="features" class="reveal">
     <h2>What it does</h2>
     <p class="sub">Your ISP reads the TLS handshake at the start of a connection to decide which quota it counts against. QuotaVPN puts a server name from the package you chose on that handshake.</p>
     <div class="cards">
@@ -272,7 +298,7 @@
   </section>
 </div>
 
-<section class="tinted" id="how">
+<section class="tinted reveal" id="how">
   <div class="wrap">
     <h2>How it works</h2>
     <p class="sub">The same engine on both platforms: sing-box, with wintun on Windows and VpnService on Android. Traffic goes through the tunnel or nowhere.</p>
@@ -290,7 +316,7 @@
 </section>
 
 <div class="wrap">
-  <section>
+  <section class="reveal">
     <h2>Every profile carries its own servers</h2>
     <p class="sub">A card is a profile: a name, a domain to ride, the transport, and a server list you can extend with your own address at any time.</p>
     <div class="gallery">
@@ -305,7 +331,7 @@
     </div>
   </section>
 
-  <section id="faq">
+  <section id="faq" class="reveal">
     <h2>Questions</h2>
     <details open>
       <summary>What does QuotaVPN actually change?</summary>
@@ -325,7 +351,7 @@
     </details>
   </section>
 
-  <section>
+  <section class="reveal">
     <div class="band">
       <div>
         <h2>Get the build</h2>
@@ -344,5 +370,34 @@
     <span>MIT licensed</span>
   </footer>
 </div>
+<script>
+(function(){
+  var el = document.getElementById('ver'); if(!el) return;
+  function set(v){ el.textContent = v; }
+  try{
+    var c = sessionStorage.getItem('qvVer');
+    if(c){ set(c); return; }
+    fetch('https://api.github.com/repos/YousefMohiey/QuotaVPN/releases/latest')
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        if(d && d.tag_name){ var v = String(d.tag_name).replace(/^v/i,''); set('v' + v); try{ sessionStorage.setItem('qvVer','v'+v); }catch(e){} }
+      })['catch'](function(){});
+  }catch(e){}
+})();
+(function(){
+  var els = document.querySelectorAll('.reveal');
+  if(!els.length) return;
+  var reduce = false;
+  try{ reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  if(reduce || !('IntersectionObserver' in window)){
+    for(var i=0;i<els.length;i++) els[i].classList.add('in');
+    return;
+  }
+  var io = new IntersectionObserver(function(list){
+    list.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, {rootMargin:'0px 0px -8% 0px', threshold:0.08});
+  for(var i=0;i<els.length;i++) io.observe(els[i]);
+})();
+</script>
 </body>
 </html>
