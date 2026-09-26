@@ -30,6 +30,17 @@ for f in (pathlib.Path("docs/app/assets")).glob("*.js"):
     t = io.open(f, encoding="utf-8", newline="").read()
     t2 = re.sub(r'url\(/(?!/)', 'url(./', t)
     t2 = re.sub(r'"/assets/', '"./assets/', t2)
+    # Anything else the app asks for by absolute path (the sidebar icon and the
+    # favicon are written as /icon.png in the app, which only resolves when the
+    # app is served from a domain root, not from /QuotaVPN/app/).
+    # The minifier writes some of these as template literals, so match both
+    # quote styles and keep whichever one the bundle used.
+    t2 = re.sub(
+        r'(["`])/([A-Za-z0-9_-]+\.(?:png|svg|jpe?g|webp|ico|woff2?))\1',
+        lambda m: m.group(1) + "./" + m.group(2) + m.group(1),
+        t2,
+    )
+    t2 = re.sub(r'(["`])/assets/', lambda m: m.group(1) + "./assets/", t2)
     if t2 != t:
         io.open(f, "w", encoding="utf-8", newline="").write(t2)
         n += 1

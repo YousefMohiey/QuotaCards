@@ -3,6 +3,8 @@
 //! Same core as desktop: server setup + card generate/revoke over SSH.
 //! Tunnel connect (Phase 2) needs a Kotlin VpnService + Go libbox.
 
+mod speed;
+
 use quotacards::{
     config::{AppConfig, Card, EMBED_KEY, DEFAULT_HOST, DEFAULT_PORT, DEFAULT_USER},
     server,
@@ -602,6 +604,47 @@ async fn tunnel_probe(app: tauri::AppHandle) -> Result<CmdResult, String> {
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// Speed test and exit-address lookup, done in Rust.
+//
+// The desktop learned this lesson first: a webview cannot read the bytes it is
+// timing, so the measurement lives on the backend there too. Here it also
+// sidesteps webview network policy entirely, which is why the phone's speed
+// screen can run the same test the desktop runs, against the same endpoints.
+// ---------------------------------------------------------------------------
+#[tauri::command]
+async fn net_info() -> Option<speed::NetInfo> {
+    speed::net_info().await
+}
+
+/// One probe series against a path on `host`. Milliseconds, failures dropped.
+#[tauri::command]
+async fn speed_latency(host: String, path: String, probes: u32) -> Vec<f64> {
+    speed::latency(&host, &path, probes.clamp(1, 16)).await
+}
+
+/// One download window. The UI calls this in short slices so the bars keep
+/// moving while the phase runs; bytes and seconds come back so the caller can
+/// keep a cumulative average over the whole phase, the desktop's rule.
+#[tauri::command]
+async fn speed_down(host: String, path: String, seconds: f64) -> speed::SpeedOut {
+    let w = seconds.clamp(0.2, 20.0);
+    speed::download(&host, &path, w).await
+}
+
+/// One upload window of sequential chunks. The per-chunk rates come back, so
+/// the caller applies the same median rule the desktop applies.
+#[tauri::command]
+async fn speed_up(host: String, path: String, seconds: f64, chunk_mb: usize) -> speed::SpeedOut {
+    let w = seconds.clamp(0.2, 20.0);
+    let seed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos() as u64)
+        .unwrap_or(7);
+    speed::upload(&host, &path, w, chunk_mb.clamp(1, 16), seed).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -633,6 +676,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_state,
             probe_server,
+            net_info,
+            speed_latency,
+            speed_down,
+            speed_up,
             generate_card,
             revoke_card,
             copy_card,

@@ -383,14 +383,16 @@
   .win-ctrl svg{width:36px; height:36px; padding:10px; box-sizing:border-box; border-radius:10px; opacity:.85}
   .win-body{position:relative; overflow:hidden; background:var(--bg)}
   .win-open{display:none}
+  .win-shot{display:none}
   @media (max-width:760px){
-    /* A 1060px app scaled into a phone is a postage stamp: the frame becomes a
-       poster that opens the demo at full size in its own tab. */
-    .win-body iframe{pointer-events:none}
-    .win-open{display:flex; position:absolute; inset:0; align-items:flex-end; justify-content:center; padding:14px;
-      background:linear-gradient(to top, rgb(16 20 28 / .88), rgb(16 20 28 / .12) 62%)}
+    /* A 1060px app scaled into a phone is a postage stamp, so the frame shows
+       the window as a still and the live demo opens in its own tab. Nothing
+       sits on top of the app. */
+    .win-body iframe{display:none}
+    .win-shot{display:block; width:100%; height:auto}
+    .win-open{display:flex; gap:10px; align-items:center; justify-content:center; margin:12px 0 2px}
     .win-open span{display:inline-flex; align-items:center; gap:8px; border:1px solid var(--brand-line);
-      background:var(--brand-bg); color:var(--txt); border-radius:var(--r-ctl); padding:10px 16px; font-size:13px; font-weight:570}
+      background:var(--brand-bg); color:var(--txt); border-radius:var(--r-ctl); padding:11px 18px; font-size:13px; font-weight:570}
   }
   .win-body iframe{position:absolute; top:0; left:0; display:block; border:0; transform-origin:0 0; background:var(--bg)}
   .phone-stage{display:grid; grid-template-columns:auto minmax(0,1fr); gap:34px; align-items:start; margin-top:16px}
@@ -414,6 +416,18 @@
     .phone{min-width:0; width:100%; max-width:410px; margin:0 auto}
     .phone .demo-cap{justify-content:center; text-align:center}
     .phone-copy{min-width:0}
+  }
+  .strip{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; margin:8px 0 0}
+  .strip > div{padding:16px 18px; border:1px solid var(--glass-line); border-radius:var(--r-card); background:var(--panel)}
+  .strip b{display:block; margin-bottom:6px; font-size:14px; font-weight:600; color:var(--txt)}
+  .strip span{display:block; font-size:13px; line-height:1.5; color:var(--txt3)}
+  @media (max-width:860px){
+    .strip{grid-template-columns:1fr; gap:10px}
+  }
+  /* After the base frame rules, which set display:block: on a phone the still
+     stands in for the live frame so nothing is scaled to a postage stamp. */
+  @media (max-width:760px){
+    .win-body iframe{display:none}
   }
 </style>
 </head>
@@ -459,6 +473,7 @@
     <div class="win">
       <div class="win-body" id="winBody">
         <iframe id="appFrame" src="app/index.html" title="QuotaVPN for Windows, live interactive demo" loading="lazy"></iframe>
+        <img class="win-shot" src="assets/app-home.png" alt="QuotaVPN for Windows" loading="lazy">
         <div class="win-ctrl" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></svg>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"><rect x="6.5" y="6.5" width="11" height="11" rx="1"/></svg>
