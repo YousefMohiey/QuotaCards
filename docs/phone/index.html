@@ -62,19 +62,47 @@
   <section class="view" id="view-speed">
     <div class="sec speed-sec">
       <div class="speed-top">
-        <span class="speed-cap" id="sp-cap" data-i18n="spReady">Ready to test</span>
-        <span class="speed-host" id="sp-host" dir="ltr"></span>
+        <div class="min0">
+          <div class="speed-title" data-i18n="tabSpeed">Speed</div>
+          <div class="speed-sub" id="sp-sub">-</div>
+        </div>
+        <button type="button" class="iconbtn" id="sp-refresh" aria-label="Refresh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.63-6.36"/><path d="M21 3v6h-6"/></svg>
+        </button>
       </div>
-      <div class="speed-read"><b id="sp-value">0.0</b><span id="sp-unit">Mbps</span></div>
+      <div class="speed-net">
+        <div class="speed-netcol">
+          <div class="speed-lab" data-i18n="yourConn">Your connection</div>
+          <div class="speed-b" id="sp-isp">-</div>
+          <div class="speed-s" id="sp-ip" dir="ltr"></div>
+          <div class="speed-s3" id="sp-place"></div>
+        </div>
+        <div class="speed-netcol">
+          <div class="speed-lab" data-i18n="targetServer">Server</div>
+          <div class="speed-b" id="sp-target">-</div>
+          <div class="speed-s" id="sp-host" dir="ltr"></div>
+          <div class="speed-s3" data-i18n="srvOwnNote">Through your server</div>
+        </div>
+      </div>
+      <div class="speed-read">
+        <div class="min0">
+          <div class="speed-big"><b id="sp-value">0.0</b><span id="sp-unit">Mbps</span></div>
+          <div class="speed-cap" id="sp-cap">idle</div>
+        </div>
+        <div class="speed-peak" id="sp-peak" hidden></div>
+      </div>
       <div class="speed-bars" id="sp-bars" aria-hidden="true"></div>
-      <p class="hint" id="sp-hint" data-i18n="spHint">Measures the route the card on Home is using right now.</p>
+      <div class="speed-hint2" id="sp-hint"></div>
       <div class="speed-stats">
-        <div class="sstat"><span data-i18n="spPing">Ping</span><b id="sp-ping">-</b></div>
-        <div class="sstat"><span data-i18n="spJitter">Jitter</span><b id="sp-jit">-</b></div>
-        <div class="sstat"><span data-i18n="spDown">Down</span><b id="sp-down">-</b></div>
-        <div class="sstat"><span data-i18n="spUp">Up</span><b id="sp-up">-</b></div>
+        <button type="button" class="sstat" data-which="ping"><span data-i18n="pingTitle">Ping</span><b id="sp-ping">-</b><i data-i18n="ms">ms</i></button>
+        <button type="button" class="sstat" data-which="ping2"><span data-i18n="jitter">Jitter</span><b id="sp-jit">-</b><i data-i18n="ms">ms</i></button>
+        <button type="button" class="sstat" data-which="down"><span data-i18n="chDown">Down</span><b id="sp-down">-</b><i data-i18n="mbps">Mbps</i></button>
+        <button type="button" class="sstat" data-which="up"><span data-i18n="chUp">Up</span><b id="sp-up">-</b><i data-i18n="mbps">Mbps</i></button>
       </div>
-      <button class="second" id="sp-run" data-i18n="spStart">Start test</button>
+      <div class="speed-runrow">
+        <button type="button" id="sp-run"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><span id="sp-run-label" data-i18n="startTest">Start test</span></button>
+        <button type="button" id="sp-stop" hidden data-i18n="stop">Stop</button>
+      </div>
     </div>
     <div class="sec">
       <h2><span data-i18n="spHistory">Recent runs</span> <span class="count" id="sp-count"></span></h2>

@@ -20,7 +20,7 @@
 <meta name="twitter:description" content="Your gaming and streaming packages, used on purpose. Windows and Android.">
 <meta name="twitter:image" content="https://yousefmohiey.github.io/QuotaVPN/assets/og.png">
 <link rel="icon" href="assets/icon.png">
-<script type="application/ld+json">
+<script type="application/ld+json" id="app-schema">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
@@ -29,7 +29,7 @@
   "url": "https://yousefmohiey.github.io/QuotaVPN/",
   "applicationCategory": "SecurityApplication",
   "operatingSystem": "Windows 10, Windows 11, Android",
-  "softwareVersion": "0.3.4",
+  "softwareVersion": "0.3.5",
   "license": "https://opensource.org/licenses/MIT",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "downloadUrl": "https://github.com/YousefMohiey/QuotaVPN/releases/latest",
@@ -423,7 +423,7 @@
   <div class="wrap in">
     <img src="assets/icon.png" alt="">
     <span class="name">QuotaVPN</span>
-    <span class="ver" id="ver" title="Latest release">v0.3.4</span>
+    <span class="ver" id="ver" title="Latest release">v0.3.5</span>
     <span class="sp"></span>
     <nav>
       <a class="txt" href="#demo">Try it</a>
@@ -704,16 +704,38 @@
 
 <script>
 (function(){
-  function put(v){ var ids=['ver','verWin'], i; for(i=0;i<ids.length;i++){ var e=document.getElementById(ids[i]); if(e) e.textContent = v; } }
-  try{
-    var c = sessionStorage.getItem('qvVer');
-    if(c){ put(c); return; }
-    fetch('https://api.github.com/repos/YousefMohiey/QuotaVPN/releases/latest')
-      .then(function(r){ return r.ok ? r.json() : null; })
-      .then(function(d){
-        if(d && d.tag_name){ var v = 'v' + String(d.tag_name).replace(/^v/i,''); put(v); try{ sessionStorage.setItem('qvVer', v); }catch(e){} }
-      })['catch'](function(){});
-  }catch(e){}
+  // The version chip and the download rows read the live release. Cached for
+  // ten minutes so a page revisited after a release shows the new number
+  // without hammering the API; a cached value older than that is ignored.
+  var TTL = 10 * 60 * 1000;
+  function put(v){
+    var ids=['ver','verWin'], i;
+    for(i=0;i<ids.length;i++){ var e=document.getElementById(ids[i]); if(e) e.textContent = v; }
+    var sc = document.getElementById('app-schema');
+    if(sc && sc.textContent){
+      sc.textContent = sc.textContent.replace(/"softwareVersion":\s*"[^"]*"/, '"softwareVersion": "' + v.replace(/^v/i,'') + '"');
+    }
+  }
+  function cached(){
+    try{
+      var raw = localStorage.getItem('qvVer');
+      if(!raw) return null;
+      var o = JSON.parse(raw);
+      if(o && o.v && (Date.now() - (o.t||0)) < TTL) return o.v;
+    }catch(e){}
+    return null;
+  }
+  var c = cached();
+  if(c){ put(c); }
+  fetch('https://api.github.com/repos/YousefMohiey/QuotaVPN/releases/latest', { cache: 'no-store' })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if(d && d.tag_name){
+        var v = 'v' + String(d.tag_name).replace(/^v/i,'');
+        put(v);
+        try{ localStorage.setItem('qvVer', JSON.stringify({ v: v, t: Date.now() })); }catch(e){}
+      }
+    })['catch'](function(){});
 })();
 (function(){
   var els = document.querySelectorAll('.reveal');

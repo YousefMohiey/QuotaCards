@@ -79,6 +79,12 @@ const STR = {
     updIdle: "Not checked yet.", updChecking: "Checking…",
     spReady: "Ready to test", spPinging: "Measuring ping", spDowning: "Measuring download",
     spUping: "Measuring upload", spDone: "Result", spFail: "No reply from the server.",
+    peak: "Peak", yourConn: "Your connection", targetServer: "Server", findingServer: "Finding the nearest server",
+    srvName: "QuotaVPN server", srvOwnNote: "Through your server", pingTitle: "Ping", jitter: "Jitter",
+    chDown: "Down", chUp: "Up", mbps: "Mbps", ms: "ms", idle: "idle", done: "Done",
+    measuring: "Measuring…", stop: "Stop", refresh: "Refresh", startTest: "Start test",
+    pingHint: "Best of 8 samples through the active path.", downHint: "Download through the active path.",
+    upHint: "Upload through the active path.", noReply: "No reply.",
     spStart: "Start test", spStop: "Stop", spPing: "Ping", spJitter: "Jitter", spDown: "Down", spUp: "Up",
     spHint: "Tests the route the card on Home is using.",
     spHistory: "Recent runs", spNone: "No runs yet.",
@@ -131,6 +137,12 @@ const STR = {
     updIdle: "لم يتم التحقق بعد.", updChecking: "جارٍ التحقق…",
     spReady: "جاهز للاختبار", spPinging: "قياس البينج", spDowning: "قياس التحميل",
     spUping: "قياس الرفع", spDone: "النتيجة", spFail: "مفيش رد من السيرفر.",
+    peak: "الذروة", yourConn: "اتصالك", targetServer: "الخادم", findingServer: "جارٍ العثور على أقرب خادم",
+    srvName: "خادم QuotaVPN", srvOwnNote: "عبر خادمك", pingTitle: "زمن الاستجابة", jitter: "التذبذب",
+    chDown: "تنزيل", chUp: "رفع", mbps: "ميجابت", ms: "مللي ثانية", idle: "خامل", done: "تم",
+    measuring: "جارٍ القياس…", stop: "إيقاف", refresh: "تحديث", startTest: "بدء الاختبار",
+    pingHint: "أفضل 8 محاولات عبر المسار الحالي.", downHint: "قياس التحميل من الخادم عبر المسار الحالي.",
+    upHint: "قياس الرفع إلى الخادم عبر المسار الحالي.", noReply: "لا يوجد رد.",
     spStart: "ابدأ الاختبار", spStop: "إيقاف", spPing: "بينج", spJitter: "تذبذب", spDown: "تحميل", spUp: "رفع",
     spHint: "بيختبر المسار اللي بطاقتك في الرئيسية بتستخدمه.",
     spHistory: "آخر الاختبارات", spNone: "مفيش اختبارات لسه.",
@@ -405,6 +417,10 @@ function setBusy(b) {
   busy = b;
   for (const id of ["btn-connect"]) $(id).disabled = b;
   paintHero();
+  // The package buttons mirror the busy state too: without this they stay
+  // disabled after any work that runs through refresh() (the load probe did
+  // exactly that, and taps on them went nowhere).
+  paintPresets();
 }
 
 function selectedSni() {
@@ -1026,9 +1042,23 @@ document.querySelectorAll("svg").forEach((s) => s.setAttribute("aria-hidden", "t
 // probes, then a rolling-window download and a streamed upload, so whatever
 // route the WebView is on (through the tunnel or bare) is the route measured.
 // ---------------------------------------------------------------------------
+// Speed: the desktop screen, the same test and the same drawing. Eight ping
+// probes, then a nine second download and a nine second upload against the
+// app's own server through whatever route the WebView is on (the tunnel when
+// it is up). One sample per bar as it arrives, newest at the right of the
+// field, coloured by the phase: amber ping, blue download, green upload.
+// ---------------------------------------------------------------------------
 const SP_HIST = "qc-speed-history";
+const SP_PING_PROBES = 8;
+const SP_PHASE_SECONDS = 9;
+const SP_BARS = 48;
+const SP_SAMPLE_MS = 90;
 let spCtl = null;
 let spSamples = [];
+let spPeak = 0;
+let spPhase = "idle";
+let spGateAt = 0;
+let spNet = null;
 let spLast = { ping: null, jitter: null, down: null, up: null };
 
 // The website copy of this screen has no server to hit: it sets the flag and
@@ -1038,40 +1068,128 @@ function spSim() {
 }
 function spBase() { return "https://" + (serverHost || "qc-speed.example.com"); }
 const spSleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const spFmt = (v) => (v == null ? "-" : (v >= 100 ? v.toFixed(0) : v.toFixed(1)) + " Mbps");
+function spNum(v, unit) {
+  if (v == null) return "-";
+  if (unit === "ms") return String(Math.round(v));
+  return v >= 100 ? v.toFixed(0) : v.toFixed(1);
+}
 
-function spPaint() {
-  const el = $("sp-value");
-  if (!el) return;
-  const v = spSamples.length ? spSamples[spSamples.length - 1] : 0;
-  el.textContent = v >= 100 ? v.toFixed(0) : v.toFixed(1);
-  const bars = $("sp-bars");
-  const max = Math.max(1, ...spSamples);
-  bars.innerHTML = "";
-  for (const s of spSamples.slice(-72)) {
-    const i = document.createElement("i");
-    i.style.height = Math.max(3, Math.round((s / max) * 56)) + "px";
-    if (s >= max * 0.85) i.className = "hot";
-    bars.append(i);
+// One thin bar per sample, the run filling from the left. Idle the row is a
+// flat set of stubs on its hairline; during a run it is alive; when the run
+// ends it stays put as the fingerprint of that connection.
+function spPaintBars() {
+  const box = $("sp-bars");
+  if (!box) return;
+  while (box.childElementCount < SP_BARS) {
+    const b = document.createElement("span");
+    b.style.height = "2px";
+    box.append(b);
+  }
+  const tail = spSamples.slice(-SP_BARS);
+  const view = tail.length >= SP_BARS ? tail : tail.concat(new Array(SP_BARS - tail.length).fill(0));
+  const max = Math.max(1, ...view);
+  const accent = spPhase === "upload" ? "var(--green)" : spPhase === "ping" ? "var(--amber)" : "var(--accent)";
+  for (let i = 0; i < SP_BARS; i++) {
+    const v = view[i] || 0;
+    const q = v / max;
+    const bar = box.children[i];
+    bar.style.height = v === 0 ? "2px" : Math.max(8, q * 100) + "%";
+    bar.style.background = "color-mix(in oklab, " + accent + " " + Math.round(18 + q * 62) + "%, rgb(255 255 255 / 0.10))";
+    bar.style.opacity = v === 0 ? "0.28" : (spCtl && i === SP_BARS - 1) ? "1" : "0.92";
   }
 }
-function spPush(v) {
+function spPaintTiles() {
+  const live = spSamples.length ? spSamples[spSamples.length - 1] : null;
+  const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+  set("sp-ping", spPhase === "ping" ? (live == null ? "-" : String(Math.round(live))) : (spLast.ping == null ? "-" : String(spLast.ping)));
+  set("sp-jit", spLast.jitter == null ? "-" : spLast.jitter.toFixed(1));
+  set("sp-down", spPhase === "download" ? (live == null ? "-" : spNum(live, "mbps")) : (spLast.down == null ? "-" : spNum(spLast.down, "mbps")));
+  set("sp-up", spPhase === "upload" ? (live == null ? "-" : spNum(live, "mbps")) : (spLast.up == null ? "-" : spNum(spLast.up, "mbps")));
+}
+function spPaintReadout() {
+  const v = spSamples.length ? spSamples[spSamples.length - 1] : 0;
+  const val = $("sp-value");
+  if (val) val.textContent = spNum(v, spPhase === "ping" ? "ms" : "mbps");
+  const un = $("sp-unit");
+  if (un) un.textContent = t(spPhase === "ping" ? "ms" : "mbps");
+  const pk = $("sp-peak");
+  if (pk) {
+    const show = spPeak > 0 && spSamples.length > 0;
+    pk.hidden = !show;
+    if (show) {
+      const u = spPhase === "ping" ? "ms" : "mbps";
+      pk.textContent = t("peak") + " " + spNum(spPeak, u) + " " + t(u);
+    }
+  }
+  spPaintBars();
+  spPaintTiles();
+}
+function spPush(v, force) {
+  const now = performance.now();
+  if (!force && now - spGateAt < SP_SAMPLE_MS) return;
+  spGateAt = now;
   spSamples.push(v);
-  if (spSamples.length > 96) spSamples.shift();
-  spPaint();
+  if (spSamples.length > SP_BARS * 2) spSamples.shift();
+  if (v > spPeak) spPeak = v;
+  spPaintReadout();
 }
-function spSet(capKey, unit) {
-  $("sp-cap").textContent = t(capKey);
-  if (unit) $("sp-unit").textContent = unit;
+function spSetPhase(phase, capKey, hintKey) {
+  spPhase = phase;
+  const cap = $("sp-cap");
+  if (cap) cap.textContent = t(capKey);
+  const hint = $("sp-hint");
+  if (hint) hint.textContent = hintKey ? t(hintKey) : "";
+  spPaintReadout();
 }
-function paintSpeedHost() {
-  const el = $("sp-host");
-  if (el) el.textContent = serverHost || "";
+function spPaintTarget() {
+  const el = $("sp-target");
+  if (el) el.textContent = t("srvName");
+  const host = $("sp-host");
+  if (host) host.textContent = serverHost || t("findingServer");
+  const sub = $("sp-sub");
+  if (sub) {
+    try { sub.textContent = activeKind() + " · " + (serverHost || "-"); } catch (e) { sub.textContent = serverHost || "-"; }
+  }
+}
+// Who this device is on the way out, resolved through the same route the
+// test will measure. Best effort: a failure leaves the panel at dashes.
+async function spResolveNet() {
+  // Two public resolvers, first answer wins: either can rate limit a busy
+  // address, and the panel is not worth an empty cell over it.
+  const sources = [
+    { url: "https://ipwho.is/",
+      pick: (j) => (j && j.success !== false && j.ip) ? {
+        isp: (j.connection && j.connection.isp) || j.ip,
+        ip: j.ip,
+        place: [j.city, j.country].filter(Boolean).join(", "),
+      } : null },
+    { url: "https://ipapi.co/json/",
+      pick: (j) => (j && j.ip) ? {
+        isp: j.org || j.ip,
+        ip: j.ip,
+        place: [j.city, j.country_name].filter(Boolean).join(", "),
+      } : null },
+  ];
+  spNet = null;
+  for (const s of sources) {
+    try {
+      const r = await fetch(s.url, { cache: "no-store" });
+      if (!r.ok) continue;
+      const out = s.pick(await r.json());
+      if (out) { spNet = out; break; }
+    } catch (e) { /* try the next one */ }
+  }
+  const isp = $("sp-isp");
+  if (isp) isp.textContent = spNet ? spNet.isp : "-";
+  const ip = $("sp-ip");
+  if (ip) ip.textContent = spNet ? spNet.ip : "";
+  const place = $("sp-place");
+  if (place) place.textContent = spNet ? spNet.place : "";
 }
 
 async function spPing(signal) {
   const times = [];
-  for (let i = 0; i < 8 && !signal.aborted; i++) {
+  for (let i = 0; i < SP_PING_PROBES && !signal.aborted; i++) {
     const t0 = performance.now();
     try {
       await fetch(spBase() + "/speed/down?bytes=1&r=" + Math.random(), { cache: "no-store", signal });
@@ -1080,14 +1198,14 @@ async function spPing(signal) {
       spPush(dt);
     } catch (e) { if (signal.aborted) break; }
   }
-  if (!times.length) return null;
+  if (!times.length) throw new Error("no reply");
   let diff = 0;
   for (let i = 1; i < times.length; i++) diff += Math.abs(times[i] - times[i - 1]);
   return { ping: Math.round(Math.min(...times)), jitter: times.length > 1 ? diff / (times.length - 1) : 0 };
 }
 
 async function spDownload(signal) {
-  const deadline = performance.now() + 9000;
+  const deadline = performance.now() + SP_PHASE_SECONDS * 1000;
   const win = [];
   let total = 0, chunk = 1 << 20, best = 0;
   while (performance.now() < deadline && !signal.aborted) {
@@ -1114,6 +1232,11 @@ async function spDownload(signal) {
     const dt = (t1 - t0) / 1000;
     if (dt < 0.7 && chunk < 32 << 20) chunk = Math.min(chunk * 2, 32 << 20);
     else if (dt > 2.5 && chunk > 256 << 10) chunk = Math.max(chunk / 2, 256 << 10);
+    // A chunk must not outlive the phase either: cap it at about two
+    // seconds at the speed this run is seeing.
+    const left = deadline - performance.now();
+    if (left < 400) break;
+    chunk = Math.min(chunk, Math.max(256 << 10, Math.round(Math.max(best || 1, 1) * left * 125)));
   }
   return best;
 }
@@ -1142,20 +1265,32 @@ function spUploadRound(size, signal, onTick) {
 }
 
 async function spUpload(signal) {
-  const deadline = performance.now() + 9000;
-  let size = 4 << 20, best = 0;
+  const deadline = performance.now() + SP_PHASE_SECONDS * 1000;
+  // Rounds of about two seconds at the speed seen so far, seeded from the
+  // download when there is one. Small enough to land inside the phase even
+  // on a slow line, big enough to measure a rate rather than a handshake.
+  let best = 0;
+  let size = Math.min(8 << 20, Math.max(512 << 10, Math.round((spLast.down || 20) * 125000)));
   while (performance.now() < deadline && !signal.aborted) {
+    const left = deadline - performance.now();
+    if (left < 700) break;
+    size = Math.min(32 << 20, Math.max(256 << 10, Math.round(Math.max(best || spLast.down || 20, 4) * 250000)));
+    size = Math.min(size, Math.max(256 << 10, Math.round(Math.max(best || spLast.down || 20, 4) * left * 125)));
     const round = performance.now();
     await spUploadRound(size, signal, (v) => {
       if (v > best) best = v;
       spPush(v);
     });
-    const dt = (performance.now() - round) / 1000;
-    if (dt < 1.2 && size < 64 << 20) size *= 2;
+    // The round's own average is a reading too: on a fast line the progress
+    // listener can finish before its half second window, and a phase that
+    // pushes nothing would leave the tile empty.
+    const dt = Math.max(0.05, (performance.now() - round) / 1000);
+    const whole = (size * 8) / dt / 1e6;
+    if (whole > best) best = whole;
+    spPush(best);
   }
   return best;
 }
-
 // Stand-in ramp for the website copy: the number climbs the way a real one
 // does, so the screen reads the same without a server behind it.
 async function spSimPhase(peak, seconds, signal) {
@@ -1181,7 +1316,8 @@ function spPaintHistory() {
   const box = $("sp-hist");
   if (!box) return;
   const list = spLoad();
-  $("sp-count").textContent = list.length ? "(" + list.length + ")" : "";
+  const cnt = $("sp-count");
+  if (cnt) cnt.textContent = list.length ? "(" + list.length + ")" : "";
   box.innerHTML = "";
   if (!list.length) {
     const p = document.createElement("p");
@@ -1201,7 +1337,7 @@ function spPaintHistory() {
     left.textContent = when + " · " + day;
     const right = document.createElement("span");
     right.className = "val";
-    right.textContent = "↓ " + spFmt(r.down) .replace(" Mbps", "") + "  ↑ " + spFmt(r.up).replace(" Mbps", "") + " Mbps";
+    right.textContent = "↓ " + spNum(r.down, "mbps") + "  ↑ " + spNum(r.up, "mbps") + " " + t("mbps");
     row.append(left, right);
     box.append(row);
   }
@@ -1213,57 +1349,113 @@ function spStore() {
   spPaintHistory();
 }
 
-async function spToggle() {
+function spPaintRunState() {
   const btn = $("sp-run");
-  if (spCtl) { spCtl.abort(); return; }
-  spCtl = new AbortController();
-  const signal = spCtl.signal;
-  btn.textContent = t("spStop");
-  spSamples = [];
-  spLast = { ping: null, jitter: null, down: null, up: null };
-  $("sp-ping").textContent = "-";
-  $("sp-jit").textContent = "-";
-  $("sp-down").textContent = "-";
-  $("sp-up").textContent = "-";
-  spPaint();
-  try {
-    spSet("spPinging", "ms");
-    const p = spSim() ? await spSimPhase(42, 1.2, signal).then((v) => ({ ping: Math.round(v), jitter: 2.4 })) : await spPing(signal);
-    if (p) {
-      spLast.ping = p.ping;
-      spLast.jitter = p.jitter;
-      $("sp-ping").textContent = p.ping + " ms";
-      $("sp-jit").textContent = p.jitter.toFixed(1) + " ms";
-    }
-    spSamples = [];
-    spSet("spDowning", "Mbps");
-    const d = spSim() ? await spSimPhase(240 + Math.random() * 40, 6, signal) : await spDownload(signal);
-    if (d) { spLast.down = d; $("sp-down").textContent = spFmt(d); }
-    spSamples = [];
-    spSet("spUping", "Mbps");
-    const u = spSim() ? await spSimPhase(34 + Math.random() * 8, 5, signal) : await spUpload(signal);
-    if (u) { spLast.up = u; $("sp-up").textContent = spFmt(u); }
-    spSet("spDone", "Mbps");
-    // the headline number settles on what the last phase reached
-    if (u) { spSamples = [u]; spPaint(); }
-    if (spLast.down || spLast.up) spStore();
-  } catch (e) {
-    if (!signal.aborted) $("sp-hint").textContent = t("spFail");
-  } finally {
-    spCtl = null;
-    btn.textContent = t("spStart");
-    spPaint();
-  }
+  if (btn) btn.disabled = !!spCtl;
+  const lbl = $("sp-run-label");
+  if (lbl) lbl.textContent = spCtl ? t("measuring") : t("startTest");
+  const stop = $("sp-stop");
+  if (stop) stop.hidden = !spCtl;
+  document.querySelectorAll(".sstat").forEach((b) => { b.disabled = !!spCtl; });
 }
 
-$("sp-run").onclick = () => { spToggle(); };
-spPaintHistory();
-paintSpeedHost();
+async function spRunPhase(which, signal) {
+  if (which === "ping") {
+    spSetPhase("ping", "pingTitle", "pingHint");
+  } else {
+    const down = which === "down";
+    spSetPhase(down ? "download" : "upload", down ? "chDown" : "chUp", down ? "downHint" : "upHint");
+  }
+  spSamples = [];
+  spPeak = 0;
+  spGateAt = 0;
+  spPaintReadout();
+  let v;
+  if (which === "ping") {
+    const p = spSim()
+      ? await spSimPhase(42, 1.2, signal).then((x) => ({ ping: Math.round(x), jitter: 2.4 }))
+      : await spPing(signal);
+    spLast.ping = p.ping;
+    spLast.jitter = p.jitter;
+    spPush(p.ping, true);
+    v = p.ping;
+  } else if (which === "down") {
+    v = spSim() ? await spSimPhase(240 + Math.random() * 40, 6, signal) : await spDownload(signal);
+    if (v) spLast.down = v;
+    if (v) spPush(v, true);
+  } else {
+    v = spSim() ? await spSimPhase(34 + Math.random() * 8, 5, signal) : await spUpload(signal);
+    if (v) spLast.up = v;
+    if (v) spPush(v, true);
+  }
+  return v != null;
+}
 
-// Repaint the screen whenever its tab comes up (values may have changed while
-// it was in the background).
+async function spRun(which) {
+  if (spCtl) return;
+  spCtl = new AbortController();
+  const signal = spCtl.signal;
+  spPaintRunState();
+  void spResolveNet();
+  try {
+    const want = which === "all" ? ["ping", "down", "up"] : which === "ping2" ? ["ping"] : [which];
+    for (const w of want) {
+      if (signal.aborted) break;
+      try {
+        await spRunPhase(w, signal);
+      } catch (e) {
+        if (signal.aborted) break;
+        const hint = $("sp-hint");
+        if (hint) hint.textContent = t("noReply");
+      }
+    }
+    if (!signal.aborted) {
+      spPhase = "done";
+      const cap = $("sp-cap");
+      if (cap) cap.textContent = t("done");
+      spPaintReadout();
+      if (spLast.down != null || spLast.up != null) spStore();
+    }
+  } finally {
+    spCtl = null;
+    spPaintRunState();
+    spPaintReadout();
+  }
+}
+function spStop() {
+  if (!spCtl) return;
+  spCtl.abort();
+  spCtl = null;
+  spPhase = "idle";
+  const cap = $("sp-cap");
+  if (cap) cap.textContent = t("idle");
+  const hint = $("sp-hint");
+  if (hint) hint.textContent = "";
+  spPaintRunState();
+  spPaintReadout();
+}
+
+$("sp-run").onclick = () => { void spRun("all"); };
+$("sp-stop").onclick = spStop;
+$("sp-refresh").onclick = () => { void spResolveNet(); spPaintTarget(); };
+document.querySelectorAll(".sstat").forEach((b) => {
+  b.onclick = () => { if (!spCtl) void spRun(b.dataset.which); };
+});
+spPaintTarget();
+spPaintReadout();
+spPaintHistory();
+spPaintRunState();
+
+// Repaint the screen whenever its tab comes up, and resolve the exit network
+// the first time it is opened (values may have changed while it was hidden).
+let spNetLoaded = false;
 const qcGoTab = goTab;
 goTab = function (name, push) {
   qcGoTab(name, push);
-  if (name === "speed") { paintSpeedHost(); spPaint(); spPaintHistory(); }
+  if (name === "speed") {
+    spPaintTarget();
+    spPaintReadout();
+    spPaintHistory();
+    if (!spNetLoaded) { spNetLoaded = true; void spResolveNet(); }
+  }
 };

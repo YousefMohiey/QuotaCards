@@ -557,33 +557,51 @@ button:disabled { opacity: 0.45; }
   .srvstate.idle .livedot { animation: none !important; }
 }
 
-/* Speed: the same first-party endpoint the desktop measures with. The readout
-   is the page's one big number, the bars are the live samples, the tiles keep
-   the finished values. */
-.speed-sec{padding:14px 14px 16px}
-.speed-top{display:flex; align-items:baseline; justify-content:space-between; gap:10px}
-.speed-cap{font-size:12px; color:var(--txt2)}
-.speed-host{font-size:11.5px; color:var(--txt3); direction:ltr; unicode-bidi:plaintext; max-width:60%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.speed-read{display:flex; align-items:baseline; justify-content:center; gap:8px; margin:16px 0 4px}
-.speed-read b{font-size:46px; font-weight:600; letter-spacing:-0.02em; line-height:1; font-variant-numeric:tabular-nums}
-.speed-read span{font-size:13px; color:var(--txt2)}
-.speed-bars{display:flex; align-items:flex-end; gap:2px; height:58px; margin:12px 0 4px; overflow:hidden}
-.speed-bars i{flex:1 1 0; min-width:2px; height:3px; border-radius:2px; background:var(--accent-line); transition:height 120ms linear}
-.speed-bars i.hot{background:var(--accent-strong)}
-#view-speed .hint{margin:6px 2px 0}
-.speed-stats{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:14px 0}
-.sstat{background:rgb(255 255 255 / 0.02); border:1px solid var(--line); border-radius:var(--r-md); padding:8px 4px; text-align:center; min-width:0}
-.sstat span{display:block; font-size:10.5px; color:var(--txt3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.sstat b{display:block; margin-top:3px; font-size:13px; font-weight:600; font-variant-numeric:tabular-nums}
+/* Speed: the desktop screen, phone sized. A refresh at the top with the
+   package it rides, the two ends of the test (your connection / the server),
+   the one big readout with its peak, the live bars, the four readings and
+   the run controls. Same composition and same colours as the desktop. */
+.speed-top{display:flex; align-items:flex-start; justify-content:space-between; gap:12px}
+.speed-title{font-size:13px; font-weight:600; color:var(--txt)}
+.speed-sub{margin-top:2px; font-size:11.5px; color:var(--txt3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.speed-sec .iconbtn{width:36px; height:36px; flex:0 0 36px; display:grid; place-items:center; border-radius:10px; border:1px solid var(--line); background:rgb(255 255 255 / 0.02); color:var(--txt2)}
+.speed-sec .iconbtn svg{width:15px; height:15px}
+.speed-sec .iconbtn:active{background:var(--accent-bg); border-color:var(--accent-line); color:var(--accent-strong)}
+.speed-net{display:grid; grid-template-columns:1fr 1fr; margin-top:12px; border:1px solid var(--line); border-radius:12px; overflow:hidden}
+.speed-netcol{min-width:0; padding:9px 13px}
+.speed-netcol + .speed-netcol{border-left:1px solid var(--line)}
+.speed-lab{font-size:10.5px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:var(--txt3)}
+.speed-b{margin-top:4px; font-size:14.5px; font-weight:600; color:var(--txt); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.speed-s{margin-top:2px; font-size:12px; color:var(--txt2); font-variant-numeric:tabular-nums; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.speed-s3{font-size:11.5px; color:var(--txt3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.speed-read{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-top:12px}
+.speed-big{display:flex; align-items:baseline; gap:8px}
+.speed-big b{font-size:44px; font-weight:300; line-height:1; letter-spacing:-0.02em; color:var(--txt); font-variant-numeric:tabular-nums}
+.speed-big span{font-size:13px; color:var(--txt3)}
+.speed-cap{margin-top:7px; font-size:12.5px; color:var(--txt3)}
+.speed-peak{font-size:11px; color:var(--txt3); font-variant-numeric:tabular-nums}
+.speed-bars{display:flex; align-items:flex-end; gap:2px; height:56px; margin-top:10px; padding-bottom:1px; border-bottom:1px solid var(--line-top)}
+.speed-bars span{flex:1 1 0; min-width:0; height:2px; border-radius:3px 3px 0 0; transition:height 140ms linear, background 200ms linear}
+.speed-hint2{margin-top:8px; min-height:15px; font-size:12px; color:var(--txt3)}
+.speed-stats{display:grid; grid-template-columns:repeat(4,1fr); margin-top:10px; border-top:1px solid var(--line)}
+.sstat{appearance:none; background:none; border:0; padding:8px 2px; display:flex; flex-direction:column; align-items:flex-start; gap:3px; color:inherit; text-align:start; min-width:0}
+.sstat + .sstat{border-left:1px solid var(--line); padding-left:10px}
+.sstat span{font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--txt3)}
+.sstat b{font-size:14px; font-weight:600; color:var(--txt); font-variant-numeric:tabular-nums}
+.sstat i{font-style:normal; font-size:10px; color:var(--txt3); margin-left:2px}
+.sstat:disabled{opacity:0.7}
+.speed-runrow{display:flex; align-items:center; gap:10px; margin-top:12px}
+#sp-run{flex:1; height:44px; display:flex; align-items:center; justify-content:center; gap:8px; border-radius:14px; border:1px solid transparent; background:var(--accent); color:#fff; font-size:13.5px; font-weight:600}
+#sp-run svg{width:14px; height:14px}
+#sp-run:active{filter:brightness(1.08)}
+#sp-run:disabled{opacity:0.75}
+#sp-stop{height:44px; padding:0 16px; border-radius:14px; border:1px solid var(--line); background:rgb(255 255 255 / 0.02); color:var(--txt2); font-size:13px}
 .sp-hist{display:flex; flex-direction:column}
 .sp-row{display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--line); font-size:12.5px}
 .sp-row:last-child{border-bottom:none}
 .sp-row .when{flex:1; min-width:0; color:var(--txt3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .sp-row .val{color:var(--txt2); font-variant-numeric:tabular-nums; flex:none}
 .sp-hist .empty{margin:4px 2px}
-
-#sp-run{background:var(--accent); border-color:transparent; color:#fff; font-weight:600; font-size:14px}
-#sp-run:active{filter:brightness(1.1)}
 
 /* Preset pair: the two packages side by side, exactly like the desktop's
    two-up. The user picks a package and the server it rides; the card behind
