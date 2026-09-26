@@ -52,10 +52,10 @@ const DEFAULT_SNI = { Gamerz: "ea.com", Streamerz: "youtube.com" };
 // EN/AR strings. Rust-side messages stay English; everything the UI owns is here.
 const STR = {
   en: {
-    cardForVpn: "Profile", route: "Gateway", protected: "Protected", wholeDevice: "Whole device",
+    cardForVpn: "Server", route: "Gateway", protected: "Protected", wholeDevice: "Whole device",
     yourIp: "Your IP", newCard: "New card", cardName: "Card name", exName: "e.g. Yousef, PC, phone",
     domainSni: "Domain", customDomain: "custom domain…", customDomainOpt: "Custom domain…",
-    generateCard: "Generate card", myCards: "My cards", serverHint: "Automatic configuration.",
+    generateCard: "Generate card", applyDomainBtn: "Apply", myCards: "My cards", serverHint: "Automatic configuration.",
     host: "Address", language: "Language", reconnect: "Reconnect", testPort: "Check server", copyLog: "Copy log",
     secStatus: "Status", secConnection: "Connection", secGeneral: "General", secProtection: "Protection",
     tabHome: "Home", tabSpeed: "Speed", tabCards: "Cards", tabServer: "Server", tabSettings: "Settings", howTo: "How to use",
@@ -100,14 +100,14 @@ const STR = {
     secTraffic: "Traffic and routing", routing: "App routing", back: "Back", cancel: "Cancel",
     addCard: "+ New", connecting: "Connecting…", ping: "Ping",
     sheetSearch: "Search domains…",
-    obTitle: "How QuotaVPN works", ob1: "Create a card - pick Gamerz or Streamerz.",
-    ob2: "Pick that card on Home.", ob3: "Hit Connect - back out anytime, the VPN stays on.", obGot: "Got it",
+    obTitle: "How QuotaVPN works", ob1: "Pick Gamerz or Streamerz.",
+    ob2: "Choose the server it rides.", ob3: "Hit Connect - back out anytime, the VPN stays on.", obGot: "Got it",
   },
   ar: {
-    cardForVpn: "البروفايل", route: "البوابة", protected: "الحماية", wholeDevice: "الجهاز بالكامل",
+    cardForVpn: "السيرفر", route: "البوابة", protected: "الحماية", wholeDevice: "الجهاز بالكامل",
     yourIp: "عنوان الـIP", newCard: "بطاقة جديدة", cardName: "اسم البطاقة", exName: "مثال: يوسف، الموبايل، اللابتوب",
     domainSni: "الدومين", customDomain: "دومين مخصص…", customDomainOpt: "دومين مخصص…",
-    generateCard: "إنشاء بطاقة", myCards: "بطاقاتي", serverHint: "إعداد تلقائي",
+    generateCard: "إنشاء بطاقة", applyDomainBtn: "تطبيق", myCards: "بطاقاتي", serverHint: "إعداد تلقائي",
     host: "العنوان", language: "اللغة", reconnect: "إعادة الاتصال", testPort: "فحص السيرفر", copyLog: "نسخ السجل",
     secStatus: "الحالة", secConnection: "الاتصال", secGeneral: "عام", secProtection: "الحماية",
     tabHome: "الرئيسية", tabSpeed: "السرعة", tabCards: "البطاقات", tabServer: "السيرفر", tabSettings: "الإعدادات", howTo: "طريقة الاستخدام",
@@ -152,7 +152,7 @@ const STR = {
     secTraffic: "الترافيك والتوجيه", routing: "توجيه التطبيقات", back: "رجوع", cancel: "إلغاء",
     addCard: "+ جديد", connecting: "جارٍ الاتصال…", ping: "البينج",
     sheetSearch: "ابحث عن دومين…",
-    obTitle: "كيف يعمل QuotaVPN", ob1: "أنشئ بطاقة - اختر جيمرز أو ستريمرز.",
+    obTitle: "كيف يعمل QuotaVPN", ob1: "اختر جيمرز أو ستريمرز.",
     ob2: "اختر البطاقة من الرئيسية.", ob3: "اضغط اتصال - يمكنك الخروج من التطبيق، وسيبقى الـVPN يعمل.", obGot: "فهمت",
   },
 };
@@ -186,9 +186,8 @@ function applyLang(l) {
   renderAppsList($("apps-search") ? $("apps-search").value : "");
   paintActiveCard();
   paintHero();
-  document.querySelectorAll("#kind-seg button").forEach((x) => {
-    x.textContent = kindName(x.dataset.kind);
-  });
+  paintPresets();
+  paintDomain();
   document.querySelectorAll("#cards .cardrow").forEach((row) => {
     const btns = row.querySelectorAll("button");
     if (btns[0]) btns[0].textContent = t("copy");
@@ -208,6 +207,99 @@ let serverIp = "";
 let vpnOn = false;
 let vpnError = "";
 let vpnCardName = "";
+
+// ---------------------------------------------------------------------------
+// Packages and servers, the desktop's model: the user picks Gamerz or
+// Streamerz and the server (domain) it rides. The card behind them is
+// bookkeeping, created on demand and never shown.
+// ---------------------------------------------------------------------------
+let cardsCache = [];
+let presetKind = "Gamerz";
+
+function activeKind() {
+  const sel = $("tunnel-card");
+  const c = cardsCache.find((x) => x.uuid === sel.value);
+  if (c && c.card_type === "Streamerz") return "Streamerz";
+  if (c && c.card_type === "Gamerz") return "Gamerz";
+  return presetKind;
+}
+function activeCard() {
+  const sel = $("tunnel-card");
+  return cardsCache.find((x) => x.uuid === sel.value) || null;
+}
+function labelFor(sni) {
+  for (const g of Object.keys(SNIS)) {
+    for (const [label, domain] of SNIS[g]) if (domain === sni) return label;
+  }
+  return sni;
+}
+function paintPresets() {
+  const kindNow = activeKind();
+  document.querySelectorAll("#presets .preset").forEach((b) => {
+    const k = b.dataset.kind;
+    const mine = cardsCache.find((c) => c.card_type === k);
+    const on = kindNow === k;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    b.disabled = busy;
+    const el = b.querySelector(".preset-sni");
+    if (el) el.textContent = (mine && mine.sni) || DEFAULT_SNI[k];
+  });
+}
+function paintDomain() {
+  const c = activeCard();
+  const sni = (c && c.sni) || DEFAULT_SNI[activeKind()];
+  const lab = labelFor(sni);
+  $("tunnel-card-name").textContent = lab === sni ? sni : lab + " \u00b7 " + sni;
+}
+// One tap on a package: select its card, or create it first (no connection
+// needed), exactly like the desktop preset pair.
+async function pickPreset(k) {
+  if (busy) return;
+  presetKind = k;
+  const mine = cardsCache.find((c) => c.card_type === k);
+  if (mine) {
+    const sel = $("tunnel-card");
+    sel.value = mine.uuid;
+    try { sel.onchange(); } catch (e) {}
+    paintPresets();
+    paintDomain();
+    paintHero();
+    return;
+  }
+  setBusy(true);
+  try {
+    const r = await call("generate_card", { name: kindName(k), kind: k, sni: DEFAULT_SNI[k] });
+    bar(r.ok, r.msg);
+    if (r.ok) {
+      await refresh();
+      // The card just made for this package must become the active one.
+      const made = cardsCache.find((c) => c.card_type === k);
+      if (made) {
+        const sel = $("tunnel-card");
+        sel.value = made.uuid;
+        try { sel.onchange(); } catch (e) {}
+        paintPresets();
+        paintDomain();
+        paintHero();
+      }
+    }
+  } finally { setBusy(false); }
+}
+// Picking a server: retarget the card that rides it, or make one for the choice.
+async function applyDomain(sni) {
+  if (busy) return;
+  setBusy(true);
+  try {
+    const c = activeCard();
+    const k = activeKind();
+    const r = c
+      ? await call("set_card_sni", { uuid: c.uuid, sni })
+      : await call("generate_card", { name: kindName(k), kind: k, sni });
+    bar(r.ok, r.msg);
+    if (r.ok) await refresh();
+  } finally { setBusy(false); }
+}
 
 let barTimer = 0;
 // Rust sends English status lines; show them in Arabic when that is the UI language.
@@ -259,7 +351,6 @@ document.querySelectorAll(".tabbar button").forEach((b) => {
 window.addEventListener("popstate", (e) => {
   const wasSheet = sheetFor !== null;
   if (wasSheet) closeSheet();
-  closeNewCard();
   const t = (e.state && e.state.tab) || "connect";
   const i = tabHist.lastIndexOf(t);
   tabHist = tabHist.slice(0, i >= 0 ? i + 1 : 1);
@@ -312,7 +403,7 @@ function paintHero() {
 
 function setBusy(b) {
   busy = b;
-  for (const id of ["btn-connect", "btn-generate"]) $(id).disabled = b;
+  for (const id of ["btn-connect"]) $(id).disabled = b;
   paintHero();
 }
 
@@ -350,83 +441,17 @@ $("card-sni-select").onchange = () => {
   if (!$("card-sni").hidden) $("card-sni").focus();
 };
 
-// Card counter follows the rows on screen, never waits for the server.
-function paintCardsCount() {
-  const n = $("cards").children.length;
-  $("cards-count").textContent = n ? "(" + n + ")" : "";
-}
 async function refresh() {
   const st = await call("get_state");
   if (!st || !st.cards) return;
   serverHost = st.server_ip || "";
   serverIp = "";
   paintHero();
-  const list = $("cards");
-  list.innerHTML = "";
-  $("cards-count").textContent = st.cards.length ? `(${st.cards.length})` : "";
-  $("btn-add-card").style.display = st.cards.length ? "" : "none";
-  list.classList.toggle("is-empty", !st.cards.length);
-  if (!st.cards.length) {
-    list.innerHTML = `<p class="empty">${t("noCards")}</p>`;
-    const b = document.createElement("button");
-    b.textContent = t("firstCard");
-    b.onclick = () => openNewCard();
-    const wrap = document.createElement("p");
-    wrap.className = "empty";
-    wrap.append(b);
-    list.append(wrap);
-    fillTunnelCards([]);
-    maybeCoach(false);
-    return;
-  }
-  for (const c of st.cards) {
-    const row = document.createElement("div");
-    row.className = "cardrow";
-    row.dataset.uuid = c.uuid;
-    const dotCls = c.card_type.startsWith("Gamerz") ? "gamerz" : "streamerz";
-    row.innerHTML = `<span class="dot ${dotCls}"></span>
-      <div class="meta"><div class="name"></div><div class="sni"></div><div class="use"></div></div>`;
-    row.querySelector(".name").textContent = c.name;
-    const rawSni = c.sni || c.card_type;
-    const sniEl = row.querySelector(".sni");
-    sniEl.dataset.raw = rawSni;
-    sniEl.textContent = c.sni || kindName(c.card_type);
-    const bCopy = document.createElement("button");
-    bCopy.className = "btn-copy";
-    bCopy.textContent = t("copy");
-    bCopy.onclick = async () => {
-      const r = await call("copy_card", { uuid: c.uuid });
-      bar(r.ok, r.msg);
-    };
-    const bRev = document.createElement("button");
-    bRev.className = "btn-rev";
-    bRev.textContent = t("revoke");
-    bRev.onclick = async () => {
-      if (busy) return;
-      // Destructive: first tap arms, second tap removes.
-      if (bRev.dataset.arm !== "1") {
-        bRev.dataset.arm = "1";
-        bRev.textContent = t("revokeSure");
-        bRev.classList.add("armed");
-        setTimeout(() => {
-          if (bRev.isConnected) { bRev.dataset.arm = ""; bRev.textContent = t("revoke"); bRev.classList.remove("armed"); }
-        }, 3000);
-        return;
-      }
-      // Optimistic: the row goes at once, the server reconciles after.
-      row.remove();
-      paintCardsCount();
-      try {
-        const r = await call("revoke_card", { uuid: c.uuid });
-        bar(r.ok, r.msg);
-        await refresh();
-      } finally { setBusy(false); }
-    };
-    row.append(bCopy, bRev);
-    list.append(row);
-  }
-  maybeCoach(true);
+  cardsCache = st.cards;
   fillTunnelCards(st.cards);
+  maybeCoach(st.cards.length > 0);
+  paintPresets();
+  paintDomain();
   // Slow DNS last: the list is already painted, the IP fills in after.
   if (serverHost && /[a-zA-Z]/.test(serverHost)) {
     try { serverIp = await call("resolve_host", { host: serverHost }); } catch (e) { serverIp = ""; }
@@ -434,15 +459,8 @@ async function refresh() {
   }
 }
 
-document.querySelectorAll("#kind-seg button").forEach((b) => {
-  b.onclick = () => {
-    kind = b.dataset.kind;
-    document.querySelectorAll("#kind-seg button").forEach((x) =>
-      x.classList.toggle("on", x === b));
-    $("card-sni-select").value = DEFAULT_SNI[kind];
-    $("card-sni").hidden = true;
-    updateSniBtn();
-  };
+document.querySelectorAll("#presets .preset").forEach((b) => {
+  b.onclick = () => pickPreset(b.dataset.kind);
 });
 
 // Probe + diagnostics run silently now: no user-facing server tools.
@@ -755,9 +773,12 @@ function updateCardBtn() {
   $("tunnel-card-name").textContent = (opt && opt.value) ? opt.textContent : t("noCardsOpt");
 }
 function updateSniBtn() {
+  // The domain picker is a sheet now; the old inline button is gone.
+  const el = $("card-sni-name");
+  if (!el) return;
   const sel = $("card-sni-select");
   const opt = sel.options[sel.selectedIndex];
-  $("card-sni-name").textContent = opt ? opt.textContent : "-";
+  el.textContent = opt ? opt.textContent : "-";
 }
 function optRow(main, sub, selected, onclick) {
   const b = document.createElement("button");
@@ -782,50 +803,59 @@ function openSheet(which) {
   sheetFor = which;
   const list = $("sheet-list");
   list.innerHTML = "";
-  if (which === "card") {
-    $("sheet-title").textContent = t("cardForVpn");
-    const sel = $("tunnel-card");
-    const usable = [...sel.options].filter((o) => o.value);
-    if (!usable.length) {
-      const b = document.createElement("button");
-      b.className = "opt dim";
-      b.textContent = t("noCardsOpt");
-      b.onclick = () => { closeSheet(); goTab("cards"); openNewCard(); };
-      list.append(b);
-    }
-    usable.forEach((o) => {
-      list.append(optRow(o.textContent.split(" (")[0], o.dataset.sni || "", o.value === sel.value, () => {
-        sel.value = o.value;
-        $("tunnel-card").onchange();
-        closeSheet();
-      }));
-    });
-    $("tunnel-card-btn").setAttribute("aria-expanded", "true");
-  } else {
-    $("sheet-title").textContent = t("domainSni");
-    const sel = $("card-sni-select");
-    // Only this card type's domains: Gamerz never sees Streamerz entries.
-    const want = kindName(kind);
-    [...sel.options].forEach((o) => {
-      const grp = o.parentElement.tagName === "OPTGROUP" ? o.parentElement.label : "";
-      if (grp && grp !== want) return;
-      list.append(optRow(o.textContent, "", o.value === sel.value, () => {
-        sel.value = o.value;
-        $("card-sni-select").onchange();
-        closeSheet();
-      }));
-    });
-    $("card-sni-btn").setAttribute("aria-expanded", "true");
-  }
+  $("sheet-title").textContent = t("cardForVpn");
+  const kindNow = activeKind();
+  const cur = (activeCard() && activeCard().sni) || DEFAULT_SNI[kindNow];
+  SNIS[kindNow].forEach(([label, domain]) => {
+    list.append(optRow(label + " · " + domain, "", domain === cur, () => { closeSheet(); void applyDomain(domain); }));
+  });
+  list.append(optRow(t("customDomainOpt"), "", false, () => { closeSheet(); openCustomDomain(); }));
+  $("tunnel-card-btn").setAttribute("aria-expanded", "true");
   list.scrollTop = 0;
-  // Domain picker gets a live filter; the card picker stays a plain list.
   const ss = $("sheet-search");
-  if (which === "sni") { ss.hidden = false; ss.value = ""; }
-  else { ss.hidden = true; ss.value = ""; }
+  ss.hidden = false;
+  ss.value = "";
   $("sheet-back").hidden = false;
   const sh = $("sheet");
   sh.hidden = false;
   requestAnimationFrame(() => requestAnimationFrame(() => sh.classList.add("open")));
+  try { history.pushState({ tab: currentTab(), sheet: 1 }, ""); } catch (e) {}
+}
+
+// Custom server: the same sheet, one field and an action.
+function openCustomDomain() {
+  sheetFor = "custom";
+  const list = $("sheet-list");
+  list.innerHTML = "";
+  $("sheet-title").textContent = t("customDomainOpt");
+  const wrap = document.createElement("div");
+  wrap.className = "sheet-form";
+  const inp = document.createElement("input");
+  inp.id = "custom-domain-input";
+  inp.placeholder = "example.com";
+  inp.autocomplete = "off";
+  inp.spellcheck = false;
+  const btn = document.createElement("button");
+  btn.className = "second";
+  btn.textContent = t("applyDomainBtn");
+  btn.onclick = () => {
+    const v = inp.value.trim();
+    if (!v) return;
+    closeSheet();
+    void applyDomain(v);
+  };
+  inp.onkeydown = (e) => { if (e.key === "Enter") btn.click(); };
+  wrap.append(inp, btn);
+  list.append(wrap);
+  $("tunnel-card-btn").setAttribute("aria-expanded", "true");
+  const ss = $("sheet-search");
+  ss.hidden = true;
+  ss.value = "";
+  $("sheet-back").hidden = false;
+  const sh = $("sheet");
+  sh.hidden = false;
+  requestAnimationFrame(() => requestAnimationFrame(() => sh.classList.add("open")));
+  setTimeout(() => inp.focus(), 220);
   try { history.pushState({ tab: currentTab(), sheet: 1 }, ""); } catch (e) {}
 }
 function closeSheet() {
@@ -833,13 +863,11 @@ function closeSheet() {
   $("sheet-search").hidden = true;
   $("sheet-search").value = "";
   $("tunnel-card-btn").setAttribute("aria-expanded", "false");
-  $("card-sni-btn").setAttribute("aria-expanded", "false");
   const sh = $("sheet");
   sh.classList.remove("open");
   setTimeout(() => { sh.hidden = true; $("sheet-back").hidden = true; }, 200);
 }
-$("tunnel-card-btn").onclick = () => openSheet("card");
-$("card-sni-btn").onclick = () => openSheet("sni");
+$("tunnel-card-btn").onclick = () => openSheet("sni");
 $("sheet-back").onclick = closeSheet;
 $("sheet-search").oninput = (e) => {
   const q = e.target.value.trim().toLowerCase();
@@ -848,24 +876,7 @@ $("sheet-search").oninput = (e) => {
     el.style.display = (!q || el.textContent.toLowerCase().includes(q)) ? "" : "none";
   });
 };
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (sheetFor) closeSheet(); closeNewCard(); } });
-// New-card dialog: centered, same overlay pattern as the pickers.
-function openNewCard() {
-  $("nc-back").hidden = false;
-  const sh = $("newcard-sheet");
-  sh.hidden = false;
-  requestAnimationFrame(() => requestAnimationFrame(() => sh.classList.add("open")));
-  setTimeout(() => { const n = $("card-name"); if (n) n.focus(); }, 220);
-}
-function closeNewCard() {
-  const sh = $("newcard-sheet");
-  if (!sh || sh.hidden) return;
-  sh.classList.remove("open");
-  setTimeout(() => { sh.hidden = true; $("nc-back").hidden = true; }, 200);
-}
-$("btn-add-card").onclick = openNewCard;
-$("btn-cancel-card").onclick = closeNewCard;
-$("nc-back").onclick = closeNewCard;
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && sheetFor) closeSheet(); });
 // Settings rows: routing opens the apps view, which is a full screen now.
 $("row-routing").onclick = () => goTab("apps");
 $("btn-apps-back").onclick = () => goTab("settings");
@@ -965,21 +976,6 @@ $("btn-connect").onclick = async () => {
   } finally { setBusy(false); }
 };
 
-$("btn-generate").onclick = async () => {
-  if (busy) return;
-  const sni = selectedSni() || DEFAULT_SNI[kind];
-  setBusy(true);
-  try {
-    const r = await call("generate_card", {
-      name: $("card-name").value.trim(),
-      kind,
-      sni,
-    });
-    bar(r.ok, r.msg);
-    await refresh();
-    if (r.ok) closeNewCard();
-  } finally { setBusy(false); }
-};
 
 document.querySelectorAll("#lang-seg button").forEach((b) => {
   b.onclick = () => applyLang(b.dataset.lang);

@@ -232,6 +232,25 @@ async fn copy_card(state: tauri::State<'_, State>, app: tauri::AppHandle, uuid: 
     }
 }
 
+#[tauri::command]
+async fn set_card_sni(state: tauri::State<'_, State>, uuid: String, sni: String) -> Result<CmdResult, String> {
+    // The domain is what the user picks now; the card behind it is bookkeeping.
+    // Same contract as the desktop command.
+    let sni = sni.trim().to_string();
+    if sni.is_empty() {
+        return Ok(CmdResult { ok: false, msg: "Pick a domain first.".into() });
+    }
+    let mut cfg = state.0.lock().unwrap();
+    match cfg.cards.iter_mut().find(|c| c.uuid == uuid) {
+        Some(c) => {
+            c.sni = sni;
+            cfg.save();
+            Ok(CmdResult { ok: true, msg: "Domain updated.".into() })
+        }
+        None => Ok(CmdResult { ok: false, msg: "Card not found.".into() }),
+    }
+}
+
 #[derive(serde::Serialize)]
 struct TunnelState {
     running: bool,
@@ -617,6 +636,7 @@ pub fn run() {
             generate_card,
             revoke_card,
             copy_card,
+            set_card_sni,
             tunnel_start,
             tunnel_stop,
             tunnel_status,

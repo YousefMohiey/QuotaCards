@@ -47,6 +47,11 @@
     tunnel_open_vpn_settings: () => ({}),
     tunnel_open_bg_settings: () => ({}),
     copy_card: () => ({ ok: true, msg: "Card link copied." }),
+    set_card_sni: (a) => {
+      const c = cards.find((x) => x.uuid === a.uuid);
+      if (c) c.sni = String(a.sni || c.sni);
+      return ok("Domain updated.");
+    },
     generate_card: (a) => {
       cards.push({
         uuid: "33333333-3333-4333-8333-" + String(Date.now()).slice(-12),

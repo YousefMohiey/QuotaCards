@@ -584,3 +584,18 @@ button:disabled { opacity: 0.45; }
 
 #sp-run{background:var(--accent); border-color:transparent; color:#fff; font-weight:600; font-size:14px}
 #sp-run:active{filter:brightness(1.1)}
+
+/* Preset pair: the two packages side by side, exactly like the desktop's
+   two-up. The user picks a package and the server it rides; the card behind
+   it is created on demand and never shown. */
+.presets{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0 4px; width:100%}
+.preset{display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:4px; min-height:64px;
+  padding:10px 12px; border-radius:var(--r-card,16px); border:1px solid var(--line); background:rgb(255 255 255 / 0.02); color:var(--txt2); text-align:start}
+.preset.on{border-color:var(--accent-line); background:var(--accent-bg); color:var(--txt); box-shadow:inset 0 1px 0 rgb(255 255 255 / 0.08)}
+.preset-name{display:flex; align-items:center; gap:6px; font-size:13.5px; font-weight:600; min-width:0; max-width:100%}
+.preset-name svg{width:16px; height:16px; flex:none}
+.preset.on .preset-name svg{color:var(--accent-strong)}
+.preset-sni{width:100%; font-size:11px; color:var(--txt3); font-variant-numeric:tabular-nums; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-inline-start:22px}
+[lang="ar"] .preset-sni{padding-inline-start:0; padding-inline-end:22px}
+.preset:disabled{opacity:.6}
+.preset:active{transform:scale(0.985)}
