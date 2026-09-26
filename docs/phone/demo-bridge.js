@@ -30,7 +30,7 @@
   const ok = (msg) => ({ ok: true, msg });
 
   const handlers = {
-    get_state: () => ({ cards, server_ip: "quotacards.duckdns.org", version: "0.3.5" }),
+    get_state: () => ({ cards, server_ip: "qc-speed.example.com", version: "0.3.5" }),
     probe_server: () => ok("Server reachable."),
     tunnel_start: () => { running = true; return ok("Engine started."); },
     tunnel_stop: () => { running = false; return ok("Engine stopped."); },

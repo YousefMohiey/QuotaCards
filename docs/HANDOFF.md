@@ -229,7 +229,7 @@ python tools/make-icons.py   # ALL_VERIFIED means every frame is correct
    `android/tauri-app/src-tauri/Cargo.toml`.
 2. Build the installer and the APK.
 3. Publish the GitHub release with four assets: the setup exe, its `.sig`, `latest.json`, and
-   `QuotaCards-mobile-signed.apk`. Ship both platforms at the same version or the phone will be
+   `QuotaVPN-mobile-signed.apk`. Ship both platforms at the same version or the phone will be
    offered a release with no APK. Commit and push the bump before creating the release: the tag
    follows the remote default branch, and the installer's `QC_BUILD` stamp should be the
    published commit.
