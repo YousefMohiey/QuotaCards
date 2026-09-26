@@ -32,9 +32,9 @@ Your ISP classifies a connection from the TLS handshake at its start, and that i
 
 ## Screenshots
 
-| Connected | Servers | Arabic |
+| Connected | Speed test | Profiles |
 |---|---|---|
-| ![Windows app, connected](assets/app-home.png) | ![Server picker](assets/app-servers.png) | ![Arabic interface](assets/app-arabic.png) |
+| ![Windows app, connected](assets/app-home.png) | ![Speed screen](assets/app-speed.png) | ![Profile tiles](assets/app-valorant.png) |
 
 One tap connects. The profile tiles pick the quota class, the Server row picks the address, and the session counters run while you are on.
 
