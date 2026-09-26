@@ -379,13 +379,8 @@
   .stage-head{display:flex; flex-direction:column; gap:10px; margin:0 0 16px}
   .win{background:var(--panel); border:1px solid var(--glass-line); border-radius:var(--r-panel);
     box-shadow:var(--sh-panel); overflow:hidden; margin-top:16px}
-  .win-bar{display:flex; align-items:center; justify-content:space-between; gap:12px; height:40px;
-    padding:0 14px; border-bottom:1px solid var(--line); background:var(--side); color:var(--txt3); font-size:12.5px}
-  .win-id{display:inline-flex; align-items:center; gap:9px; color:var(--txt2); font-weight:570; min-width:0}
-  .win-id img{width:17px; height:17px; border-radius:4px; display:block}
-  .win-id em{font-style:normal; color:var(--txt3); font-weight:500}
-  .win-ctrls{display:inline-flex; align-items:center; gap:12px; color:var(--txt3); flex:none}
-  .win-ctrls svg{width:15px; height:15px}
+  .win-ctrl{position:absolute; right:10px; top:8px; display:flex; gap:4px; color:var(--txt2); pointer-events:none}
+  .win-ctrl svg{width:36px; height:36px; padding:10px; box-sizing:border-box; border-radius:10px; opacity:.85}
   .win-body{position:relative; overflow:hidden; background:var(--bg)}
   .win-open{display:none}
   @media (max-width:760px){
@@ -407,6 +402,13 @@
   .phone-copy{display:flex; flex-direction:column; gap:18px}
   .phone-copy .rows{margin-top:0}
   .phone .demo-cap{padding:12px 4px 0}
+  @media (max-width:600px){
+    /* narrower column and calmer type: the page is read on a phone here */
+    .wrap{padding:0 18px}
+    h2{font-size:19px}
+    .sub{font-size:13px}
+    .phone-shell{width:min(340px,100%)}
+  }
   @media (max-width:900px){
     .phone-stage{grid-template-columns:minmax(0,1fr); gap:22px}
     .phone{min-width:0; width:100%; max-width:410px; margin:0 auto}
@@ -455,16 +457,13 @@
       <p class="sub">This is the real interface, the same build you install: same screens, same animations. Press Connect, move around, run a speed test. Nothing on this machine changes.</p>
     </div>
     <div class="win">
-      <div class="win-bar">
-        <span class="win-id"><img src="assets/icon.png" alt=""> QuotaVPN <em id="verWin">v0.3.5</em></span>
-        <span class="win-ctrls" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 12h12"/></svg>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/></svg>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>
-        </span>
-      </div>
       <div class="win-body" id="winBody">
         <iframe id="appFrame" src="app/index.html" title="QuotaVPN for Windows, live interactive demo" loading="lazy"></iframe>
+        <div class="win-ctrl" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"><rect x="6.5" y="6.5" width="11" height="11" rx="1"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>
+        </div>
         <a class="win-open" href="app/index.html" target="_blank" rel="noopener"><span>Open the live demo full screen</span></a>
       </div>
     </div>
@@ -763,6 +762,13 @@
     fit('winBody', 1060, 700);
     fit('phoneScreen', 390, 844);
   }
+  // Phone visitors meet the phone build first; both demos stay on the page.
+  try {
+    if(window.matchMedia('(max-width:900px)').matches){
+      var d = document.getElementById('demo'), a = document.getElementById('android');
+      if(d && a && d.parentNode === a.parentNode) d.parentNode.insertBefore(a, d);
+    }
+  } catch(e){}
   window.addEventListener('resize', all);
   window.addEventListener('orientationchange', all);
   if(document.readyState === 'complete') all(); else window.addEventListener('load', all);
