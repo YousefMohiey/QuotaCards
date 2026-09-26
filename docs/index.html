@@ -66,312 +66,405 @@
 }
 </script>
 <style>
-  /* Tokens mirror the desktop app one-to-one (desktop/ui-next/src/index.css):
-     charcoal-navy ladder, silver hairlines, one royal-blue accent. */
+  /* ==========================================================================
+     QuotaVPN website. Every value below is taken from the desktop app's own
+     design system (desktop/ui-next/src/index.css): the charcoal-navy surface
+     ladder, silver hairlines, one royal-blue accent, and the app's radii.
+     The app runs a true-black theme by owner call (no glow scene), so this
+     page is flat too. Same product, same skin.
+     ========================================================================== */
   :root{
+    /* surfaces */
     --bg:#10141c; --side:#131a29; --panel:#111826; --panel-hover:#161e30; --field:#1a2338;
-    --line:rgb(255 255 255 / .08); --line-strong:rgb(255 255 255 / .14);
+    /* lines */
+    --line:rgb(255 255 255 / .08); --line-strong:rgb(255 255 255 / .14); --glass-line:rgb(255 255 255 / .12);
+    /* text */
     --txt:#eef1f6; --txt2:#a7b0bf; --txt3:#8b95a6;
-    --brand:#1f59b6; --brand-strong:#5b8def; --brand-bg:rgb(31 89 182 / .14); --brand-line:rgb(31 89 182 / .4);
-    --green:#5cb28e;
-    --r-ctl:10px; --r-card:16px; --r-pill:999px;
-    --sh-2:0 16px 40px rgb(0 0 0 / .45), 0 2px 8px rgb(0 0 0 / .35);
+    /* one accent + muted semantics */
+    --brand:#1f59b6; --brand-hi:#2870d1; --brand-strong:#5b8def;
+    --brand-bg:rgb(31 89 182 / .14); --brand-line:rgb(31 89 182 / .4);
+    --green:#5cb28e; --amber:#c49a58;
+    /* shape + elevation, as in the app */
+    --r-sm:6px; --r-ctl:10px; --r-card:16px; --r-panel:20px; --r-hero:24px;
+    --sh-panel:inset 0 -12px 24px rgb(0 0 0 / .18), 0 24px 60px rgb(0 0 0 / .35);
+    /* motion */
     --ease-out:cubic-bezier(.1,.9,.2,1);
   }
   *{box-sizing:border-box}
   html{-webkit-text-size-adjust:100%; color-scheme:dark; scroll-behavior:smooth}
   body{
-    margin:0; background:
-      radial-gradient(980px 460px at 82% -14%, rgb(31 89 182 / .12), transparent 62%),
-      radial-gradient(700px 380px at 6% -10%, rgb(91 141 239 / .06), transparent 60%),
-      var(--bg); color:var(--txt);
-    font:16px/1.6 "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+    margin:0; background:var(--bg); color:var(--txt);
+    font:14px/1.5 "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+    font-variant-numeric:tabular-nums;
     -webkit-font-smoothing:antialiased;
   }
   a{color:inherit; text-decoration:none}
   img{max-width:100%; height:auto}
-  :focus-visible{outline:2px solid var(--brand-strong); outline-offset:3px; border-radius:var(--r-ctl)}
-  .wrap{max-width:1120px; margin:0 auto; padding:0 24px}
+  ::-webkit-scrollbar{width:10px; height:10px}
+  ::-webkit-scrollbar-thumb{background:rgb(255 255 255 / .1); border-radius:999px; border:3px solid transparent; background-clip:content-box}
+  ::-webkit-scrollbar-thumb:hover{background:rgb(255 255 255 / .18); background-clip:content-box}
+  ::-webkit-scrollbar-track{background:transparent}
+  :focus-visible{outline:2px solid var(--brand-strong); outline-offset:2px}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px}
 
-  /* top bar, like the app's title strip */
-  .top{position:sticky; top:0; z-index:20; background:rgb(19 26 41 / .82); backdrop-filter:blur(12px);
+  /* ---- the app's Panel + glass material, solid form ---------------------- */
+  .panel{
+    background:var(--bg); border:1px solid var(--glass-line); border-radius:var(--r-panel);
+    box-shadow:var(--sh-panel); overflow:hidden;
+  }
+  .panel-soft{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden}
+
+  /* ---- header (mirrors the app's sidebar header) ------------------------- */
+  .top{position:sticky; top:0; z-index:20; background:rgb(16 20 28 / .88); backdrop-filter:blur(20px) saturate(150%);
     border-bottom:1px solid var(--line)}
-  .top .in{display:flex; align-items:center; gap:11px; padding:13px 0}
-  .top img{width:30px; height:30px; border-radius:8px}
-  .top .name{font-weight:600; font-size:15.5px; letter-spacing:.1px}
+  .top .in{display:flex; align-items:center; gap:10px; padding:12px 0}
+  .top img{width:28px; height:28px; border-radius:8px; flex:none}
+  .top .name{font-size:14.5px; font-weight:600; letter-spacing:.1px; white-space:nowrap}
+  .ver{flex:none; font-size:11.5px; color:var(--brand-strong); background:var(--brand-bg); border:1px solid var(--brand-line);
+    border-radius:999px; padding:2px 9px; margin-left:2px; letter-spacing:.2px; white-space:nowrap}
   .top .sp{flex:1}
-  .top nav{display:flex; gap:22px; align-items:center; font-size:14px; color:var(--txt2)}
-  .top nav a:hover{color:var(--txt)}
+  .top nav{display:flex; align-items:center; gap:18px; font-size:13px; color:var(--txt2); flex:none}
+  .top nav a.txt{transition:color .18s var(--ease-out)}
+  .top nav a.txt:hover{color:var(--txt)}
+  .iconbtn{display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px;
+    border-radius:var(--r-ctl); border:1px solid var(--line-strong); color:var(--txt2); background:rgb(255 255 255 / .02);
+    transition:color .18s var(--ease-out), border-color .18s var(--ease-out), background .18s var(--ease-out), transform .18s var(--ease-out)}
+  .iconbtn:hover{color:var(--txt); border-color:var(--glass-line); background:rgb(255 255 255 / .06); transform:translateY(-1px)}
 
-  .btn{display:inline-flex; align-items:center; justify-content:center; gap:9px; border-radius:var(--r-ctl);
-    padding:12px 20px; font-size:15px; font-weight:570; letter-spacing:-.1px; border:1px solid transparent;
+  /* ---- buttons (the app's control radius + weights) ---------------------- */
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:var(--r-ctl);
+    padding:11px 18px; font-size:13.5px; font-weight:570; letter-spacing:-.05px; border:1px solid transparent; cursor:pointer;
     transition:background .18s var(--ease-out), border-color .18s var(--ease-out), transform .18s var(--ease-out)}
   .btn:active{transform:translateY(1px)}
   .btn.primary{background:var(--brand); color:#fff}
-  .btn.primary:hover{background:#2870d1}
-  .btn.ghost{background:var(--field); color:var(--txt); border-color:var(--line-strong)}
-  .btn.ghost:hover{background:var(--panel-hover)}
-  .btn.small{padding:0 15px; height:34px; font-size:13.5px; border-radius:var(--r-ctl)}
-  .btn.small.nav{background:var(--brand); border-color:transparent; color:#fff}
-  .btn.small.nav:hover{background:#2870d1}
-  .cta .btn{min-width:180px}
-  .ver{margin-left:5px; font-size:12px; color:var(--brand-strong); background:var(--brand-bg); border:1px solid var(--brand-line);
-    border-radius:var(--r-pill); padding:2px 9px; letter-spacing:.2px; font-variant-numeric:tabular-nums}
-  .iconbtn{display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px;
-    border-radius:var(--r-ctl); border:1px solid var(--line-strong); color:var(--txt2); background:var(--field);
-    transition:color .18s var(--ease-out), border-color .18s var(--ease-out), background .18s var(--ease-out), transform .18s var(--ease-out)}
-  .iconbtn:hover{color:var(--txt); border-color:var(--brand-line); background:var(--panel-hover); transform:translateY(-1px)}
-  .btn.small.nav{background:var(--brand-bg); border-color:var(--brand-line); color:var(--brand-strong)}
-  .btn.small.nav:hover{background:rgb(31 89 182 / .22)}
-  .cta .btn{min-width:180px}
-  .window.crop{padding:0; overflow:hidden; aspect-ratio:1330/872}
-  .window.crop img{width:100%; height:100%; object-fit:cover; object-position:74% 40%; border-radius:var(--r-card)}
-  .btn.small{padding:8px 14px; font-size:13.5px; border-radius:9px}
+  .btn.primary:hover{background:var(--brand-hi)}
+  .btn.ghost{background:rgb(255 255 255 / .02); color:var(--txt); border-color:var(--line-strong)}
+  .btn.ghost:hover{background:rgb(255 255 255 / .06)}
+  .btn.sm{padding:0 14px; height:32px; font-size:12.5px; border-radius:var(--r-ctl)}
+  .btn.sm.nav{background:var(--brand); color:#fff; border-color:transparent}
+  .btn.sm.nav:hover{background:var(--brand-hi)}
 
-  /* hero */
-  .hero{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.06fr); gap:48px; align-items:center; padding:56px 0 40px}
-  .eyebrow{font-size:13.5px; color:var(--txt3); letter-spacing:.3px; margin-bottom:14px}
-  h1{font-size:47px; line-height:1.06; letter-spacing:-1.1px; margin:0 0 16px; font-weight:600; text-wrap:balance}
-  h1 span{color:var(--brand-strong)}
-  .lead{color:var(--txt2); font-size:16.8px; line-height:1.62; max-width:50ch; margin:0; text-wrap:pretty}
-  .cta{display:flex; gap:12px; flex-wrap:wrap; margin-top:26px}
-  .note{color:var(--txt3); font-size:12.8px; margin:16px 0 0; letter-spacing:.1px}
+  /* ---- shared bits ------------------------------------------------------- */
+  .eyebrow{font-size:11px; font-weight:500; letter-spacing:.07em; text-transform:uppercase; color:var(--txt3)}
+  h1{font-size:34px; line-height:1.16; letter-spacing:-.7px; font-weight:600; margin:0; text-wrap:balance}
+  h2{font-size:20px; letter-spacing:-.25px; font-weight:600; margin:0; text-wrap:balance}
+  .lead{color:var(--txt2); font-size:14.5px; line-height:1.6; margin:0; max-width:62ch; text-wrap:pretty}
+  .sub{color:var(--txt2); font-size:13.5px; margin:0; max-width:70ch; text-wrap:pretty}
+  section{padding:34px 0}
 
-  /* the app window: same panel language as the app */
-  .window{position:relative; border:1px solid var(--line); background:var(--panel); border-radius:var(--r-card);
-    padding:8px; box-shadow:var(--sh-2)}
-  .window img{display:block; width:100%; border-radius:calc(var(--r-card) - 6px)}
-  .window::after{content:""; position:absolute; inset:-1px; border-radius:var(--r-card); pointer-events:none;
-    border:1px solid var(--brand-line); opacity:.5}
+  /* ---- hero: copy, then the app itself as the main visual ---------------- */
+  .hero{padding:44px 0 24px; max-width:720px}
+  .hero .eyebrow{margin-bottom:12px}
+  .hero h1{margin-bottom:14px}
+  .hero .lead{margin-bottom:24px}
+  .cta{display:flex; gap:10px; flex-wrap:wrap}
+  .note{color:var(--txt3); font-size:12.5px; margin:16px 0 0}
 
+  /* the app shot: presented in the app's own material, full width */
+  .shot{display:block; margin-top:8px}
+  .shot img{display:block; width:100%; border-radius:calc(var(--r-hero) - 8px)}
+  .shot-frame{border:1px solid var(--glass-line); background:var(--bg); border-radius:var(--r-hero);
+    box-shadow:var(--sh-panel); padding:8px}
+  .shot-cap{display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; padding:14px 6px 0; color:var(--txt3); font-size:12.5px}
+  .shot-cap b{color:var(--txt2); font-weight:570}
+
+  /* ---- the facts strip: hairline cells, no cards ------------------------- */
   .strip{display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
-  .strip div{padding:20px 26px}
-  .strip div + div{border-left:1px solid var(--line)}
-  .strip b{display:block; font-size:16.5px; font-weight:570; margin-bottom:3px}
-  .strip span{color:var(--txt2); font-size:14px}
+  .strip > div{padding:16px 20px}
+  .strip > div + div{border-left:1px solid var(--line)}
+  .strip b{display:block; font-size:13.5px; font-weight:570; margin-bottom:2px}
+  .strip span{color:var(--txt3); font-size:12.5px}
 
-  section{padding:64px 0}
-  section.tinted{background:var(--side); border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
-  h2{font-size:27px; letter-spacing:-.5px; margin:0 0 10px; font-weight:560; text-wrap:balance}
-  .sub{color:var(--txt2); margin:0 0 34px; max-width:64ch; text-wrap:pretty}
+  /* ---- app-style rows: one panel, hairline separated --------------------- */
+  .rows{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-panel); overflow:hidden}
+  .row{display:flex; gap:20px; padding:14px 18px; border-bottom:1px solid var(--line); align-items:flex-start;
+    transition:background .18s var(--ease-out)}
+  .row:last-child{border-bottom:0}
+  .row:hover{background:rgb(255 255 255 / .02)}
+  .row .k{flex:none; width:168px; color:var(--txt2); font-size:12.5px; padding-top:2px}
+  .row .v{flex:1; min-width:0}
+  .row .v b{display:block; font-size:13.5px; font-weight:570; margin-bottom:3px}
+  .row .v p{margin:0; color:var(--txt2); font-size:13px; line-height:1.55}
+  .row .v code{background:rgb(255 255 255 / .05); border:1px solid var(--line); border-radius:6px; padding:1px 6px; font-size:12px}
 
-  .cards{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px}
-  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-card); padding:22px 24px;
-    transition:border-color .18s var(--ease-out), background .18s var(--ease-out)}
-  .card:hover{border-color:var(--line-strong); background:var(--panel-hover)}
-  .card h3{margin:0 0 7px; font-size:16.5px; font-weight:570}
-  .card p{margin:0; color:var(--txt2); font-size:14.8px}
+  /* ---- segmented, exactly like the app's transport picker ---------------- */
+  .seg{display:inline-flex; border:1px solid var(--line); background:rgb(255 255 255 / .02); border-radius:var(--r-ctl); padding:2px}
+  .seg button{appearance:none; border:0; background:transparent; color:var(--txt3); font:inherit; font-size:12.5px;
+    padding:6px 12px; border-radius:8px; cursor:pointer; transition:color .18s var(--ease-out), background .18s var(--ease-out)}
+  .seg button[aria-pressed="true"]{background:rgb(255 255 255 / .1); color:var(--txt)}
+  .seg button:not([aria-pressed="true"]):hover{color:var(--txt2)}
+  .modes{margin-top:14px}
+  .mode-panel{margin-top:10px}
+  .mode{display:none}
+  .mode.on{display:block}
+  .mode .row:first-child{border-top:0}
 
-  table{width:100%; border-collapse:collapse; font-size:14.8px}
-  th,td{text-align:left; padding:13px 16px; border-bottom:1px solid var(--line)}
-  th{color:var(--txt3); font-weight:600; font-size:13px; letter-spacing:.4px; text-transform:uppercase}
-  tr:last-child td{border-bottom:0}
-  td:first-child{color:var(--txt); font-weight:560}
-  td{color:var(--txt2)}
-  .tblwrap{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden}
-
-  .gallery{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px}
+  /* ---- gallery ----------------------------------------------------------- */
+  .gallery{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px}
   figure{margin:0}
-  figcaption{color:var(--txt3); font-size:13.5px; margin-top:11px}
+  figcaption{color:var(--txt3); font-size:12.5px; margin-top:10px}
+  .gallery .pshot{border:1px solid var(--line); background:var(--panel); border-radius:var(--r-card); padding:6px;
+    transition:border-color .22s var(--ease-out), transform .22s var(--ease-out)}
+  .gallery .pshot img{display:block; width:100%; border-radius:calc(var(--r-card) - 4px)}
+  .gallery figure:hover .pshot{border-color:var(--glass-line); transform:translateY(-2px)}
 
-  details{border-top:1px solid var(--line)}
-  details:last-of-type{border-bottom:1px solid var(--line)}
-  summary{cursor:pointer; list-style:none; display:flex; justify-content:space-between; gap:18px; align-items:center;
-    padding:17px 2px; font-weight:600; font-size:15.5px}
+  /* ---- FAQ: the app's rows, as a disclosure list ------------------------- */
+  details{border-bottom:1px solid var(--line); transition:background .18s var(--ease-out)}
+  details:first-of-type{border-top:1px solid var(--line)}
+  details:hover{background:rgb(255 255 255 / .02)}
+  summary{cursor:pointer; list-style:none; display:flex; justify-content:space-between; gap:16px; align-items:center;
+    padding:15px 18px; font-size:13.5px; font-weight:570}
   summary::-webkit-details-marker{display:none}
-  summary::after{content:"+"; color:var(--brand-strong); font-weight:700; font-size:18px; line-height:1}
+  summary::after{content:"+"; color:var(--brand-strong); font-weight:600; font-size:16px; line-height:1; flex:none}
   details[open] summary::after{content:"\2212"}
-  details p{color:var(--txt2); margin:0 0 18px; max-width:72ch; font-size:15px}
+  details p{margin:0; padding:0 18px 16px; color:var(--txt2); font-size:13px; line-height:1.6; max-width:78ch}
 
-  .band{display:flex; gap:26px; align-items:center; flex-wrap:wrap;
-    background:linear-gradient(180deg, rgb(31 89 182 / .16), rgb(31 89 182 / .05));
-    border:1px solid var(--brand-line); border-radius:var(--r-card); padding:34px}
-  .band h2{margin:0 0 7px}
-  .band p{margin:0; color:var(--txt2); max-width:52ch}
-  .band .sp{flex:1}
+  /* ---- download ---------------------------------------------------------- */
+  .dl-actions{display:flex; gap:10px; flex-wrap:wrap; padding:16px 18px; border-top:1px solid var(--line); background:rgb(255 255 255 / .015)}
 
-  footer{border-top:1px solid var(--line); padding:28px 0 44px; color:var(--txt3); font-size:14px;
-    display:flex; gap:20px; flex-wrap:wrap; align-items:center}
-  footer a{color:var(--txt2)}
+  /* ---- footer ------------------------------------------------------------ */
+  footer{border-top:1px solid var(--line); margin-top:10px; padding:22px 0 40px; color:var(--txt3); font-size:12.5px;
+    display:flex; gap:18px; flex-wrap:wrap; align-items:center}
+  footer a{color:var(--txt2); transition:color .18s var(--ease-out)}
   footer a:hover{color:var(--txt)}
   footer .sp{flex:1}
 
-  @media (max-width:880px){
-    .hero{grid-template-columns:1fr; gap:30px; padding:38px 0 34px}
-    h1{font-size:33px; letter-spacing:-.5px}
-    .top nav a:not(.btn):not(.iconbtn){display:none}
-    @media (max-width:560px){ .ver{display:none} }
-    .cta{flex-direction:column; gap:10px; margin-top:22px}
-    .cta .btn{width:100%}
-    .cta .btn.ghost{order:-1}
-    .cta .btn.ghost{background:var(--brand); color:#fff; border-color:transparent}
-    .cta .btn.ghost:hover{background:#2870d1}
-    .cta .btn.primary{background:var(--field); color:var(--txt); border-color:var(--line-strong)}
-    .cta .btn.primary:hover{background:var(--panel-hover)}
-    .strip{grid-template-columns:1fr}
-    .strip div + div{border-left:0; border-top:1px solid var(--line)}
-    .cards,.gallery{grid-template-columns:1fr}
-    section{padding:44px 0}
-    .band{padding:24px}
-    .tblwrap{overflow-x:auto}
-    table{min-width:520px}
-  }
-  /* motion: entrance on load, reveal on scroll, lift on hover */
-  @keyframes rise{from{opacity:0; transform:translateY(14px)} to{opacity:1; transform:none}}
+  /* ---- motion ------------------------------------------------------------ */
+  @keyframes rise{from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none}}
   .reveal{opacity:0}
-  .reveal.in{animation:rise .62s var(--ease-out) both}
-  .hero > div{animation:rise .7s var(--ease-out) both}
-  .hero > div:nth-child(2){animation-delay:.09s}
-  .card:hover{transform:translateY(-2px); border-color:var(--brand-line)}
-  .card,.window,.strip div,summary{transition:transform .22s var(--ease-out), border-color .22s var(--ease-out), background .22s var(--ease-out)}
-  .window:hover,figure:hover .window{transform:translateY(-2px); border-color:var(--brand-line)}
-  summary:hover{color:var(--brand-strong)}
-  footer a{transition:color .18s var(--ease-out)}
+  .reveal.in{animation:rise .5s var(--ease-out) both}
+  .hero{animation:rise .6s var(--ease-out) both}
+  .hero .shot{animation-delay:.05s}
+
+  /* ---- responsive -------------------------------------------------------- */
+  @media (max-width:860px){
+    .hero{padding:26px 0 18px}
+    h1{font-size:26px; letter-spacing:-.4px}
+    h2{font-size:18px}
+    section{padding:26px 0}
+    .strip{grid-template-columns:1fr}
+    .strip > div + div{border-left:0; border-top:1px solid var(--line)}
+    .row{flex-direction:column; gap:6px; padding:13px 16px}
+    .row .k{width:auto; padding-top:0}
+    .gallery{grid-template-columns:1fr}
+    .top nav a.txt{display:none}
+    .top nav{gap:10px}
+  }
+  @media (max-width:420px){
+    .top .name{display:none}
+    .cta{flex-direction:column}
+    .cta .btn{width:100%}
+    .cta .btn.ghost{order:-1; background:var(--brand); color:#fff; border-color:transparent}
+    .cta .btn.primary{background:rgb(255 255 255 / .02); color:var(--txt); border-color:var(--line-strong)}
+  }
   @media (prefers-reduced-motion:reduce){
-    .reveal,.reveal.in,.hero > div{opacity:1; animation:none; transform:none}
-    .card:hover,.window:hover,figure:hover .window,.iconbtn:hover{transform:none}
     html{scroll-behavior:auto}
-    .btn,.card{transition:none}
+    .reveal,.reveal.in,.hero{opacity:1; animation:none; transform:none}
+    .btn,.row,.iconbtn,.gallery .pshot{transition:none}
+    .iconbtn:hover,.gallery figure:hover .pshot{transform:none}
   }
 </style>
 </head>
 <body>
 
-<div class="top"><div class="wrap in">
-  <img src="assets/icon.png" alt="">
-  <span class="name">QuotaVPN</span>
-  <span class="ver" id="ver" title="Latest release">v0.3.4</span>
-  <span class="sp"></span>
-  <nav>
-    <a href="#features">Features</a>
-    <a href="#how">How it works</a>
-    <a href="#faq">FAQ</a>
-    <a class="iconbtn" href="https://github.com/YousefMohiey/QuotaVPN" aria-label="QuotaVPN on GitHub" title="GitHub">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.1c-3.2.7-3.87-1.36-3.87-1.36-.53-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.24 2.76.12 3.05.74.81 1.18 1.83 1.18 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.13v3.16c0 .31.2.67.8.55A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
-    </a>
-    <a class="btn small nav" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest">Download</a>
-  </nav>
-</div></div>
-
-<div class="wrap">
-  <div class="hero">
-    <div>
-      <div class="eyebrow">Windows 10/11 and Android</div>
-      <h1>Your gaming and streaming packages, <span>used on purpose</span>.</h1>
-      <p class="lead">QuotaVPN is a personal VPN for lines sold in quota buckets. Pick the package, and your traffic counts against it.</p>
-      <div class="cta">
-        <a class="btn primary" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.2 4.5v7.1H3V5.5Zm0 13 7.2 1v-7H3v6Zm8.4 1.2L21 21V12.6h-9.6v7.1ZM11.4 4.3 21 3v8.6h-9.6V4.3Z"/></svg>Download for Windows
-        <a class="btn ghost" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.6 9.2h8.8c.3 0 .5.2.5.5v6.5c0 .8-.6 1.4-1.4 1.4h-.4v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-2.1v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-.4c-.8 0-1.4-.6-1.4-1.4v-6.5c0-.3.2-.5.5-.5Zm-2.3.1c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1Zm13.4 0c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1ZM15.1 4.3l.9-1.6a.3.3 0 0 0-.5-.3l-.9 1.6a5.6 5.6 0 0 0-5.2 0L8.5 2.4a.3.3 0 0 0-.5.3l.9 1.6A4.6 4.6 0 0 0 6.5 8h11a4.6 4.6 0 0 0-2.4-3.7Z"/></svg>Android APK
-      </div>
-      <p class="note">Free and open source &nbsp;·&nbsp; No account &nbsp;·&nbsp; MIT licensed</p>
-    </div>
-    <div class="window crop"><img src="assets/app-home.png" alt="QuotaVPN for Windows, connected to a gaming profile" width="1343" height="884"></div>
+<div class="top">
+  <div class="wrap in">
+    <img src="assets/icon.png" alt="">
+    <span class="name">QuotaVPN</span>
+    <span class="ver" id="ver" title="Latest release">v0.3.4</span>
+    <span class="sp"></span>
+    <nav>
+      <a class="txt" href="#features">Features</a>
+      <a class="txt" href="#how">How it works</a>
+      <a class="txt" href="#faq">FAQ</a>
+      <a class="iconbtn" href="https://github.com/YousefMohiey/QuotaVPN" aria-label="QuotaVPN on GitHub" title="GitHub">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.1c-3.2.7-3.87-1.36-3.87-1.36-.53-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.24 2.76.12 3.05.74.81 1.18 1.83 1.18 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.13v3.16c0 .31.2.67.8.55A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
+      </a>
+      <a class="btn sm nav" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest">Download</a>
+    </nav>
   </div>
 </div>
 
-<div class="wrap"><div class="strip">
-  <div><b>Signed updates</b><span>The app installs its own updates, verified</span></div>
-  <div><b>English and Arabic</b><span>The whole interface in both languages</span></div>
-  <div><b>Your own server</b><span>Bring a box, one script sets it up</span></div>
-</div></div>
+<div class="wrap hero">
+  <div class="eyebrow">Windows 10/11 and Android</div>
+  <h1>Your gaming and streaming packages, used on purpose.</h1>
+  <p class="lead">Your ISP reads the TLS handshake to decide which quota a session counts against. QuotaVPN puts a server name from the package you picked on it.</p>
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.2 4.5v7.1H3V5.5Zm0 13 7.2 1v-7H3v6Zm8.4 1.2L21 21V12.6h-9.6v7.1ZM11.4 4.3 21 3v8.6h-9.6V4.3Z"/></svg>Download for Windows</a>
+    <a class="btn ghost" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.6 9.2h8.8c.3 0 .5.2.5.5v6.5c0 .8-.6 1.4-1.4 1.4h-.4v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-2.1v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-.4c-.8 0-1.4-.6-1.4-1.4v-6.5c0-.3.2-.5.5-.5Zm-2.3.1c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1Zm13.4 0c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1ZM15.1 4.3l.9-1.6a.3.3 0 0 0-.5-.3l-.9 1.6a5.6 5.6 0 0 0-5.2 0L8.5 2.4a.3.3 0 0 0-.5.3l.9 1.6A4.6 4.6 0 0 0 6.5 8h11a4.6 4.6 0 0 0-2.4-3.7Z"/></svg>Android APK</a>
+  </div>
+  <p class="note">Free and open source, no account, MIT licensed. Both apps update themselves from the releases page.</p>
+</div>
+
+<div class="wrap">
+  <div class="shot-frame">
+    <a class="shot" href="assets/app-home.png" title="Open the full screenshot">
+      <img src="assets/app-home.png" alt="QuotaVPN for Windows connected to a gaming profile, showing live traffic, session counters and the server and routing rows" width="1322" height="872">
+    </a>
+  </div>
+  <div class="shot-cap">
+    <span><b>Windows app, connected</b> to the Gamerz profile</span>
+    <span>Live traffic and session counters</span>
+    <span>Server, per-app routing and transport on one screen</span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="strip" style="margin-top:26px">
+    <div><b>Signed updates</b><span>The app installs its own updates, verified</span></div>
+    <div><b>English and Arabic</b><span>The whole interface in both languages</span></div>
+    <div><b>Your own server</b><span>Bring a box, one script sets it up</span></div>
+  </div>
+</div>
 
 <div class="wrap">
   <section id="features" class="reveal">
     <h2>What it does</h2>
-    <p class="sub">Your ISP reads the TLS handshake at the start of a connection to decide which quota it counts against. QuotaVPN puts a server name from the package you chose on that handshake.</p>
-    <div class="cards">
-      <div class="card">
-        <h3>Counts against the package you pick</h3>
-        <p>Gamerz and Streamerz profiles each carry their own server list, so a game or a stream rides the package that should pay for it instead of your general quota.</p>
+    <p class="sub" style="margin-top:8px">One engine, two apps, and a routing table that decides which quota a session lands in.</p>
+    <div class="rows" style="margin-top:18px">
+      <div class="row">
+        <div class="k">Quota class</div>
+        <div class="v">
+          <b>Counts against the package you pick</b>
+          <p>Gamerz and Streamerz profiles each carry their own server list, so a game or a stream rides the package that should pay for it instead of your general quota.</p>
+        </div>
       </div>
-      <div class="card">
-        <h3>Three transports, clearly labelled</h3>
-        <p>Standard, WireGuard and Hysteria2. Each one says in plain words what it spends from, because a faster mode that counts differently is a decision, not a detail.</p>
+      <div class="row">
+        <div class="k">Transport</div>
+        <div class="v">
+          <b>Three modes, clearly labelled</b>
+          <p>Standard, WireGuard and Hysteria2. Each one says in plain words what it spends from, because a faster mode that counts differently is a decision, not a detail.</p>
+        </div>
       </div>
-      <div class="card">
-        <h3>Per-app routing</h3>
-        <p>Send the whole device through the tunnel, only the apps you list, or everything except them. The choice is per card and it survives restarts.</p>
+      <div class="row">
+        <div class="k">App routing</div>
+        <div class="v">
+          <b>Whole device, a list, or everything except</b>
+          <p>Send all traffic through the tunnel, only the apps you name, or everything except them. The choice is per card and it survives restarts.</p>
+        </div>
       </div>
-      <div class="card">
-        <h3>It updates itself</h3>
-        <p>One installer per platform, no admin needed on Windows, and the app keeps itself current from the releases page. The APK sideloads once and does the same.</p>
+      <div class="row">
+        <div class="k">Updates</div>
+        <div class="v">
+          <b>The app keeps itself current</b>
+          <p>One installer per platform, no admin needed on Windows, signed updates applied for you. The Android APK sideloads once and updates the same way.</p>
+        </div>
       </div>
     </div>
   </section>
 </div>
 
-<section class="tinted reveal" id="how">
-  <div class="wrap">
+<div class="wrap">
+  <section id="how" class="reveal">
     <h2>How it works</h2>
-    <p class="sub">The same engine on both platforms: sing-box, with wintun on Windows and VpnService on Android. Traffic goes through the tunnel or nowhere.</p>
-    <div class="tblwrap">
-      <table>
-        <thead><tr><th>Mode</th><th>Transport</th><th>Counts from</th></tr></thead>
-        <tbody>
-          <tr><td>Standard</td><td>VLESS on TCP 443 with the class SNI</td><td>Your package (Gamerz / Streamerz)</td></tr>
-          <tr><td>WireGuard</td><td>Raw UDP, no TLS handshake</td><td>General quota</td></tr>
-          <tr><td>Hysteria2</td><td>UDP 443 with the same SNI</td><td>General quota (ISPs read SNI off TCP only)</td></tr>
-        </tbody>
-      </table>
+    <p class="sub" style="margin-top:8px">Pick a mode to see what a session counts against. The engine is sing-box on both platforms: wintun on Windows, VpnService on Android.</p>
+    <div class="modes">
+      <div class="seg" role="group" aria-label="Transport mode">
+        <button type="button" aria-pressed="true" data-mode="standard">Standard</button>
+        <button type="button" aria-pressed="false" data-mode="wg">WireGuard</button>
+        <button type="button" aria-pressed="false" data-mode="hy2">Hysteria2</button>
+      </div>
+      <div class="panel-soft mode-panel">
+        <div class="row mode on" data-mode="standard">
+          <div class="k">Transport</div>
+          <div class="v"><b>VLESS on TCP 443 with the class SNI</b><p>A TLS handshake that carries a server name from your package's own whitelist, so the ISP files the session under that package.</p></div>
+        </div>
+        <div class="row mode on" data-mode="standard">
+          <div class="k">Counts from</div>
+          <div class="v"><b>Your package</b><p>Gamerz or Streamerz, whichever card you are on.</p></div>
+        </div>
+        <div class="row mode" data-mode="wg">
+          <div class="k">Transport</div>
+          <div class="v"><b>Raw UDP, no TLS handshake</b><p>Nothing for the ISP to read at the start of the connection, which is why it is the raw-speed option.</p></div>
+        </div>
+        <div class="row mode" data-mode="wg">
+          <div class="k">Counts from</div>
+          <div class="v"><b>General quota</b><p>Port 51820, with a port 53 fallback for lines that filter it.</p></div>
+        </div>
+        <div class="row mode" data-mode="hy2">
+          <div class="k">Transport</div>
+          <div class="v"><b>UDP 443 with the same SNI</b><p>QUIC-style and fast, with the same server name as Standard.</p></div>
+        </div>
+        <div class="row mode" data-mode="hy2">
+          <div class="k">Counts from</div>
+          <div class="v"><b>General quota</b><p>ISPs read SNI off TCP only, so a UDP session is counted as general traffic.</p></div>
+        </div>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
+</div>
 
 <div class="wrap">
   <section class="reveal">
     <h2>Every profile carries its own servers</h2>
-    <p class="sub">A card is a profile: a name, a domain to ride, the transport, and a server list you can extend with your own address at any time.</p>
-    <div class="gallery">
+    <p class="sub" style="margin-top:8px">A card is a profile: a name, a domain to ride, the transport, and a server list you can extend with your own address at any time.</p>
+    <div class="gallery" style="margin-top:18px">
       <figure>
-        <div class="window"><img src="assets/app-speed.png" alt="QuotaVPN speed screen with ping, download and upload" width="1343" height="884"></div>
+        <div class="pshot"><img src="assets/app-speed.png" alt="QuotaVPN speed screen with ping, download and upload against your own server" width="1322" height="872"></div>
         <figcaption>Ping, download and upload against your own server, with history.</figcaption>
       </figure>
       <figure>
-        <div class="window"><img src="assets/app-valorant.png" alt="QuotaVPN profile tiles with the Valorant profile selected" width="1343" height="884"></div>
-        <figcaption>Profile tiles pick the quota class. The session counters run while you are on.</figcaption>
+        <div class="pshot"><img src="assets/app-valorant.png" alt="QuotaVPN profile tiles with the Valorant profile selected" width="1322" height="872"></div>
+        <figcaption>Profile tiles pick the quota class. Session counters run while you are on.</figcaption>
       </figure>
     </div>
   </section>
+</div>
 
+<div class="wrap">
   <section id="faq" class="reveal">
     <h2>Questions</h2>
-    <details open>
-      <summary>What does QuotaVPN actually change?</summary>
-      <p>Your ISP decides which quota a connection counts against from the TLS handshake at its start. QuotaVPN gives each connection a server name from the package you picked, so the session lands in that bucket instead of your general quota.</p>
-    </details>
-    <details>
-      <summary>Does it work with any ISP?</summary>
-      <p>It is built for ISPs that sell your line in quota buckets, where gaming, streaming and general traffic are counted separately. On a normal line it still works as a plain VPN.</p>
-    </details>
-    <details>
-      <summary>Do I need an account?</summary>
-      <p>No. There is no sign up and no account. You add the server address and the profile your server gives you, and the app connects.</p>
-    </details>
-    <details>
-      <summary>Is the Android build a real app or a wrapper?</summary>
-      <p>It is a native VpnService app with the same Rust core as the Windows build, including per-app routing, a Quick Settings tile and Always-on VPN support.</p>
-    </details>
-  </section>
-
-  <section class="reveal">
-    <div class="band">
-      <div>
-        <h2>Get the build</h2>
-        <p>Free and open source, MIT licensed. The Windows installer and the signed APK live on the releases page.</p>
-      </div>
-      <span class="sp"></span>
-      <a class="btn primary" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest">Open releases</a>
+    <div style="margin-top:16px">
+      <details open>
+        <summary>What does QuotaVPN actually change?</summary>
+        <p>Your ISP decides which quota a connection counts against from the TLS handshake at its start. QuotaVPN gives each connection a server name from the package you picked, so the session lands in that bucket instead of your general quota.</p>
+      </details>
+      <details>
+        <summary>Does it work with any ISP?</summary>
+        <p>It is built for ISPs that sell your line in quota buckets, where gaming, streaming and general traffic are counted separately. On a normal line it still works as a plain VPN.</p>
+      </details>
+      <details>
+        <summary>Do I need an account?</summary>
+        <p>No. There is no sign up and no account. You add the server address and the profile your server gives you, and the app connects.</p>
+      </details>
+      <details>
+        <summary>Is the Android build a real app or a wrapper?</summary>
+        <p>It is a native VpnService app with the same Rust core as the Windows build, including per-app routing, a Quick Settings tile and Always-on VPN support.</p>
+      </details>
     </div>
   </section>
+</div>
 
+<div class="wrap">
+  <section class="reveal" id="download">
+    <h2>Get the build</h2>
+    <div class="panel-soft" style="margin-top:16px">
+      <div class="row">
+        <div class="k">Windows 10/11</div>
+        <div class="v"><b>QuotaVPN &lt;version&gt; x64 installer</b><p>Installs per user, no admin needed. After that the app updates itself: Settings, Updates, or the tray.</p></div>
+      </div>
+      <div class="row">
+        <div class="k">Android</div>
+        <div class="v"><b>Signed APK, same releases page</b><p>Sideload it once, then it keeps itself current from there. Quick Settings tile and Always-on VPN included.</p></div>
+      </div>
+      <div class="dl-actions">
+        <a class="btn primary" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.2 4.5v7.1H3V5.5Zm0 13 7.2 1v-7H3v6Zm8.4 1.2L21 21V12.6h-9.6v7.1ZM11.4 4.3 21 3v8.6h-9.6V4.3Z"/></svg>Windows installer</a>
+        <a class="btn ghost" href="https://github.com/YousefMohiey/QuotaVPN/releases/latest"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.6 9.2h8.8c.3 0 .5.2.5.5v6.5c0 .8-.6 1.4-1.4 1.4h-.4v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-2.1v2.2a1.1 1.1 0 0 1-2.2 0v-2.2h-.4c-.8 0-1.4-.6-1.4-1.4v-6.5c0-.3.2-.5.5-.5Zm-2.3.1c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1Zm13.4 0c.6 0 1.1.5 1.1 1.1v4.2a1.1 1.1 0 0 1-2.2 0V10.4c0-.6.5-1.1 1.1-1.1ZM15.1 4.3l.9-1.6a.3.3 0 0 0-.5-.3l-.9 1.6a5.6 5.6 0 0 0-5.2 0L8.5 2.4a.3.3 0 0 0-.5.3l.9 1.6A4.6 4.6 0 0 0 6.5 8h11a4.6 4.6 0 0 0-2.4-3.7Z"/></svg>Android APK</a>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
   <footer>
     <span>QuotaVPN</span>
     <span class="sp"></span>
     <a href="https://github.com/YousefMohiey/QuotaVPN">Source on GitHub</a>
     <a href="https://github.com/YousefMohiey/QuotaVPN/releases">Releases</a>
-    <span>MIT licensed</span>
+    <a href="https://github.com/YousefMohiey/QuotaVPN/blob/master/LICENSE">MIT licensed</a>
   </footer>
 </div>
+
 <script>
 (function(){
   var el = document.getElementById('ver'); if(!el) return;
@@ -387,6 +480,17 @@
   }catch(e){}
 })();
 (function(){
+  var buttons = document.querySelectorAll('.seg button');
+  var panels = document.querySelectorAll('.mode');
+  function pick(mode){
+    for(var i=0;i<buttons.length;i++){ buttons[i].setAttribute('aria-pressed', String(buttons[i].dataset.mode === mode)); }
+    for(var j=0;j<panels.length;j++){ panels[j].classList.toggle('on', panels[j].dataset.mode === mode); }
+  }
+  for(var i=0;i<buttons.length;i++){
+    buttons[i].addEventListener('click', function(){ pick(this.dataset.mode); });
+  }
+})();
+(function(){
   var els = document.querySelectorAll('.reveal');
   if(!els.length) return;
   var reduce = false;
@@ -397,7 +501,7 @@
   }
   var io = new IntersectionObserver(function(list){
     list.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
-  }, {rootMargin:'0px 0px -8% 0px', threshold:0.08});
+  }, {rootMargin:'0px 0px -8% 0px', threshold:0.06});
   for(var i=0;i<els.length;i++) io.observe(els[i]);
 })();
 </script>
